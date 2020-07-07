@@ -1,0 +1,15 @@
+docs/cpp_intern/
+docs/doxyoutput_intern/
+
+*.cmake
+*.vcxproj
+*.filters
+*.sln
+
+CmakeBuild/
+CMakeFiles/
+install/
+
+CMakeCache.txt
+
+.vs
