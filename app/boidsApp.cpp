@@ -35,7 +35,6 @@ int main(int, char**)
         return -1;
     }
 
-    std::cout<<"1"<<std::endl;
     // GL 3.0 + GLSL 130
     const char* glsl_version = "#version 130";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
@@ -62,7 +61,6 @@ int main(int, char**)
         fprintf(stderr, "Failed to initialize OpenGL loader!\n");
         return 1;
     }
-    std::cout<<"2"<<std::endl;
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -98,7 +96,6 @@ int main(int, char**)
     bool show_demo_window = true;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-    std::cout<<"3"<<std::endl;
 
     // Main loop
     bool done = false;
@@ -118,14 +115,11 @@ int main(int, char**)
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(window))
                 done = true;
         }
-   // std::cout<<"4"<<std::endl;
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(window);
         ImGui::NewFrame();
-   // std::cout<<"5"<<std::endl;
-
 
         // 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
         {
@@ -150,8 +144,6 @@ int main(int, char**)
             ImGui::End();
         }
 
-  //  std::cout<<"6"<<std::endl;
-
         // 3. Show another simple window.
         if (show_another_window)
         {
@@ -162,22 +154,16 @@ int main(int, char**)
             ImGui::End();
         }
 
-  //  std::cout<<"7"<<std::endl;
 
         // Rendering
         ImGui::Render();
-  //  std::cout<<"8"<<std::endl;
 
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
-  //  std::cout<<"9"<<std::endl;
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SDL_GL_SwapWindow(window);
-
- //   std::cout<<"10"<<std::endl;
-
     }
 
     // Cleanup

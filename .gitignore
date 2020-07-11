@@ -12,4 +12,7 @@ install/
 
 CMakeCache.txt
 
+.vscode/
 .vs
+
+imgui.ini
