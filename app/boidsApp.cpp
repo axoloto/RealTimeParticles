@@ -1,13 +1,3 @@
-/*
-#include <iostream> 
-
-int main(int argc, char *argv[])
-{
-    std::cout<< "test" <<std::endl;
-    return 0;
-}
-*/
-
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl.h"
@@ -15,12 +5,7 @@ int main(int argc, char *argv[])
 #include <stdio.h>
 #include <SDL.h>
 
-// About Desktop OpenGL function loaders:
-//  Modern desktop OpenGL doesn't have a standard portable header file to load OpenGL function pointers.
-//  Helper libraries are often used for this purpose! Here we are supporting a few common ones (gl3w, glew, glad).
-//  You may use another loader/header of your choice (glext, glLoadGen, etc.), or chose to manually implement your own.
-
-#include <glad/glad.h>          // Initialize with gladLoadGL()
+#include <glad/glad.h>
 #include <iostream>
 
 // Main code
