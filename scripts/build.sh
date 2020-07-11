@@ -8,6 +8,7 @@ info+=" - build type = $DEV_BUILD_TYPE\n"
 info+=" - root folder = $DEV_DIR\n"
 info+=" - install folder = $DEV_INSTALL_DIR\n"
 info+=" - build folder = $DEV_BUILD_DIR\n"
+info+=" - third_parties folder = $TP_DIR\n"
 printf "%b" "$info\n"
 
 if [[ "$CLEAN" -eq "1" ]]; then

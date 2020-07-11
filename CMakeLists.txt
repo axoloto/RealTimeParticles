@@ -10,9 +10,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-include_directories("app")
-include_directories("core")
-include_directories("third_parties")
+find_package(OpenGL REQUIRED)
 
-add_subdirectory("app")
+include_directories("third_parties")
+include_directories("core")
+include_directories("app")
+
+add_subdirectory("third_parties")
 add_subdirectory("core")
+add_subdirectory("app")
