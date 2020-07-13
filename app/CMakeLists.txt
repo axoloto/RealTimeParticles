@@ -19,4 +19,4 @@ install(TARGETS boidsApp RUNTIME DESTINATION bin)
 
 # SDL2 dynamic lib is also needed for some reasons WIP
 add_custom_command(TARGET boidsApp POST_BUILD COMMAND
-    ${CMAKE_COMMAND} -E copy $ENV{TP_DIR}/SDL2/lib/SDL2.dll ${CMAKE_SOURCE_DIR}/install/bin/SDL2.dll)
+    ${CMAKE_COMMAND} -E copy $ENV{TP_DIR}/SDL2/libx64/SDL2.dll ${CMAKE_SOURCE_DIR}/install/bin/SDL2.dll)

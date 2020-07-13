@@ -20,7 +20,8 @@ cd "$DEV_BUILD_DIR"
 
 cmake "$DEV_DIR" \
       -DCMAKE_INSTALL_PREFIX="$DEV_INSTALL_DIR" \
-      -DCMAKE_BUILD_TYPE=$DEV_BUILD_TYPE
+      -DCMAKE_BUILD_TYPE=$DEV_BUILD_TYPE \
+      -DCMAKE_GENERATOR_PLATFORM=x64
 
 cmake --build "$DEV_BUILD_DIR" --config "$DEV_BUILD_TYPE" --target "install"
 
