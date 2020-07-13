@@ -36,7 +36,6 @@ bool initOGL()
     SDL_GL_SetSwapInterval(1); // Enable vsync
 
     // Initialize OpenGL loader
-
     bool err = gladLoadGL() == 0;
 
     if (err)

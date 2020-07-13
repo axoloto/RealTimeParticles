@@ -12,8 +12,7 @@ target_include_directories(boidsApp PRIVATE ${OPENGL_INCLUDE_DIRS}
                                             "$ENV{TP_DIR}/SDL2/include"
                                             "$ENV{TP_DIR}/imgui")
 
-target_link_libraries(boidsApp boidsCore imgui glad ${OPENGL_LIBRARIES} ${SDL} ${SDLmain})
-#target_link_libraries(boidsApp boidsCore imgui glad ${OPENGL_LIBRARIES})
+target_link_libraries(boidsApp boidsCore boidsRender imgui glad ${OPENGL_LIBRARIES} ${SDL} ${SDLmain})
 
 install(TARGETS boidsApp RUNTIME DESTINATION bin)
 

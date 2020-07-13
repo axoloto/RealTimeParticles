@@ -1,6 +1,5 @@
 
-#ifndef BOIDS_GENERATOR_HPP
-#define BOIDS_GENERATOR_HPP
+#pragma once 
 
 namespace Core {
     class BoidsGenerator {
@@ -11,6 +10,4 @@ namespace Core {
             size_t m_id;
     };
 }
-
-#endif
 
