@@ -2,9 +2,11 @@
 
 #include <glad/glad.h>
 #include "OGLShader.hpp"
+#include "Camera.hpp"
 #include <array>
 #include <vector>
 #include <memory>
+
 
 namespace Render {
     class OGLRender {
@@ -15,6 +17,8 @@ namespace Render {
             void draw();
 
         private:
+            void checkMouseEvents();
+
             void buildShaders();
             void createPointCloudVBO();
             void createBoxVBO();
@@ -22,6 +26,7 @@ namespace Render {
             void updatePointCloud();
             void drawPointCloud();
             void drawBox();
+            void initCamera();
 
             const GLuint m_pointCloudAttribIndex { 0 }, m_boxAttribIndex { 1 };
             GLuint m_pointCloudVBO, m_boxVBO, m_VAO;
@@ -35,5 +40,9 @@ namespace Render {
             };
 
             std::vector<Vertex> m_pointCloudVertices;
+
+            std::unique_ptr<Camera> m_camera;
+
+            Math::float2 m_mousePrevPos;
     };
 }

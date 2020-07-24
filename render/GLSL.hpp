@@ -14,6 +14,7 @@ namespace Render {
     {
         vertexColor = vec4(1.0, 1.0, 1.0, 1.0);
         gl_Position = u_projView * vec4(aPos, 1.0);
+        //gl_Position = vec4(aPos, 1.0);
         gl_PointSize = 10.0;
     }
     )";
