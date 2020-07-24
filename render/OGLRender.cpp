@@ -75,6 +75,7 @@ void OGLRender::drawPointCloud()
     Math::float4x4 projViewMat = Math::float4x4::Identity();
     m_pointCloudShader->activate();
     m_pointCloudShader->setUniform("u_projView", projViewMat);
+    //m_pointCloudShader->setUniform("u_test", test);
 
     glBindVertexArray(m_VAO);
     glEnableVertexAttribArray(m_pointCloudAttribIndex);
