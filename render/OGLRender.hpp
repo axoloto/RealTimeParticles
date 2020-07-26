@@ -9,15 +9,18 @@
 
 
 namespace Render {
+
+    enum class UserAction { TRANSLATION, ROTATION, ZOOM };
+
     class OGLRender {
         public:
             OGLRender();
             ~OGLRender();
 
+            void checkMouseEvents(UserAction action, Math::int2 mouseDisplacement);
             void draw();
 
         private:
-            void checkMouseEvents();
 
             void buildShaders();
             void createPointCloudVBO();
@@ -45,7 +48,5 @@ namespace Render {
             int m_halfboxSize;
 
             std::unique_ptr<Camera> m_camera;
-
-            Math::float2 m_mousePrevPos;
     };
 }

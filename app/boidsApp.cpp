@@ -68,7 +68,7 @@ bool BoidsApp::closeOGL()
     return true;
 }
 
-BoidsApp::BoidsApp()
+BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.85f, 0.55f, 0.60f, 1.00f)
 {
     initOGL();
 
@@ -82,8 +82,6 @@ BoidsApp::BoidsApp()
     // Load Fonts
    // ImFont* font = io.Fonts->AddFontFromFileTTF("assets/verdana.ttf", 18.0f, NULL, NULL);
    //IM_ASSERT(font != NULL);
-
-    m_backGroundColor = ImVec4(0.85f, 0.55f, 0.60f, 1.00f);
 }
 
 void BoidsApp::run()
@@ -120,8 +118,25 @@ void BoidsApp::run()
                 else if(event.button.button == SDL_BUTTON_RIGHT)
                     m_buttonRightActivated = false;
             case SDL_MOUSEMOTION :
-                if(m_buttonLeftActivated)
-                {}
+                if(m_buttonLeftActivated || m_buttonRightActivated)
+                {
+                    int x, y;
+                    SDL_GetMouseState(&x, &y);
+                    Math::int2 currentMousePos(x,y);
+
+                    Math::int2 delta;
+                    delta = m_mousePrevPos - currentMousePos;
+
+                    const auto action = m_buttonLeftActivated ? Render::UserAction::TRANSLATION : Render::UserAction::ROTATION;
+                    m_OGLRender->checkMouseEvents(action, delta);
+
+                    m_mousePrevPos = currentMousePos;
+                }
+            case SDL_MOUSEWHEEL :
+                {
+                    int delta = (event.wheel.y > 0) ? 10 : -10;
+                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::int2(delta, 0));
+                }
             }
         }
 

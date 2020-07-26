@@ -5,7 +5,7 @@
 
 using namespace Render;
 
-OGLRender::OGLRender() : m_mousePrevPos({0.0, 0.0}), m_halfboxSize(30)
+OGLRender::OGLRender() : m_halfboxSize(30)
 {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_PROGRAM_POINT_SIZE);
@@ -99,8 +99,6 @@ void OGLRender::draw()
 
 void OGLRender::drawPointCloud()
 {
-    checkMouseEvents();
-
     updatePointCloud();
 
     m_pointCloudShader->activate();
@@ -143,54 +141,25 @@ void OGLRender::drawBox()
     m_boxShader->deactivate();
 }
 
-void OGLRender::checkMouseEvents()
+void OGLRender::checkMouseEvents(UserAction action, Math::int2 delta)
 {
-    ImGui::Begin("Navigation Pad");
+    Math::float2 fDelta((float) delta.x, (float) delta.y);
 
-    ImGui::Text("Touch me if you want to move around");
-
-    if (!(ImGui::IsWindowHovered() && ImGui::IsWindowFocused())) 
+    switch(action)
     {
-        ImGui::End();
-        return;
-    }
-
-    // Zoom
-    auto& io = ImGui::GetIO();
-    if (io.MouseWheel != 0)
-    {
-        m_camera.get()->zoom(io.MouseWheel);
-    }
-
-    // Rotation
-    if (ImGui::IsMouseDown(ImGuiMouseButton_Left) ) 
-    {
-        Math::float2 mousePos = Math::float2(ImGui::GetMousePos().x, ImGui::GetMousePos().y);
-
-        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        case UserAction::TRANSLATION :
         {
-            const auto delta = mousePos - m_mousePrevPos;
-            const auto angle = delta * Math::PI_F / 180.0f * 0.5;
-            m_camera.get()->rotate(-angle.y, angle.x);
-        }
-
-        m_mousePrevPos = mousePos;
-    }
-
-    // Translation
-    if (ImGui::IsMouseDown(ImGuiMouseButton_Middle) ) 
-    {
-        Math::float2 mousePos = Math::float2(ImGui::GetMousePos().x, ImGui::GetMousePos().y);
-
-        if (ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
-        {
-            const auto delta = mousePos - m_mousePrevPos;
-            const auto displacement = -0.2f * delta;
+            const auto displacement = -0.2f * fDelta;
             m_camera.get()->translate(displacement.x, displacement.y);
         }
-
-        m_mousePrevPos = mousePos;
+        case UserAction::ROTATION :
+        {
+            const auto angle = fDelta * Math::PI_F / 180.0f * 0.5;
+            m_camera.get()->rotate(-angle.y, angle.x);
+        }
+        case UserAction::ZOOM :
+        {
+            m_camera.get()->zoom(fDelta.x);
+        }
     }
-
-    ImGui::End();
 }
