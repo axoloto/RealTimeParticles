@@ -5,7 +5,7 @@
 
 using namespace Render;
 
-OGLRender::OGLRender() : m_mousePrevPos({0.0, 0.0})
+OGLRender::OGLRender() : m_mousePrevPos({0.0, 0.0}), m_halfboxSize(30)
 {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_PROGRAM_POINT_SIZE);
@@ -54,6 +54,23 @@ void OGLRender::createPointCloudVBO()
 void OGLRender::createBoxVBO()
 {
     glGenBuffers(1, &m_boxVBO);
+
+    int index = 0;
+    for(int i = 0; i < 2; ++i)
+    {
+        int x = (2 * i - 1) * m_halfboxSize;
+        for(int j = 0; j < 2; ++j)
+        {
+            int y = (2 * j - 1) * m_halfboxSize;
+            for(int k = 0; k < 2; ++k)
+            {
+                int z = (2 * k - 1) * m_halfboxSize;
+                m_boxVertices[index++].xyz = {(float) x, (float) y, (float) z};
+            }
+        }
+    }
+    glBindBuffer(GL_ARRAY_BUFFER, m_boxVBO);
+    glBufferData(GL_ARRAY_BUFFER, 8, &m_boxVertices[0], GL_STATIC_DRAW);
 }
 
 void OGLRender::connectVBOsToVAO()
@@ -89,14 +106,12 @@ void OGLRender::drawPointCloud()
     m_pointCloudShader->activate();
 
     Math::float4x4 projViewMat = m_camera->getProjViewMat();
-    //Math::float4x4 projViewMat = Math::float4x4::Identity();
     m_pointCloudShader->setUniform("u_projView", projViewMat);
-    //m_pointCloudShader->setUniform("u_test", test);
 
     glBindVertexArray(m_VAO);
     glEnableVertexAttribArray(m_pointCloudAttribIndex);
 
-    glDrawArrays(GL_POINTS, 0, m_pointCloudVertices.size());
+    glDrawArrays(GL_POINTS, 0, (GLsizei) m_pointCloudVertices.size());
 
     glDisableVertexAttribArray(m_VAO);
 
@@ -105,7 +120,7 @@ void OGLRender::drawPointCloud()
 
 void OGLRender::updatePointCloud()
 {
-    int pointCloudSize = sizeof(m_pointCloudVertices[0]) * m_pointCloudVertices.size();
+    size_t pointCloudSize = sizeof(m_pointCloudVertices[0]) * m_pointCloudVertices.size();
 
     glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudVBO);
     glBufferData(GL_ARRAY_BUFFER, pointCloudSize, &m_pointCloudVertices[0], GL_STREAM_DRAW);
@@ -115,9 +130,18 @@ void OGLRender::drawBox()
 {
     m_boxShader->activate();
 
+    Math::float4x4 projViewMat = m_camera->getProjViewMat();
+    m_boxShader->setUniform("u_projView", projViewMat);
+
+    glBindVertexArray(m_VAO);
+    glEnableVertexAttribArray(m_boxAttribIndex);
+
+    glDrawArrays(GL_POINTS, 0, 8);
+
+    glDisableVertexAttribArray(m_VAO);
+
     m_boxShader->deactivate();
 }
-
 
 void OGLRender::checkMouseEvents()
 {

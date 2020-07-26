@@ -41,6 +41,9 @@ namespace Render {
 
             std::vector<Vertex> m_pointCloudVertices;
 
+            std::array<Vertex, 8> m_boxVertices;
+            int m_halfboxSize;
+
             std::unique_ptr<Camera> m_camera;
 
             Math::float2 m_mousePrevPos;

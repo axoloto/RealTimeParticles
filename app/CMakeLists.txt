@@ -1,7 +1,7 @@
 
 project(boidsApp)
 
-file(GLOB SRC "BoidsApp.cpp")
+file(GLOB SRC "BoidsApp.cpp" "BoidsApp.hpp")
 add_executable(boidsApp ${SRC})
 set_target_properties(boidsApp PROPERTIES FOLDER app)
 
