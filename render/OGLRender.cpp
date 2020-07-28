@@ -21,9 +21,10 @@ OGLRender::OGLRender() : m_halfboxSize(30)
 
     Vertex vert1, vert2;
     vert1.xyz = { 0.1f, 0.4f, 0.2f};
+    vert1.rgb = { 0.1f, 0.4f, 0.2f};
     //vert1.xyz = { 100.f, 50.f, 4.f};
     vert2.xyz = { 0.2f, 0.1f, 0.1f};
-    //vert2.xyz = { 0.2f, 20.f, 6.f};
+    vert2.rgb = { 0.9f, 0.4f, 0.2f};
 
     m_pointCloudVertices.push_back(vert1);
     m_pointCloudVertices.push_back(vert2);
@@ -65,7 +66,8 @@ void OGLRender::createBoxVBO()
             for(int k = 0; k < 2; ++k)
             {
                 int z = (2 * k - 1) * m_halfboxSize;
-                m_boxVertices[index++].xyz = {(float) x, (float) y, (float) z};
+                m_boxVertices[index].xyz = {(float) x, (float) y, (float) z};
+                m_boxVertices[index++].rgb = {1.0/255.0f, 1.0/255.0f, 1.0/255.0f};
             }
         }
     }
@@ -78,14 +80,19 @@ void OGLRender::connectVBOsToVAO()
     glGenVertexArrays(1, &m_VAO);
     glBindVertexArray(m_VAO);
 
-    glEnableVertexAttribArray(m_pointCloudAttribIndex);
+    glEnableVertexAttribArray(m_pointCloudPosAttribIndex);
+    glEnableVertexAttribArray(m_pointCloudColAttribIndex);
     glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudVBO);
-    glVertexAttribPointer(m_pointCloudAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), NULL);
+    glVertexAttribPointer(m_pointCloudPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), NULL);
+    glVertexAttribPointer(m_pointCloudColAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    glEnableVertexAttribArray(m_boxAttribIndex);
+    glEnableVertexAttribArray(m_boxPosAttribIndex);
+    glEnableVertexAttribArray(m_boxColAttribIndex);
     glBindBuffer(GL_ARRAY_BUFFER, m_boxVBO);
-    glVertexAttribPointer(m_boxAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), NULL);
+    glVertexAttribPointer(m_boxPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), NULL);
+    glVertexAttribPointer(m_boxColAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     
     glDisableVertexAttribArray(m_VAO);
@@ -107,7 +114,8 @@ void OGLRender::drawPointCloud()
     m_pointCloudShader->setUniform("u_projView", projViewMat);
 
     glBindVertexArray(m_VAO);
-    glEnableVertexAttribArray(m_pointCloudAttribIndex);
+    glEnableVertexAttribArray(m_pointCloudPosAttribIndex);
+    glEnableVertexAttribArray(m_pointCloudColAttribIndex);
 
     glDrawArrays(GL_POINTS, 0, (GLsizei) m_pointCloudVertices.size());
 
@@ -132,7 +140,8 @@ void OGLRender::drawBox()
     m_boxShader->setUniform("u_projView", projViewMat);
 
     glBindVertexArray(m_VAO);
-    glEnableVertexAttribArray(m_boxAttribIndex);
+    glEnableVertexAttribArray(m_boxPosAttribIndex);
+    glEnableVertexAttribArray(m_boxColAttribIndex);
 
     glDrawArrays(GL_POINTS, 0, 8);
 
@@ -149,17 +158,20 @@ void OGLRender::checkMouseEvents(UserAction action, Math::int2 delta)
     {
         case UserAction::TRANSLATION :
         {
-            const auto displacement = -0.2f * fDelta;
-            m_camera.get()->translate(displacement.x, displacement.y);
+            const auto displacement = 0.2f * fDelta;
+            m_camera.get()->translate(-displacement.x, displacement.y);
+            break;
         }
         case UserAction::ROTATION :
         {
             const auto angle = fDelta * Math::PI_F / 180.0f * 0.5;
-            m_camera.get()->rotate(-angle.y, angle.x);
+            m_camera.get()->rotate(angle.x, angle.y);
+            break;
         }
         case UserAction::ZOOM :
         {
             m_camera.get()->zoom(fDelta.x);
+            break;
         }
     }
 }

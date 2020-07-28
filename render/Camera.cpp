@@ -22,7 +22,7 @@ void Camera::rotate(float angleX, float angleY)
     rot = matWorldToCam * rot * matWorldToCam.Transpose();
 
     vecTargetCamera = vecTargetCamera * rot;
-    m_cameraPos = vecTargetCamera + m_targetPos;
+    m_cameraPos = m_targetPos + vecTargetCamera;
 
     updateProjViewMat();
 }

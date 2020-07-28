@@ -68,7 +68,68 @@ bool BoidsApp::closeOGL()
     return true;
 }
 
-BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.85f, 0.55f, 0.60f, 1.00f)
+void BoidsApp::checkMouseState()
+{
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+    if(io.WantCaptureMouse) return;
+
+    Math::int2 currentMousePos;
+    auto mouseState = SDL_GetMouseState(&currentMousePos.x, &currentMousePos.y);
+    Math::int2 delta = m_mousePrevPos - currentMousePos;
+
+    if(mouseState & SDL_BUTTON(1))
+    {
+        m_OGLRender->checkMouseEvents(Render::UserAction::ROTATION, delta);
+        m_mousePrevPos = currentMousePos;
+    }
+    else if(mouseState & SDL_BUTTON(2))
+    {
+
+    }
+    else if(mouseState & SDL_BUTTON(3))
+    {
+        m_OGLRender->checkMouseEvents(Render::UserAction::TRANSLATION, delta);
+        m_mousePrevPos = currentMousePos;
+    }
+}
+
+bool BoidsApp::checkSDLStatus()
+{
+    bool stopRendering = false;
+
+    SDL_Event event;
+    while (SDL_PollEvent(&event))
+    {
+        ImGui_ImplSDL2_ProcessEvent(&event);
+        switch(event.type)
+        { 
+            case SDL_QUIT :
+                stopRendering = true;
+                break;
+            case SDL_WINDOWEVENT :
+                if(event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(m_window))
+                {
+                    stopRendering = true;
+                    break;
+                }
+            case SDL_MOUSEWHEEL :
+                if(event.wheel.x > 0) 
+                {
+                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::int2(10, 0));
+                }
+                else if(event.wheel.x < 0) 
+                {
+                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::int2(-10, 0));
+                }
+                break;
+        }
+    }
+
+    return stopRendering;
+}
+
+BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.85f, 0.55f, 0.60f, 1.00f), m_buttonRightActivated(false), m_buttonLeftActivated(false)
 {
     initOGL();
 
@@ -91,56 +152,10 @@ void BoidsApp::run()
     bool stopRendering = false;
     while (!stopRendering)
     {
-        // Poll and handle events (inputs, window resize, etc.)
-        // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-        // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application.
-        // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application.
-        // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-        SDL_Event event;
-        while (SDL_PollEvent(&event))
-        {
-            ImGui_ImplSDL2_ProcessEvent(&event);
-            switch(event.type)
-            { 
-            case SDL_QUIT :
-                stopRendering = true;
-            case SDL_WINDOWEVENT :
-                if(event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(m_window))
-                    stopRendering = true;
-            case SDL_MOUSEBUTTONDOWN :
-                if(event.button.button == SDL_BUTTON_LEFT)
-                    m_buttonLeftActivated = true;
-                else if(event.button.button == SDL_BUTTON_RIGHT)
-                    m_buttonRightActivated = true;
-            case SDL_MOUSEBUTTONUP :
-                if(event.button.button == SDL_BUTTON_LEFT)
-                    m_buttonLeftActivated = false;
-                else if(event.button.button == SDL_BUTTON_RIGHT)
-                    m_buttonRightActivated = false;
-            case SDL_MOUSEMOTION :
-                if(m_buttonLeftActivated || m_buttonRightActivated)
-                {
-                    int x, y;
-                    SDL_GetMouseState(&x, &y);
-                    Math::int2 currentMousePos(x,y);
+        stopRendering = checkSDLStatus();
 
-                    Math::int2 delta;
-                    delta = m_mousePrevPos - currentMousePos;
+        checkMouseState();
 
-                    const auto action = m_buttonLeftActivated ? Render::UserAction::TRANSLATION : Render::UserAction::ROTATION;
-                    m_OGLRender->checkMouseEvents(action, delta);
-
-                    m_mousePrevPos = currentMousePos;
-                }
-            case SDL_MOUSEWHEEL :
-                {
-                    int delta = (event.wheel.y > 0) ? 10 : -10;
-                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::int2(delta, 0));
-                }
-            }
-        }
-
-        // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame(m_window);
         ImGui::NewFrame();

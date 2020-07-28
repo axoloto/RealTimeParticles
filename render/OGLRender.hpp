@@ -31,7 +31,7 @@ namespace Render {
             void drawBox();
             void initCamera();
 
-            const GLuint m_pointCloudAttribIndex { 0 }, m_boxAttribIndex { 1 };
+            const GLuint m_pointCloudPosAttribIndex { 0 }, m_pointCloudColAttribIndex { 1 }, m_boxPosAttribIndex { 2 }, m_boxColAttribIndex { 3 };
             GLuint m_pointCloudVBO, m_boxVBO, m_VAO;
 
             std::unique_ptr<OGLShader> m_pointCloudShader;
@@ -40,6 +40,7 @@ namespace Render {
             struct Vertex
             {
                 std::array<float, 3> xyz;
+                std::array<float, 3> rgb;
             };
 
             std::vector<Vertex> m_pointCloudVertices;
