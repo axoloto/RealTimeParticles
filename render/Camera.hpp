@@ -12,8 +12,13 @@ namespace Render {
         void translate(float dispX, float dispY);
         void zoom(float delta);
 
+        inline const Math::float3 cameraPos() const { return m_cameraPos; }
+        inline const Math::float3 targetPos() const { return m_targetPos; }
+
         inline Math::float4x4 getProjViewMat() const { return m_projViewMat; }
-        
+
+        inline void reset() { m_cameraPos = {0.0, 0.0, -20.0}; m_targetPos = {0.0, 0.0, 10.0}; updateProjViewMat(); };
+
     private:
         void updateProjViewMat();
 

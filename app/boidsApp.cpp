@@ -77,19 +77,16 @@ void BoidsApp::checkMouseState()
     Math::int2 currentMousePos;
     auto mouseState = SDL_GetMouseState(&currentMousePos.x, &currentMousePos.y);
     Math::int2 delta = m_mousePrevPos - currentMousePos;
+    Math::float2 fDelta((float)delta.x, (float)delta.y);
 
     if(mouseState & SDL_BUTTON(1))
     {
-        m_OGLRender->checkMouseEvents(Render::UserAction::ROTATION, delta);
+        m_OGLRender->checkMouseEvents(Render::UserAction::ROTATION, fDelta);
         m_mousePrevPos = currentMousePos;
-    }
-    else if(mouseState & SDL_BUTTON(2))
-    {
-
     }
     else if(mouseState & SDL_BUTTON(3))
     {
-        m_OGLRender->checkMouseEvents(Render::UserAction::TRANSLATION, delta);
+        m_OGLRender->checkMouseEvents(Render::UserAction::TRANSLATION, fDelta);
         m_mousePrevPos = currentMousePos;
     }
 }
@@ -114,13 +111,13 @@ bool BoidsApp::checkSDLStatus()
                     break;
                 }
             case SDL_MOUSEWHEEL :
-                if(event.wheel.x > 0) 
+                if(event.wheel.y > 0) 
                 {
-                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::int2(10, 0));
+                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-0.1f, 0.f));
                 }
-                else if(event.wheel.x < 0) 
+                else if(event.wheel.y < 0) 
                 {
-                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::int2(-10, 0));
+                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(0.1f, 0.f));
                 }
                 break;
         }
@@ -160,8 +157,25 @@ void BoidsApp::run()
         ImGui_ImplSDL2_NewFrame(m_window);
         ImGui::NewFrame();
 
+        if(!m_OGLRender)
+        {
+            stopRendering = true;
+            return;
+        }
+
+        const auto cameraPos = m_OGLRender->cameraPos();
+        const auto targetPos = m_OGLRender->targetPos();
+
         ImGui::Begin("Boids Simulator");
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::Separator();
+        ImGui::Text(" Camera position : %.1f x, %.1f y, %.1f z", cameraPos.x, cameraPos.y, cameraPos.z);
+        ImGui::Text(" Target position : %.1f x, %.1f y, %.1f z", targetPos.x, targetPos.y, targetPos.z);
+        ImGui::Text(" Distance camera target : %.1f", Math::length(cameraPos - targetPos));
+        if(ImGui::Button(" Reset Camera "))
+        { 
+            m_OGLRender->resetCamera();
+        }
         ImGui::End();
 
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);

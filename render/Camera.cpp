@@ -5,7 +5,7 @@ using namespace Math;
 
 Camera::Camera() : m_fov(60.0f), m_aspectRatio(16/9.0f), m_zNear(0.01f), m_zFar(1000.f)
 {
-    m_cameraPos = {0.0, 0.0, 0.0};
+    m_cameraPos = {0.0, 0.0, -20.0};
     m_targetPos = {0.0, 0.0, 10.0};
 
     m_projMat = float4x4::Projection(m_fov, m_aspectRatio, m_zNear, m_zFar, true);
@@ -42,7 +42,12 @@ void Camera::translate(float dispX, float dispY)
 
 void Camera::zoom(float delta)
 {
+    float zoomRatio = 1.f + delta / 10.f;
+    float3 vecTargetCamera(m_cameraPos - m_targetPos);
 
+    m_cameraPos = m_targetPos + vecTargetCamera * zoomRatio;
+
+    updateProjViewMat();
 }
 
 void Camera::updateProjViewMat()

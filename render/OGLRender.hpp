@@ -17,16 +17,20 @@ namespace Render {
             OGLRender();
             ~OGLRender();
 
-            void checkMouseEvents(UserAction action, Math::int2 mouseDisplacement);
+            void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);
             void draw();
+
+            inline const Math::float3 cameraPos() const { return m_camera->cameraPos();}
+            inline const Math::float3 targetPos() const { return m_camera->targetPos();}
+
+            inline void resetCamera() { m_camera->reset(); }
 
         private:
 
             void buildShaders();
-            void createPointCloudVBO();
-            void createBoxVBO();
             void connectVBOsToVAO();
             void updatePointCloud();
+            void updateBox();
             void drawPointCloud();
             void drawBox();
             void initCamera();
@@ -45,7 +49,8 @@ namespace Render {
 
             std::vector<Vertex> m_pointCloudVertices;
 
-            std::array<Vertex, 8> m_boxVertices;
+            //std::array<Vertex, 8> m_boxVertices;
+            std::vector<Vertex> m_boxVertices;
             int m_halfboxSize;
 
             std::unique_ptr<Camera> m_camera;
