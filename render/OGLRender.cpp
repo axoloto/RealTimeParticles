@@ -71,22 +71,14 @@ void OGLRender::initCamera()
 
 void OGLRender::buildShaders()
 {
-    m_boxShader = std::make_unique<OGLShader>(Render::VertShader, Render::FragShader);
-    m_pointCloudShader = std::make_unique<OGLShader>(Render::VertShader, Render::FragShader);
+    m_pointCloudShader = std::make_unique<OGLShader>(Render::VertPointCloudShader, Render::FragShader);
+    m_boxShader = std::make_unique<OGLShader>(Render::VertBoxShader, Render::FragShader);
 }
 
 void OGLRender::connectVBOsToVAO()
 {
     glGenVertexArrays(1, &m_VAO);
     glBindVertexArray(m_VAO);
-
-    glGenBuffers(1, &m_boxVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_boxVBO);
-    glVertexAttribPointer(m_boxPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), NULL);
-    glEnableVertexAttribArray(m_boxPosAttribIndex);
-    glVertexAttribPointer(m_boxColAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(m_boxColAttribIndex);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     glGenBuffers(1, &m_pointCloudVBO);
     glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudVBO);
@@ -95,11 +87,19 @@ void OGLRender::connectVBOsToVAO()
     glVertexAttribPointer(m_pointCloudColAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(m_pointCloudColAttribIndex);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glGenBuffers(1, &m_boxVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_boxVBO);
+    glVertexAttribPointer(m_boxPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), NULL);
+    glEnableVertexAttribArray(m_boxPosAttribIndex);
+    glVertexAttribPointer(m_boxColAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(m_boxColAttribIndex);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void OGLRender::draw()
 {
-    //drawPointCloud();
+    drawPointCloud();
     drawBox();
 }
 
