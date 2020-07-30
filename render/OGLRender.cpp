@@ -18,7 +18,7 @@ OGLRender::OGLRender() : m_halfboxSize(200)
 
     connectVBOsToVAO();
 
-    generateBoxVBO();
+    generateBox();
     generatePointCloudVBO();
 }
 
@@ -33,28 +33,53 @@ void OGLRender::initCamera()
     m_camera = std::make_unique<Camera>();
 }
 
-void OGLRender::generateBoxVBO()
+void OGLRender::generateBox()
 {
+    // VBO
     int index = 0;
-    for(int i = 0; i < 2; ++i)
+    std::array<Vertex, 8> boxVertices;
+    boxVertices[0].xyz = { 1.f, -1.f, -1.f};
+    boxVertices[1].xyz = { 1.f,  1.f, -1.f};
+    boxVertices[2].xyz = {-1.f,  1.f, -1.f};
+    boxVertices[3].xyz = {-1.f, -1.f, -1.f};
+    boxVertices[4].xyz = { 1.f, -1.f,  1.f};
+    boxVertices[5].xyz = { 1.f,  1.f,  1.f};
+    boxVertices[6].xyz = {-1.f,  1.f,  1.f};
+    boxVertices[7].xyz = {-1.f, -1.f,  1.f};
+
+    for(auto& vertex : boxVertices)
     {
-        int x = (2 * i - 1) * m_halfboxSize;
-        for(int j = 0; j < 2; ++j)
-        {
-            int y = (2 * j - 1) * m_halfboxSize;
-            for(int k = 0; k < 2; ++k)
-            {
-                int z = (2 * k - 1) * m_halfboxSize;
-                m_boxVertices[index].xyz = {(float) x, (float) y, (float) z};
-                m_boxVertices[index++].rgb = {1.f, 1.f, 1.f};
-            }
-        }
+        float x = vertex.xyz[0] * m_halfboxSize;
+        float y = vertex.xyz[1] * m_halfboxSize;
+        float z = vertex.xyz[2] * m_halfboxSize;
+        vertex.xyz = {x, y, z};
+        vertex.rgb = {1.f, 1.f, 1.f};
     }
 
-    size_t boxBufferSize = sizeof(m_boxVertices[0]) * m_boxVertices.size();
-
+    size_t boxBufferSize = sizeof(boxVertices[0]) * boxVertices.size();
     glBindBuffer(GL_ARRAY_BUFFER, m_boxVBO);
-    glBufferData(GL_ARRAY_BUFFER, boxBufferSize, &m_boxVertices[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, boxBufferSize, &boxVertices[0], GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // EBO
+    GLuint boxIndices[] = {
+        0, 1,
+        1, 2,
+        2, 3,
+        3, 0,
+        4, 5,
+        5, 6,
+        6, 7,
+        7, 4,
+        0, 4,
+        1, 5,
+        2, 6,
+        3, 7    
+    };
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boxEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(boxIndices), boxIndices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 void OGLRender::generatePointCloudVBO()
@@ -82,6 +107,7 @@ void OGLRender::generatePointCloudVBO()
 
     glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudVBO);
     glBufferData(GL_ARRAY_BUFFER, pointCloudBufferSize, &m_pointCloudVertices[0], GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void OGLRender::buildShaders()
@@ -110,6 +136,8 @@ void OGLRender::connectVBOsToVAO()
     glVertexAttribPointer(m_boxColAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(m_boxColAttribIndex);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glGenBuffers(1, &m_boxEBO);
 }
 
 void OGLRender::draw()
@@ -125,7 +153,8 @@ void OGLRender::updatePointCloud()
     size_t pointCloudSize = sizeof(m_pointCloudVertices[0]) * m_pointCloudVertices.size();
 
     glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudVBO);
-    glBufferData(GL_ARRAY_BUFFER, pointCloudSize, &m_pointCloudVertices[0], GL_STREAM_DRAW);  
+    glBufferData(GL_ARRAY_BUFFER, pointCloudSize, &m_pointCloudVertices[0], GL_STREAM_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void OGLRender::drawPointCloud()
@@ -149,7 +178,9 @@ void OGLRender::drawBox()
     Math::float4x4 projViewMat = m_camera->getProjViewMat();
     m_boxShader->setUniform("u_projView", projViewMat);
 
-    glDrawArrays(GL_POINTS, 0, (GLsizei) m_boxVertices.size());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boxEBO);
+    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     m_boxShader->deactivate();
 }
