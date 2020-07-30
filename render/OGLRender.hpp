@@ -29,10 +29,14 @@ namespace Render {
 
             void buildShaders();
             void connectVBOsToVAO();
+            void generateBoxVBO();
+            void generatePointCloudVBO();
+
             void updatePointCloud();
-            void updateBox();
             void drawPointCloud();
+
             void drawBox();
+
             void initCamera();
 
             const GLuint m_pointCloudPosAttribIndex { 0 }, m_pointCloudColAttribIndex { 1 }, m_boxPosAttribIndex { 2 }, m_boxColAttribIndex { 3 };
@@ -49,9 +53,8 @@ namespace Render {
 
             std::vector<Vertex> m_pointCloudVertices;
 
-            //std::array<Vertex, 8> m_boxVertices;
-            std::vector<Vertex> m_boxVertices;
             int m_halfboxSize;
+            std::array<Vertex, 8> m_boxVertices;
 
             std::unique_ptr<Camera> m_camera;
     };

@@ -8,6 +8,8 @@ namespace Render {
         Camera();
         ~Camera()=default;
 
+        void reset(); 
+
         void rotate(float angleX, float angleY);
         void translate(float dispX, float dispY);
         void zoom(float delta);
@@ -16,13 +18,11 @@ namespace Render {
         inline const Math::float3 targetPos() const { return m_targetPos; }
 
         inline Math::float4x4 getProjViewMat() const { return m_projViewMat; }
-
-        inline void reset() { m_cameraPos = {0.0, 0.0, -20.0}; m_targetPos = {0.0, 0.0, 10.0}; updateProjViewMat(); };
-
     private:
         void updateProjViewMat();
 
-        Math::float3 m_cameraPos, m_targetPos;
+        Math::float3 m_cameraPos, m_cameraInitPos;
+        Math::float3 m_targetPos, m_targetInitPos;
         Math::float4x4 m_projMat, m_viewMat, m_projViewMat;
 
         float m_fov;

@@ -76,7 +76,7 @@ void BoidsApp::checkMouseState()
 
     Math::int2 currentMousePos;
     auto mouseState = SDL_GetMouseState(&currentMousePos.x, &currentMousePos.y);
-    Math::int2 delta = m_mousePrevPos - currentMousePos;
+    Math::int2 delta = currentMousePos - m_mousePrevPos;
     Math::float2 fDelta((float)delta.x, (float)delta.y);
 
     if(mouseState & SDL_BUTTON(1))
@@ -110,14 +110,23 @@ bool BoidsApp::checkSDLStatus()
                     stopRendering = true;
                     break;
                 }
+            case SDL_MOUSEBUTTONDOWN:
+                {
+                    if (event.button.button == SDL_BUTTON_LEFT || event.button.button == SDL_BUTTON_RIGHT)
+                    {      
+                        Math::int2 currentMousePos;
+                        SDL_GetMouseState(&currentMousePos.x, &currentMousePos.y);
+                        m_mousePrevPos = currentMousePos;
+                    }
+                }
             case SDL_MOUSEWHEEL :
                 if(event.wheel.y > 0) 
                 {
-                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-0.1f, 0.f));
+                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-0.2f, 0.f));
                 }
                 else if(event.wheel.y < 0) 
                 {
-                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(0.1f, 0.f));
+                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(0.2f, 0.f));
                 }
                 break;
         }
@@ -126,7 +135,7 @@ bool BoidsApp::checkSDLStatus()
     return stopRendering;
 }
 
-BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.85f, 0.55f, 0.60f, 1.00f), m_buttonRightActivated(false), m_buttonLeftActivated(false)
+BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f), m_buttonRightActivated(false), m_buttonLeftActivated(false)
 {
     initOGL();
 

@@ -3,12 +3,16 @@
 using namespace Render;
 using namespace Math;
 
-Camera::Camera() : m_fov(60.0f), m_aspectRatio(16/9.0f), m_zNear(0.01f), m_zFar(1000.f)
+Camera::Camera() : m_fov(90.0f), m_aspectRatio(16/9.0f), m_zNear(0.01f), m_zFar(1000.f), m_cameraInitPos({-300.0, -300.0, -300.0}), m_targetInitPos({0.0, 0.0, 0.0})
 {
-    m_cameraPos = {0.0, 0.0, -20.0};
-    m_targetPos = {0.0, 0.0, 10.0};
-
     m_projMat = float4x4::Projection(m_fov, m_aspectRatio, m_zNear, m_zFar, true);
+    reset();
+}
+
+void Camera::reset()
+{
+    m_cameraPos = m_cameraInitPos;
+    m_targetPos = m_targetInitPos;
     updateProjViewMat();
 }
 
