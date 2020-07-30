@@ -3,7 +3,7 @@
 using namespace Render;
 using namespace Math;
 
-Camera::Camera() : m_fov(90.0f), m_aspectRatio(16/9.0f), m_zNear(0.01f), m_zFar(1000.f), m_cameraInitPos({-300.0, -300.0, -300.0}), m_targetInitPos({0.0, 0.0, 0.0})
+Camera::Camera() : m_fov(120.0f), m_aspectRatio(16/9.0f), m_zNear(0.01f), m_zFar(6000.f), m_cameraInitPos({1000.0, 600.0, -800.0}), m_targetInitPos({0.0, 0.0, 0.0})
 {
     m_projMat = float4x4::Projection(m_fov, m_aspectRatio, m_zNear, m_zFar, true);
     reset();
