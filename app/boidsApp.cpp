@@ -52,6 +52,13 @@ bool BoidsApp::initOGL()
     ImGui_ImplSDL2_InitForOpenGL(m_window, m_OGLContext);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    // Load Fonts
+    // ImFont* font = io.Fonts->AddFontFromFileTTF("assets/verdana.ttf", 18.0f, NULL, NULL);
+    //IM_ASSERT(font != NULL);
+
     return true;
 }
 
@@ -135,20 +142,22 @@ bool BoidsApp::checkSDLStatus()
     return stopRendering;
 }
 
-BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f), m_buttonRightActivated(false), m_buttonLeftActivated(false)
+BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f), m_buttonRightActivated(false), m_buttonLeftActivated(false), m_init(false)
 {
     initOGL();
 
-    m_OGLRender = std::make_unique<Render::OGLRender>();
+    int halfBoxSize = 200;
+    m_boidsGenerator = std::make_unique<Core::BoidsGenerator>(halfBoxSize);
 
-    //auto boidsGenerator = Core::BoidsGenerator(1000);
+    if(!m_boidsGenerator) return;
 
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    m_OGLRender = std::make_unique<Render::OGLRender>(halfBoxSize, 3000);
 
-    // Load Fonts
-   // ImFont* font = io.Fonts->AddFontFromFileTTF("assets/verdana.ttf", 18.0f, NULL, NULL);
-   //IM_ASSERT(font != NULL);
+    if(!m_OGLRender) return;
+
+    m_OGLRender->setPointCloudBuffer(m_boidsGenerator->getVerticesBufferStart(), m_boidsGenerator->getVerticesBufferSize());
+
+    m_init = true;
 }
 
 void BoidsApp::run()
@@ -191,6 +200,8 @@ void BoidsApp::run()
         glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        m_boidsGenerator->updateBoids();
+
         m_OGLRender->draw();
 
         ImGui::Render();
@@ -206,7 +217,10 @@ int main(int, char**)
 {
     BoidsApp app;
 
-    app.run();
+    if(app.isInit())
+    {
+        app.run();
+    }
 
     return 0;
 }

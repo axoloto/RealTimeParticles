@@ -14,7 +14,7 @@ namespace Render {
 
     class OGLRender {
         public:
-            OGLRender();
+            OGLRender(int halfBoxSize, int numEntities);
             ~OGLRender();
 
             void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);
@@ -25,12 +25,13 @@ namespace Render {
 
             inline void resetCamera() { m_camera->reset(); }
 
+            inline void setPointCloudBuffer(void* bufferStart, size_t bufferSize) { m_pointCloudBufferStart = bufferStart; m_pointCloudBufferSize = bufferSize; }
+
         private:
 
             void buildShaders();
             void connectVBOsToVAO();
             void generateBox();
-            void generatePointCloudVBO();
 
             void updatePointCloud();
             void drawPointCloud();
@@ -45,16 +46,13 @@ namespace Render {
             std::unique_ptr<OGLShader> m_pointCloudShader;
             std::unique_ptr<OGLShader> m_boxShader;
 
-            struct Vertex
-            {
-                std::array<float, 3> xyz;
-                std::array<float, 3> rgb;
-            };
-
-            std::vector<Vertex> m_pointCloudVertices;
-
             int m_halfboxSize;
+            int m_numEntities;
 
             std::unique_ptr<Camera> m_camera;
+
+            // WIP
+            size_t m_pointCloudBufferSize; 
+            void* m_pointCloudBufferStart;
     };
 }

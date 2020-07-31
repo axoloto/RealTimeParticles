@@ -7,7 +7,7 @@
 
 using namespace Render;
 
-OGLRender::OGLRender() : m_halfboxSize(200)
+OGLRender::OGLRender(int halfBoxSize, int numEntities) : m_halfboxSize(halfBoxSize), m_numEntities(numEntities)
 {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_PROGRAM_POINT_SIZE);
@@ -19,7 +19,6 @@ OGLRender::OGLRender() : m_halfboxSize(200)
     connectVBOsToVAO();
 
     generateBox();
-    generatePointCloudVBO();
 }
 
 OGLRender::~OGLRender()
@@ -35,6 +34,12 @@ void OGLRender::initCamera()
 
 void OGLRender::generateBox()
 {
+    struct Vertex
+    {
+        std::array<float, 3> xyz;
+        std::array<float, 3> rgb;
+    };
+
     // VBO
     int index = 0;
     std::array<Vertex, 8> boxVertices;
@@ -82,34 +87,6 @@ void OGLRender::generateBox()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-void OGLRender::generatePointCloudVBO()
-{
-    m_pointCloudVertices.clear();
-
-    size_t numVertices = 10000;
-    for(int i = 0; i < numVertices; ++i)
-    {
-        float rx = static_cast<float> (rand()) / static_cast<float> (RAND_MAX);
-        float ry = static_cast<float> (rand()) / static_cast<float> (RAND_MAX);
-        float rz = static_cast<float> (rand()) / static_cast<float> (RAND_MAX);
-
-        float x = m_halfboxSize * (2 * rx - 1.f);
-        float y = m_halfboxSize * (2 * ry - 1.f);
-        float z = m_halfboxSize * (2 * rz - 1.f);
-
-        Vertex vert;
-        vert.xyz = {x, y, z};
-        vert.rgb = {rx, ry, rz};
-        m_pointCloudVertices.push_back(vert);        
-    }
-
-    size_t pointCloudBufferSize = sizeof(m_pointCloudVertices[0]) * m_pointCloudVertices.size();
-
-    glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudVBO);
-    glBufferData(GL_ARRAY_BUFFER, pointCloudBufferSize, &m_pointCloudVertices[0], GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
 void OGLRender::buildShaders()
 {
     m_pointCloudShader = std::make_unique<OGLShader>(Render::PointCloudVertShader, Render::FragShader);
@@ -148,25 +125,24 @@ void OGLRender::draw()
 
 void OGLRender::updatePointCloud()
 {
-    if(m_pointCloudVertices.empty()) return;
-
-    size_t pointCloudSize = sizeof(m_pointCloudVertices[0]) * m_pointCloudVertices.size();
-
-    glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudVBO);
-    glBufferData(GL_ARRAY_BUFFER, pointCloudSize, &m_pointCloudVertices[0], GL_STREAM_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    if(m_pointCloudBufferSize > 0)
+    {
+        glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudVBO);
+        glBufferData(GL_ARRAY_BUFFER, m_pointCloudBufferSize, m_pointCloudBufferStart, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
 }
 
 void OGLRender::drawPointCloud()
 {
-    generatePointCloudVBO();
+    updatePointCloud();
 
     m_pointCloudShader->activate();
 
     Math::float4x4 projViewMat = m_camera->getProjViewMat();
     m_pointCloudShader->setUniform("u_projView", projViewMat);
 
-    glDrawArrays(GL_POINTS, 0, (GLsizei) m_pointCloudVertices.size());
+    glDrawArrays(GL_POINTS, 0, (GLsizei) m_numEntities);
 
     m_pointCloudShader->deactivate();
 }
