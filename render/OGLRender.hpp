@@ -14,7 +14,7 @@ namespace Render {
 
     class OGLRender {
         public:
-            OGLRender(int halfBoxSize, int numEntities);
+            OGLRender(int halfBoxSize, int numEntities, float aspectRatio);
             ~OGLRender();
 
             void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);
@@ -26,7 +26,7 @@ namespace Render {
             inline void resetCamera() { m_camera->reset(); }
 
             inline void setPointCloudBuffer(void* bufferStart, size_t bufferSize) { m_pointCloudBufferStart = bufferStart; m_pointCloudBufferSize = bufferSize; }
-
+            inline void setWindowSize(Math::int2 windowSize) { if(m_camera) m_camera->setSceneAspectRatio((float) windowSize.x / windowSize.y); }
         private:
 
             void buildShaders();
@@ -38,7 +38,7 @@ namespace Render {
 
             void drawBox();
 
-            void initCamera();
+            void initCamera(float sceneAspectRatio);
 
             const GLuint m_pointCloudPosAttribIndex { 0 }, m_pointCloudColAttribIndex { 1 }, m_boxPosAttribIndex { 2 }, m_boxColAttribIndex { 3 };
             GLuint m_pointCloudVBO, m_boxVBO, m_boxEBO, m_VAO;

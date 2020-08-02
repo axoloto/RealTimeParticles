@@ -7,12 +7,12 @@
 
 using namespace Render;
 
-OGLRender::OGLRender(int halfBoxSize, int numEntities) : m_halfboxSize(halfBoxSize), m_numEntities(numEntities)
+OGLRender::OGLRender(int halfBoxSize, int numEntities, float sceneAspectRatio) : m_halfboxSize(halfBoxSize), m_numEntities(numEntities)
 {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_PROGRAM_POINT_SIZE);
 
-    initCamera();
+    initCamera(sceneAspectRatio);
 
     buildShaders();
 
@@ -27,9 +27,9 @@ OGLRender::~OGLRender()
     glDeleteBuffers(1, &m_boxVBO);
 }
 
-void OGLRender::initCamera()
+void OGLRender::initCamera(float sceneAspectRatio)
 {
-    m_camera = std::make_unique<Camera>();
+    m_camera = std::make_unique<Camera>(sceneAspectRatio);
 }
 
 void OGLRender::generateBox()

@@ -9,7 +9,7 @@
 #include "BoidsGenerator.hpp"
 #include "BoidsApp.hpp"
 
-bool BoidsApp::initOGL()
+bool BoidsApp::initWindow()
 {
     // Setup SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
@@ -30,7 +30,7 @@ bool BoidsApp::initOGL()
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-    m_window = SDL_CreateWindow("Boids Visualizer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, window_flags);
+    m_window = SDL_CreateWindow("Particle System Sandbox", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_windowSize.x, m_windowSize.y, window_flags);
     m_OGLContext = SDL_GL_CreateContext(m_window);
     SDL_GL_MakeCurrent(m_window, m_OGLContext);
     SDL_GL_SetSwapInterval(1); // Enable vsync
@@ -62,7 +62,7 @@ bool BoidsApp::initOGL()
     return true;
 }
 
-bool BoidsApp::closeOGL()
+bool BoidsApp::closeWindow()
 {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
@@ -115,8 +115,13 @@ bool BoidsApp::checkSDLStatus()
                 if(event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(m_window))
                 {
                     stopRendering = true;
-                    break;
                 }
+                if (event.window.event == SDL_WINDOWEVENT_RESIZED)
+                {
+                    m_windowSize = Math::int2(event.window.data1, event.window.data2);
+                    m_OGLRender->setWindowSize(m_windowSize);
+                }
+                break;
             case SDL_MOUSEBUTTONDOWN:
                 {
                     if (event.button.button == SDL_BUTTON_LEFT || event.button.button == SDL_BUTTON_RIGHT)
@@ -126,6 +131,7 @@ bool BoidsApp::checkSDLStatus()
                         m_mousePrevPos = currentMousePos;
                     }
                 }
+                break;
             case SDL_MOUSEWHEEL :
                 if(event.wheel.y > 0) 
                 {
@@ -138,20 +144,19 @@ bool BoidsApp::checkSDLStatus()
                 break;
         }
     }
-
     return stopRendering;
 }
 
-BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f), m_buttonRightActivated(false), m_buttonLeftActivated(false), m_init(false)
+BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f), m_buttonRightActivated(false), m_buttonLeftActivated(false), m_windowSize(1280, 720), m_init(false)
 {
-    initOGL();
+    initWindow();
 
     int halfBoxSize = 200;
     m_boidsGenerator = std::make_unique<Core::BoidsGenerator>(halfBoxSize);
 
     if(!m_boidsGenerator) return;
 
-    m_OGLRender = std::make_unique<Render::OGLRender>(halfBoxSize, 3000);
+    m_OGLRender = std::make_unique<Render::OGLRender>(halfBoxSize, 3000, (float) m_windowSize.x / m_windowSize.y);
 
     if(!m_OGLRender) return;
 
@@ -184,12 +189,15 @@ void BoidsApp::run()
         const auto cameraPos = m_OGLRender->cameraPos();
         const auto targetPos = m_OGLRender->targetPos();
 
-        ImGui::Begin("Boids Simulator");
+        ImGui::Begin("Main Widget");
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::Spacing();
         ImGui::Separator();
+        ImGui::Spacing();
         ImGui::Text(" Camera position : %.1f x, %.1f y, %.1f z", cameraPos.x, cameraPos.y, cameraPos.z);
         ImGui::Text(" Target position : %.1f x, %.1f y, %.1f z", targetPos.x, targetPos.y, targetPos.z);
         ImGui::Text(" Distance camera target : %.1f", Math::length(cameraPos - targetPos));
+        ImGui::Spacing();
         if(ImGui::Button(" Reset Camera "))
         { 
             m_OGLRender->resetCamera();
@@ -210,7 +218,7 @@ void BoidsApp::run()
         SDL_GL_SwapWindow(m_window);
     }
 
-    closeOGL();
+    closeWindow();
 }
 
 int main(int, char**)

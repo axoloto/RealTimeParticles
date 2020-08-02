@@ -15,8 +15,8 @@ class BoidsApp {
             bool isInit() const { return m_init; }
 
         private:
-            bool initOGL();
-            bool closeOGL();
+            bool initWindow();
+            bool closeWindow();
             bool checkSDLStatus();
             void checkMouseState();
 
@@ -26,6 +26,7 @@ class BoidsApp {
             SDL_Window* m_window;
             SDL_GLContext m_OGLContext;
 
+            Math::int2 m_windowSize;
             Math::int2 m_mousePrevPos;
             ImVec4 m_backGroundColor;
             bool m_buttonLeftActivated;

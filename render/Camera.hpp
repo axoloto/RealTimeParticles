@@ -5,10 +5,12 @@
 namespace Render {
     class Camera {
     public:
-        Camera();
+        Camera(float sceneAspectRatio);
         ~Camera()=default;
 
         void reset(); 
+
+        inline void setSceneAspectRatio(float aspectRatio) { m_aspectRatio = aspectRatio; updateProjMat(); updateProjViewMat(); }
 
         void rotate(float angleX, float angleY);
         void translate(float dispX, float dispY);
@@ -19,6 +21,7 @@ namespace Render {
 
         inline Math::float4x4 getProjViewMat() const { return m_projViewMat; }
     private:
+        void updateProjMat();
         void updateProjViewMat();
 
         Math::float3 m_cameraPos, m_cameraInitPos;
