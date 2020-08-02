@@ -7,7 +7,7 @@
 
 using namespace Render;
 
-OGLRender::OGLRender(int halfBoxSize, int numEntities, float sceneAspectRatio) : m_halfboxSize(halfBoxSize), m_numEntities(numEntities)
+OGLRender::OGLRender(int boxSize, int numEntities, float sceneAspectRatio) : m_boxSize(boxSize), m_numEntities(numEntities)
 {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_PROGRAM_POINT_SIZE);
@@ -52,11 +52,12 @@ void OGLRender::generateBox()
     boxVertices[6].xyz = {-1.f,  1.f,  1.f};
     boxVertices[7].xyz = {-1.f, -1.f,  1.f};
 
+    int boxHalfSize = m_boxSize / 2;
     for(auto& vertex : boxVertices)
     {
-        float x = vertex.xyz[0] * m_halfboxSize;
-        float y = vertex.xyz[1] * m_halfboxSize;
-        float z = vertex.xyz[2] * m_halfboxSize;
+        float x = vertex.xyz[0] * boxHalfSize;
+        float y = vertex.xyz[1] * boxHalfSize;
+        float z = vertex.xyz[2] * boxHalfSize;
         vertex.xyz = {x, y, z};
         vertex.rgb = {1.f, 1.f, 1.f};
     }

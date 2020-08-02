@@ -27,6 +27,8 @@ namespace Render {
 
             inline void setPointCloudBuffer(void* bufferStart, size_t bufferSize) { m_pointCloudBufferStart = bufferStart; m_pointCloudBufferSize = bufferSize; }
             inline void setWindowSize(Math::int2 windowSize) { if(m_camera) m_camera->setSceneAspectRatio((float) windowSize.x / windowSize.y); }
+            inline void setNumEntities(int numEntities) { m_numEntities = numEntities; }
+            
         private:
 
             void buildShaders();
@@ -46,7 +48,7 @@ namespace Render {
             std::unique_ptr<OGLShader> m_pointCloudShader;
             std::unique_ptr<OGLShader> m_boxShader;
 
-            int m_halfboxSize;
+            int m_boxSize;
             int m_numEntities;
 
             std::unique_ptr<Camera> m_camera;

@@ -135,11 +135,11 @@ bool BoidsApp::checkSDLStatus()
             case SDL_MOUSEWHEEL :
                 if(event.wheel.y > 0) 
                 {
-                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-0.2f, 0.f));
+                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-0.4f, 0.f));
                 }
                 else if(event.wheel.y < 0) 
                 {
-                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(0.2f, 0.f));
+                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(0.4f, 0.f));
                 }
                 break;
         }
@@ -147,16 +147,17 @@ bool BoidsApp::checkSDLStatus()
     return stopRendering;
 }
 
-BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f), m_buttonRightActivated(false), m_buttonLeftActivated(false), m_windowSize(1280, 720), m_init(false)
+BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f),
+                       m_buttonRightActivated(false), m_buttonLeftActivated(false), m_windowSize(1280, 720),
+                       m_init(false), m_boxSize(400)
 {
     initWindow();
 
-    int halfBoxSize = 200;
-    m_boidsGenerator = std::make_unique<Core::BoidsGenerator>(halfBoxSize);
+    m_boidsGenerator = std::make_unique<Core::BoidsGenerator>(m_boxSize, 1);
 
     if(!m_boidsGenerator) return;
 
-    m_OGLRender = std::make_unique<Render::OGLRender>(halfBoxSize, 3000, (float) m_windowSize.x / m_windowSize.y);
+    m_OGLRender = std::make_unique<Render::OGLRender>(m_boxSize, m_boidsGenerator->numEntities(), (float) m_windowSize.x / m_windowSize.y);
 
     if(!m_OGLRender) return;
 
@@ -186,23 +187,7 @@ void BoidsApp::run()
             return;
         }
 
-        const auto cameraPos = m_OGLRender->cameraPos();
-        const auto targetPos = m_OGLRender->targetPos();
-
-        ImGui::Begin("Main Widget");
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-        ImGui::Text(" Camera position : %.1f x, %.1f y, %.1f z", cameraPos.x, cameraPos.y, cameraPos.z);
-        ImGui::Text(" Target position : %.1f x, %.1f y, %.1f z", targetPos.x, targetPos.y, targetPos.z);
-        ImGui::Text(" Distance camera target : %.1f", Math::length(cameraPos - targetPos));
-        ImGui::Spacing();
-        if(ImGui::Button(" Reset Camera "))
-        { 
-            m_OGLRender->resetCamera();
-        }
-        ImGui::End();
+        displayMainWidget();
 
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
         glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
@@ -219,6 +204,36 @@ void BoidsApp::run()
     }
 
     closeWindow();
+}
+
+void BoidsApp::displayMainWidget()
+{
+    const auto cameraPos = m_OGLRender->cameraPos();
+    const auto targetPos = m_OGLRender->targetPos();
+
+    ImGui::Begin("Main Widget");
+    int numEntities = m_boidsGenerator->numEntities();
+    if(ImGui::SliderInt("Num Particles", &numEntities, 1, Core::NUM_MAX_ENTITIES))
+    {
+        m_boidsGenerator->setNumEntities(numEntities);
+        m_OGLRender->setNumEntities(numEntities);
+    }
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text(" Camera position : %.1f x, %.1f y, %.1f z", cameraPos.x, cameraPos.y, cameraPos.z);
+    ImGui::Text(" Target position : %.1f x, %.1f y, %.1f z", targetPos.x, targetPos.y, targetPos.z);
+    ImGui::Text(" Distance camera target : %.1f", Math::length(cameraPos - targetPos));
+    ImGui::Spacing();
+    if(ImGui::Button(" Reset Camera "))
+    { 
+        m_OGLRender->resetCamera();
+    }
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text(" %.3f ms/frame (%.1f FPS)                     ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::End();
 }
 
 int main(int, char**)

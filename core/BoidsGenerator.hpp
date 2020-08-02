@@ -5,17 +5,20 @@
 
 namespace Core {
 
-    static constexpr int NUM_ENTITIES = 3000;
+    static constexpr int NUM_MAX_ENTITIES = 3000;
 
     class BoidsGenerator {
         public:
-            BoidsGenerator(int halfBoxSize);
+            BoidsGenerator(int boxSize, int numEntities);
             ~BoidsGenerator() = default;
 
             void updateBoids();
 
             void* getVerticesBufferStart();
             size_t getVerticesBufferSize();
+
+            int numEntities() const { return m_numEntities; }
+            void setNumEntities(int numEntities) { m_numEntities = numEntities; }
 
         private:
 
@@ -27,9 +30,10 @@ namespace Core {
                 std::array<float, 3> xyz;
                 std::array<float, 3> rgb;
             };
-            std::array<Entity, NUM_ENTITIES> m_entities;
+            std::array<Entity, NUM_MAX_ENTITIES> m_entities;
 
-            int m_halfBoxSize;
+            int m_numEntities;
+            int m_boxSize;
     };
 }
 

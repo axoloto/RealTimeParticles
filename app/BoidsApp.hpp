@@ -19,6 +19,7 @@ class BoidsApp {
             bool closeWindow();
             bool checkSDLStatus();
             void checkMouseState();
+            void displayMainWidget();
 
             std::unique_ptr<Render::OGLRender> m_OGLRender;
             std::unique_ptr<Core::BoidsGenerator> m_boidsGenerator;
@@ -32,4 +33,6 @@ class BoidsApp {
             bool m_buttonLeftActivated;
             bool m_buttonRightActivated;
             bool m_init;
+
+            int m_boxSize;
 };
