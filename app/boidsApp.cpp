@@ -153,7 +153,7 @@ BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f,
 {
     initWindow();
 
-    m_boidsGenerator = std::make_unique<Core::BoidsGenerator>(m_boxSize, 1);
+    m_boidsGenerator = std::make_unique<Core::BoidsGenerator>(m_boxSize, 1000);
 
     if(!m_boidsGenerator) return;
 
