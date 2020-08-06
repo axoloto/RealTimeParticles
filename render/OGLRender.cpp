@@ -23,7 +23,8 @@ OGLRender::OGLRender(int boxSize, int numEntities, float sceneAspectRatio) : m_b
 
 OGLRender::~OGLRender()
 {
-    glDeleteBuffers(1, &m_pointCloudVBO);
+    glDeleteBuffers(1, &m_pointCloudCoordsVBO);
+    glDeleteBuffers(1, &m_pointCloudColorsVBO);
     glDeleteBuffers(1, &m_boxVBO);
 }
 
@@ -99,11 +100,15 @@ void OGLRender::connectVBOsToVAO()
     glGenVertexArrays(1, &m_VAO);
     glBindVertexArray(m_VAO);
 
-    glGenBuffers(1, &m_pointCloudVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudVBO);
-    glVertexAttribPointer(m_pointCloudPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), NULL);
+    glGenBuffers(1, &m_pointCloudCoordsVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudCoordsVBO);
+    glVertexAttribPointer(m_pointCloudPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), NULL);
     glEnableVertexAttribArray(m_pointCloudPosAttribIndex);
-    glVertexAttribPointer(m_pointCloudColAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glGenBuffers(1, &m_pointCloudColorsVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudColorsVBO);
+    glVertexAttribPointer(m_pointCloudColAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), NULL);
     glEnableVertexAttribArray(m_pointCloudColAttribIndex);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -124,12 +129,21 @@ void OGLRender::draw()
     drawBox();
 }
 
+void OGLRender::setPointCloudBuffers(void* coordsBufferStart, void* colorsBufferStart)
+{ 
+    m_pointCloudCoordsBufferStart = coordsBufferStart;
+    m_pointCloudColorsBufferStart = colorsBufferStart;
+}
+
 void OGLRender::updatePointCloud()
 {
-    if(m_pointCloudBufferSize > 0)
+    if(m_numEntities > 0)
     {
-        glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudVBO);
-        glBufferData(GL_ARRAY_BUFFER, m_pointCloudBufferSize, m_pointCloudBufferStart, GL_DYNAMIC_DRAW);
+        size_t bufferSize = 3 * sizeof(float) * m_numEntities;
+        glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudCoordsVBO);
+        glBufferData(GL_ARRAY_BUFFER, bufferSize, m_pointCloudCoordsBufferStart, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudColorsVBO);
+        glBufferData(GL_ARRAY_BUFFER, bufferSize, m_pointCloudColorsBufferStart, GL_DYNAMIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
 }

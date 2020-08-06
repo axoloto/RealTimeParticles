@@ -6,7 +6,6 @@
 #include <glad/glad.h>
 #include <iostream>
 
-#include "BoidsGenerator.hpp"
 #include "BoidsApp.hpp"
 
 bool BoidsApp::initWindow()
@@ -149,19 +148,19 @@ bool BoidsApp::checkSDLStatus()
 
 BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f),
                        m_buttonRightActivated(false), m_buttonLeftActivated(false), m_windowSize(1280, 720),
-                       m_init(false), m_boxSize(400)
+                       m_init(false), m_boxSize(400), m_numEntities(400)
 {
     initWindow();
 
-    m_boidsGenerator = std::make_unique<Core::BoidsGenerator>(m_boxSize, 1);
+    m_boidsGenerator = std::make_unique<Core::Boids>(m_boxSize, m_numEntities);
 
     if(!m_boidsGenerator) return;
 
-    m_OGLRender = std::make_unique<Render::OGLRender>(m_boxSize, m_boidsGenerator->numEntities(), (float) m_windowSize.x / m_windowSize.y);
+    m_OGLRender = std::make_unique<Render::OGLRender>(m_boxSize, m_numEntities, (float) m_windowSize.x / m_windowSize.y);
 
     if(!m_OGLRender) return;
 
-    m_OGLRender->setPointCloudBuffer(m_boidsGenerator->getVerticesBufferStart(), m_boidsGenerator->getVerticesBufferSize());
+    m_OGLRender->setPointCloudBuffers(m_boidsGenerator->getCoordsBufferStart(), m_boidsGenerator->getColorsBufferStart());
 
     m_init = true;
 }
@@ -193,7 +192,7 @@ void BoidsApp::run()
         glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        m_boidsGenerator->updateBoids();
+        m_boidsGenerator->update();
 
         m_OGLRender->draw();
 
@@ -212,11 +211,10 @@ void BoidsApp::displayMainWidget()
     const auto targetPos = m_OGLRender->targetPos();
 
     ImGui::Begin("Main Widget");
-    int numEntities = m_boidsGenerator->numEntities();
-    if(ImGui::SliderInt("Num Particles", &numEntities, 1, Core::NUM_MAX_ENTITIES))
+    if(ImGui::SliderInt("Num Particles", &m_numEntities, 1, Core::NUM_MAX_ENTITIES))
     {
-        m_boidsGenerator->setNumEntities(numEntities);
-        m_OGLRender->setNumEntities(numEntities);
+        m_boidsGenerator->setNumEntities(m_numEntities);
+        m_OGLRender->setNumEntities(m_numEntities);
     }
     ImGui::Spacing();
     ImGui::Separator();

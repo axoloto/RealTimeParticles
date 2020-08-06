@@ -5,7 +5,7 @@
 #include "diligentGraphics/Math.hpp"
 #include <SDL.h>
 #include "OGLRender.hpp"
-#include "BoidsGenerator.hpp"
+#include "Boids.hpp"
 
 class BoidsApp {
         public:
@@ -22,7 +22,7 @@ class BoidsApp {
             void displayMainWidget();
 
             std::unique_ptr<Render::OGLRender> m_OGLRender;
-            std::unique_ptr<Core::BoidsGenerator> m_boidsGenerator;
+            std::unique_ptr<Core::Boids> m_boidsGenerator;
 
             SDL_Window* m_window;
             SDL_GLContext m_OGLContext;
@@ -34,5 +34,6 @@ class BoidsApp {
             bool m_buttonRightActivated;
             bool m_init;
 
+            int m_numEntities;
             int m_boxSize;
 };

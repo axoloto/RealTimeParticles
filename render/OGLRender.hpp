@@ -24,11 +24,11 @@ namespace Render {
             inline const Math::float3 targetPos() const { return m_camera->targetPos();}
 
             inline void resetCamera() { m_camera->reset(); }
-
-            inline void setPointCloudBuffer(void* bufferStart, size_t bufferSize) { m_pointCloudBufferStart = bufferStart; m_pointCloudBufferSize = bufferSize; }
             inline void setWindowSize(Math::int2 windowSize) { if(m_camera) m_camera->setSceneAspectRatio((float) windowSize.x / windowSize.y); }
             inline void setNumEntities(int numEntities) { m_numEntities = numEntities; }
             
+            void setPointCloudBuffers(void* coordsBufferStart, void* colorsBufferStart);
+
         private:
 
             void buildShaders();
@@ -43,7 +43,7 @@ namespace Render {
             void initCamera(float sceneAspectRatio);
 
             const GLuint m_pointCloudPosAttribIndex { 0 }, m_pointCloudColAttribIndex { 1 }, m_boxPosAttribIndex { 2 }, m_boxColAttribIndex { 3 };
-            GLuint m_pointCloudVBO, m_boxVBO, m_boxEBO, m_VAO;
+            GLuint m_pointCloudCoordsVBO, m_pointCloudColorsVBO, m_boxVBO, m_boxEBO, m_VAO;
 
             std::unique_ptr<OGLShader> m_pointCloudShader;
             std::unique_ptr<OGLShader> m_boxShader;
@@ -53,8 +53,7 @@ namespace Render {
 
             std::unique_ptr<Camera> m_camera;
 
-            // WIP
-            size_t m_pointCloudBufferSize; 
-            void* m_pointCloudBufferStart;
+            void* m_pointCloudCoordsBufferStart;
+            void* m_pointCloudColorsBufferStart;
     };
 }
