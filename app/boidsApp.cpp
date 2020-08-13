@@ -1,12 +1,19 @@
+
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl.h"
 #include "imgui/imgui_impl_opengl3.h"
 #include <stdio.h>
-#include <SDL.h>
+
 #include <glad/glad.h>
 #include <iostream>
 
 #include "BoidsApp.hpp"
+
+#include <SDL.h>
+
+#if OPENCL_ACTIVATED
+#include "CL/cl.h"
+#endif
 
 bool BoidsApp::initWindow()
 {

@@ -8,6 +8,7 @@ set_target_properties(boidsApp PROPERTIES FOLDER app)
 add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
 
 target_include_directories(boidsApp PRIVATE ${OPENGL_INCLUDE_DIRS}
+                                            ${OPENCL_INCLUDE_DIRS}
                                             "$ENV{TP_DIR}/diligentGraphics"
                                             "$ENV{TP_DIR}/glad/include" 
                                             "$ENV{TP_DIR}/SDL2/include"
