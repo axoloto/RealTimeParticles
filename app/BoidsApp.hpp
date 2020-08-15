@@ -13,6 +13,7 @@ class BoidsApp {
             ~BoidsApp() = default;
             void run();
             bool isInit() const { return m_init; }
+            
 
         private:
             bool initWindow();
@@ -36,4 +37,8 @@ class BoidsApp {
 
             int m_numEntities;
             int m_boxSize;
+            float m_steeringMaxForce;
+            float m_maxVelocity;
+
+            
 };

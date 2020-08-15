@@ -155,12 +155,13 @@ bool BoidsApp::checkSDLStatus()
 
 BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f),
                        m_buttonRightActivated(false), m_buttonLeftActivated(false), m_windowSize(1280, 720),
-                       m_init(false), m_boxSize(400), m_numEntities(400)
+                       m_init(false), m_boxSize(400), m_numEntities(400),m_steeringMaxForce(1),m_maxVelocity(1)
 {
     initWindow();
 
     m_boidsGenerator = std::make_unique<Core::Boids>(m_boxSize, m_numEntities);
-
+    m_boidsGenerator->setSteeringMaxForce(m_steeringMaxForce);
+    m_boidsGenerator->setmaxVelocity(m_maxVelocity);
     if(!m_boidsGenerator) return;
 
     m_OGLRender = std::make_unique<Render::OGLRender>(m_boxSize, m_numEntities, (float) m_windowSize.x / m_windowSize.y);
@@ -238,6 +239,21 @@ void BoidsApp::displayMainWidget()
     ImGui::Separator();
     ImGui::Spacing();
     ImGui::Text(" %.3f ms/frame (%.1f FPS)                     ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+    ImGui::End();
+
+    ImGui::Begin("Boids Widget");
+    if(ImGui::SliderFloat("Maximum Steering Force", &m_steeringMaxForce, 0.1, 10))
+    {
+        m_boidsGenerator->setSteeringMaxForce(m_steeringMaxForce);
+    }
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    if(ImGui::SliderFloat("Maximum Velocity", &m_maxVelocity, 0.1, 10))
+    {
+        m_boidsGenerator->setmaxVelocity(m_maxVelocity);
+    }
     ImGui::End();
 }
 
