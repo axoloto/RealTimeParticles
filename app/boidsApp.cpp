@@ -159,16 +159,16 @@ BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f,
 {
     initWindow();
 
-    m_boidsGenerator = std::make_unique<Core::Boids>(m_boxSize, m_numEntities);
-    m_boidsGenerator->setSteeringMaxForce(m_steeringMaxForce);
-    m_boidsGenerator->setmaxVelocity(m_maxVelocity);
-    if(!m_boidsGenerator) return;
+    m_SteerGenerator = std::make_unique<Core::Steer>(m_boxSize, m_numEntities);
+    m_SteerGenerator->setSteeringMaxForce(m_steeringMaxForce);
+    m_SteerGenerator->setmaxVelocity(m_maxVelocity);
+    if(!m_SteerGenerator) return;
 
     m_OGLRender = std::make_unique<Render::OGLRender>(m_boxSize, m_numEntities, (float) m_windowSize.x / m_windowSize.y);
 
     if(!m_OGLRender) return;
 
-    m_OGLRender->setPointCloudBuffers(m_boidsGenerator->getCoordsBufferStart(), m_boidsGenerator->getColorsBufferStart());
+    m_OGLRender->setPointCloudBuffers(m_SteerGenerator->getCoordsBufferStart(), m_SteerGenerator->getColorsBufferStart());
 
     m_init = true;
 }
@@ -200,7 +200,7 @@ void BoidsApp::run()
         glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        m_boidsGenerator->update();
+        m_SteerGenerator->update();
 
         m_OGLRender->draw();
 
@@ -221,7 +221,7 @@ void BoidsApp::displayMainWidget()
     ImGui::Begin("Main Widget");
     if(ImGui::SliderInt("Num Particles", &m_numEntities, 1, Core::NUM_MAX_ENTITIES))
     {
-        m_boidsGenerator->setNumEntities(m_numEntities);
+        m_SteerGenerator->setNumEntities(m_numEntities);
         m_OGLRender->setNumEntities(m_numEntities);
     }
     ImGui::Spacing();
@@ -245,14 +245,14 @@ void BoidsApp::displayMainWidget()
     ImGui::Begin("Boids Widget");
     if(ImGui::SliderFloat("Maximum Steering Force", &m_steeringMaxForce, 0.1, 10))
     {
-        m_boidsGenerator->setSteeringMaxForce(m_steeringMaxForce);
+        m_SteerGenerator->setSteeringMaxForce(m_steeringMaxForce);
     }
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
     if(ImGui::SliderFloat("Maximum Velocity", &m_maxVelocity, 0.1, 10))
     {
-        m_boidsGenerator->setmaxVelocity(m_maxVelocity);
+        m_SteerGenerator->setmaxVelocity(m_maxVelocity);
     }
     ImGui::End();
 }
