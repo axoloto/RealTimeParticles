@@ -6,6 +6,7 @@
 #include <SDL.h>
 #include "OGLRender.hpp"
 #include "Boids.hpp"
+#include "Steer.hpp"
 
 class BoidsApp {
         public:
@@ -13,6 +14,7 @@ class BoidsApp {
             ~BoidsApp() = default;
             void run();
             bool isInit() const { return m_init; }
+            
 
         private:
             bool initWindow();
@@ -23,6 +25,7 @@ class BoidsApp {
 
             std::unique_ptr<Render::OGLRender> m_OGLRender;
             std::unique_ptr<Core::Boids> m_boidsGenerator;
+            std::unique_ptr<Core::Steer> m_SteerGenerator;
 
             SDL_Window* m_window;
             SDL_GLContext m_OGLContext;
@@ -36,4 +39,8 @@ class BoidsApp {
 
             int m_numEntities;
             int m_boxSize;
+            float m_steeringMaxForce;
+            float m_maxVelocity;
+
+            
 };
