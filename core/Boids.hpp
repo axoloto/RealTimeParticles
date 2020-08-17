@@ -20,7 +20,13 @@ namespace Core {
             float time =0;
             float m_steeringMaxForce;
             float m_maxVelocity;
+            void calculateBoidsForces(Entity& boid,float scale_separation, float scale_alignment, float scale_cohesion);
+            Math::float3 seekTarget(Math::float3 location, Entity boid);
+            void updateBoid(Entity& boid);
+            void calculateWallForces(Entity& boid,float ratio);
+            void cyclingWall(Entity& boid);
     };
 }
 
 
+ 
