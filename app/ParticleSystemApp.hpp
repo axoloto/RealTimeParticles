@@ -5,12 +5,12 @@
 #include "diligentGraphics/Math.hpp"
 #include <SDL.h>
 #include "OGLRender.hpp"
-#include "Boids.hpp"
+#include "Physics.hpp"
 
-class BoidsApp {
+class ParticleSystemApp {
         public:
-            BoidsApp();
-            ~BoidsApp() = default;
+            ParticleSystemApp();
+            ~ParticleSystemApp() = default;
             void run();
             bool isInit() const { return m_init; }
 
@@ -20,9 +20,10 @@ class BoidsApp {
             bool checkSDLStatus();
             void checkMouseState();
             void displayMainWidget();
-
+            void displayPhysicsWidget();
+            
             std::unique_ptr<Render::OGLRender> m_OGLRender;
-            std::unique_ptr<Core::Boids> m_boidsGenerator;
+            std::unique_ptr<Core::Physics> m_physicsEngine;
 
             SDL_Window* m_window;
             SDL_GLContext m_OGLContext;

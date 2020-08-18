@@ -1,1 +1,1 @@
-./install/bin/boidsApp.exe
+./install/bin/ParticleSystemApp.exe

@@ -2,20 +2,21 @@
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_sdl.h"
 #include "imgui/imgui_impl_opengl3.h"
-#include <stdio.h>
-
+#include <SDL.h>
 #include <glad/glad.h>
+#include <stdio.h>
 #include <iostream>
 
-#include "BoidsApp.hpp"
+#include "Boids.hpp"
 
-#include <SDL.h>
+#include "ParticleSystemApp.hpp"
+
 
 #if OPENCL_ACTIVATED
 #include "CL/cl.h"
 #endif
 
-bool BoidsApp::initWindow()
+bool ParticleSystemApp::initWindow()
 {
     // Setup SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
@@ -68,7 +69,7 @@ bool BoidsApp::initWindow()
     return true;
 }
 
-bool BoidsApp::closeWindow()
+bool ParticleSystemApp::closeWindow()
 {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
@@ -81,7 +82,7 @@ bool BoidsApp::closeWindow()
     return true;
 }
 
-void BoidsApp::checkMouseState()
+void ParticleSystemApp::checkMouseState()
 {
     ImGuiIO& io = ImGui::GetIO(); (void)io;
 
@@ -104,7 +105,7 @@ void BoidsApp::checkMouseState()
     }
 }
 
-bool BoidsApp::checkSDLStatus()
+bool ParticleSystemApp::checkSDLStatus()
 {
     bool stopRendering = false;
 
@@ -153,26 +154,26 @@ bool BoidsApp::checkSDLStatus()
     return stopRendering;
 }
 
-BoidsApp::BoidsApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f),
+ParticleSystemApp::ParticleSystemApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f),
                        m_buttonRightActivated(false), m_buttonLeftActivated(false), m_windowSize(1280, 720),
                        m_init(false), m_boxSize(400), m_numEntities(400)
 {
     initWindow();
 
-    m_boidsGenerator = std::make_unique<Core::Boids>(m_boxSize, m_numEntities);
+    m_physicsEngine = std::make_unique<Core::Boids>(m_boxSize, m_numEntities);
 
-    if(!m_boidsGenerator) return;
+    if(!m_physicsEngine) return;
 
     m_OGLRender = std::make_unique<Render::OGLRender>(m_boxSize, m_numEntities, (float) m_windowSize.x / m_windowSize.y);
 
     if(!m_OGLRender) return;
 
-    m_OGLRender->setPointCloudBuffers(m_boidsGenerator->getCoordsBufferStart(), m_boidsGenerator->getColorsBufferStart());
+    m_OGLRender->setPointCloudBuffers(m_physicsEngine->getCoordsBufferStart(), m_physicsEngine->getColorsBufferStart());
 
     m_init = true;
 }
 
-void BoidsApp::run()
+void ParticleSystemApp::run()
 {
     ImGuiIO& io = ImGui::GetIO(); (void)io;
 
@@ -195,11 +196,13 @@ void BoidsApp::run()
 
         displayMainWidget();
 
+        displayPhysicsWidget();
+
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
         glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        m_boidsGenerator->update();
+        m_physicsEngine->update();
 
         m_OGLRender->draw();
 
@@ -212,7 +215,7 @@ void BoidsApp::run()
     closeWindow();
 }
 
-void BoidsApp::displayMainWidget()
+void ParticleSystemApp::displayMainWidget()
 {
     const auto cameraPos = m_OGLRender->cameraPos();
     const auto targetPos = m_OGLRender->targetPos();
@@ -220,7 +223,7 @@ void BoidsApp::displayMainWidget()
     ImGui::Begin("Main Widget");
     if(ImGui::SliderInt("Num Particles", &m_numEntities, 1, Core::NUM_MAX_ENTITIES))
     {
-        m_boidsGenerator->setNumEntities(m_numEntities);
+        m_physicsEngine->setNumEntities(m_numEntities);
         m_OGLRender->setNumEntities(m_numEntities);
     }
     ImGui::Spacing();
@@ -241,9 +244,15 @@ void BoidsApp::displayMainWidget()
     ImGui::End();
 }
 
+void ParticleSystemApp::displayPhysicsWidget()
+{
+    //auto physicsWidget = m_physicsEngine->widget();
+    //if(physicsWidget) physicsWidget->display();
+}
+
 int main(int, char**)
 {
-    BoidsApp app;
+    ParticleSystemApp app;
 
     if(app.isInit())
     {
