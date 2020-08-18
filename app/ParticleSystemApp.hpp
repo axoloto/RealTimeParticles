@@ -6,6 +6,7 @@
 #include <SDL.h>
 #include "OGLRender.hpp"
 #include "Physics.hpp"
+#include "PhysicsWidget.hpp"
 
 class ParticleSystemApp {
         public:
@@ -20,10 +21,10 @@ class ParticleSystemApp {
             bool checkSDLStatus();
             void checkMouseState();
             void displayMainWidget();
-            void displayPhysicsWidget();
-            
+
+            std::shared_ptr<Core::Physics> m_physicsEngine;
             std::unique_ptr<Render::OGLRender> m_OGLRender;
-            std::unique_ptr<Core::Physics> m_physicsEngine;
+            std::unique_ptr<UI::PhysicsWidget> m_physicsWidget;
 
             SDL_Window* m_window;
             SDL_GLContext m_OGLContext;

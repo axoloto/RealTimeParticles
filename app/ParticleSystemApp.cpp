@@ -160,9 +160,13 @@ ParticleSystemApp::ParticleSystemApp() : m_mousePrevPos(0, 0), m_backGroundColor
 {
     initWindow();
 
-    m_physicsEngine = std::make_unique<Core::Boids>(m_boxSize, m_numEntities);
+    m_physicsEngine = std::make_shared<Core::Boids>(m_boxSize, m_numEntities);
 
     if(!m_physicsEngine) return;
+
+    m_physicsWidget = std::make_unique<UI::BoidsWidget>(m_physicsEngine);
+
+    if(!m_physicsWidget) return;
 
     m_OGLRender = std::make_unique<Render::OGLRender>(m_boxSize, m_numEntities, (float) m_windowSize.x / m_windowSize.y);
 
@@ -196,7 +200,7 @@ void ParticleSystemApp::run()
 
         displayMainWidget();
 
-        displayPhysicsWidget();
+        m_physicsWidget->display();
 
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
         glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
@@ -242,12 +246,6 @@ void ParticleSystemApp::displayMainWidget()
     ImGui::Spacing();
     ImGui::Text(" %.3f ms/frame (%.1f FPS)                     ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     ImGui::End();
-}
-
-void ParticleSystemApp::displayPhysicsWidget()
-{
-    //auto physicsWidget = m_physicsEngine->widget();
-    //if(physicsWidget) physicsWidget->display();
 }
 
 int main(int, char**)
