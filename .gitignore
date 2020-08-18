@@ -16,3 +16,4 @@ CMakeCache.txt
 .vs
 
 imgui.ini
+runBuild.sh
