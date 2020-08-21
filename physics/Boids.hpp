@@ -23,6 +23,8 @@ namespace Core {
             float getForcedMaxspeed() { return m_forcedmaxspeed; }
             void setPause(bool pause) { m_pause = pause; }
             float getpause() { return m_pause; }
+            void resetBoids2D();
+            void resetBoids3D();
 
         private:
             void generateBoids();

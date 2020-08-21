@@ -28,8 +28,15 @@ void UI::BoidsWidget::display()
     if(ImGui::Checkbox("Pause System",&m_pause)){
         boidsEngine->setPause(m_pause);
     }
+    ImGui::SameLine();
+    if(ImGui::Button("Reset 2D")){  
+        boidsEngine->resetBoids2D();        
+    }
+    ImGui::SameLine();
+    if(ImGui::Button("Reset 3D")){  
+        boidsEngine->resetBoids3D();            
+    }
     ImGui::Spacing();
-
     if(ImGui::SliderFloat("Maximum Velocity", &m_maxVelocity, 0.01f, 20.0f))
     {
         boidsEngine->setmaxVelocity(m_maxVelocity);
