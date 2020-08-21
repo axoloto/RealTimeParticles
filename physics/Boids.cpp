@@ -10,7 +10,12 @@ Core::Boids::Boids(int boxSize, int numEntities) : Physics(boxSize, numEntities)
 void Core::Boids::generateBoids()
 {
     int boxHalfSize = m_boxSize / 2;
-    m_maxVelocity=1.0f;
+    m_maxVelocity=0.5f;
+    m_maxSteering=4.0f;
+    m_bouncingwall=true;
+    m_steering=true;
+    m_forcedmaxspeed=true;
+    m_pause=true;
 
     for(int i = 0; i < NUM_MAX_ENTITIES; ++i) 
     {
@@ -41,21 +46,25 @@ void Core::Boids::updatePhysics()
 {
     // Where you need to define your physics function with the three Boids rules;
     for(int i = 0; i < m_numEntities; ++i) {
+    if(m_steering){seekTarget(m_entities[i],{0,0,0});}
     updateBoid(m_entities[i]);
     if (m_bouncingwall){bouncingWall(m_entities[i]);}
     }
 }
 
 
+
 void Core::Boids::updateBoid(Entity &boid)
 {
+    if(!m_pause){
     boid.vxyz += boid.axyz;
-    //if (Math::length(boid.vxyz) > m_maxVelocity)
-    //{
+    
+    if (Math::length(boid.vxyz) > m_maxVelocity || m_forcedmaxspeed) {
         boid.vxyz = normalize(boid.vxyz) * m_maxVelocity;
-    //}
+    }
     boid.xyz += boid.vxyz;
     boid.axyz = {0.0f, 0.0f, 0.0f};
+    }
 }
 
 void Core::Boids::bouncingWall(Entity &boid){
@@ -65,3 +74,17 @@ void Core::Boids::bouncingWall(Entity &boid){
     if (abs(boid.xyz[2])>m_boxSize/2){boid.vxyz[2]=-boid.vxyz[2];}
 
 }
+
+Math::float3 Core::Boids::steerForceCalculation(Entity boid, Math::float3 desired_velocity){
+    Math::float3 steer_force=desired_velocity-boid.vxyz;
+    if (length(steer_force)>m_maxSteering){steer_force=normalize(steer_force)*m_maxSteering;}
+    return steer_force;
+}
+
+void Core::Boids::seekTarget(Entity &boid, Math::float3 target_loc){
+    Math::float3 desired_velocity=target_loc-boid.xyz;
+    if (length(desired_velocity)>m_maxVelocity){desired_velocity=normalize(desired_velocity)*m_maxVelocity;}
+    boid.axyz += steerForceCalculation(boid,desired_velocity);
+}
+
+

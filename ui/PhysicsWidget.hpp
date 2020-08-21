@@ -27,7 +27,11 @@ namespace UI {
         private:
         //std::shared_ptr<Core::Boids> m_physicsEngine;
         float m_maxVelocity;
+        float m_maxSteering;
         bool m_bouncingWall;
+        bool m_steering;
+        bool m_forcedMaxSpeed;
+        bool m_pause;
 
     };
 }
