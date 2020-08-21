@@ -1,4 +1,4 @@
-DEV_DIR=/c/Dev_perso/boids
+DEV_DIR="/c/Users/Vol po mon pc esti/Documents/GitHub/Boids"
 
 source ./scripts/env.sh
 

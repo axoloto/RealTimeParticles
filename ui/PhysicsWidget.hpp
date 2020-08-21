@@ -4,6 +4,7 @@
 #include<memory>
 #include "Physics.hpp"
 
+
 namespace UI {
 
     class PhysicsWidget {
@@ -19,9 +20,14 @@ namespace UI {
 
     class BoidsWidget : public PhysicsWidget {
         public:
-        BoidsWidget(std::shared_ptr<Core::Physics> physicsEngine ) : PhysicsWidget(physicsEngine) {};
+        BoidsWidget(std::shared_ptr<Core::Physics> physicsEngine ) ;
         ~BoidsWidget() = default;
-
         void display() override;
+
+        private:
+        //std::shared_ptr<Core::Boids> m_physicsEngine;
+        float m_maxVelocity;
+        bool m_bouncingWall;
+
     };
 }

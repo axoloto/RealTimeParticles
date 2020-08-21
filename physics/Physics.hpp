@@ -43,5 +43,6 @@ namespace Core {
 
             int m_numEntities;
             int m_boxSize;
+            
     };
 }
