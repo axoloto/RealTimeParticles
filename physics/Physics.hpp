@@ -22,7 +22,15 @@ namespace Core {
 
             void update();
             void updateBuffers();
-            
+
+            void setForcedMaxSpeed(bool forcedmax) { m_forcedmaxspeed = forcedmax; }
+            float getForcedMaxspeed() { return m_forcedmaxspeed; }
+            void setPause(bool pause) { m_pause = pause; }
+            float getPause() { return m_pause; }
+            void setBouncingWall(bool bouncingwall) { m_bouncingWall = bouncingwall; }
+            float getBouncingWall() { return m_bouncingWall; }
+            void setmaxVelocity(float maxVelocity) { m_maxVelocity = maxVelocity; }
+            float getmaxVelocity() { return m_maxVelocity; }
         protected:
 
             struct Entity
@@ -43,6 +51,16 @@ namespace Core {
 
             int m_numEntities;
             int m_boxSize;
+
+            void updateBoid(Entity& particle);
+            void bouncingWall(Entity& particle);
+            void cyclicWall(Entity& particle); // WIP
+            void randomWall(Entity& particle); // WIP
+            float m_maxVelocity;           
+            bool m_bouncingWall;           
+            bool m_forcedmaxspeed;
+            bool m_pause;
+
             
     };
 }
