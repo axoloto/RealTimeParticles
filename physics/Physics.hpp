@@ -25,6 +25,7 @@ namespace Core {
             void update();
             void updateBuffers();
 
+            void resetParticle(Dimension dim);
             void setForcedMaxSpeed(bool forcedmax) { m_forcedmaxspeed = forcedmax; }
             float getForcedMaxspeed() { return m_forcedmaxspeed; }
             void setPause(bool pause) { m_pause = pause; }
