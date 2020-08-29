@@ -2,7 +2,7 @@
 
 #include <string>
 #include <glad/glad.h>
-#include "Math.hpp"
+#include "diligentGraphics/Math.hpp"
 
 namespace Render {
 

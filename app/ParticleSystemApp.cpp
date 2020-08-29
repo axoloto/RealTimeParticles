@@ -5,7 +5,6 @@
 #include <SDL.h>
 #include <glad/glad.h>
 #include <stdio.h>
-#include <iostream>
 
 #include "Boids.hpp"
 

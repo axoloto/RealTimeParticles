@@ -1,9 +1,7 @@
 #include "OGLRender.hpp"
 #include "GLSL.hpp"
-#include "Math.hpp"
 #include "imgui/imgui.h"
-#include <vector>
-#include <stdlib.h> 
+#include "diligentGraphics/Math.hpp"
 
 using namespace Render;
 

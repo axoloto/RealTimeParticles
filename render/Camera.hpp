@@ -1,6 +1,6 @@
 #pragma once 
 
-#include "Math.hpp"
+#include "diligentGraphics/Math.hpp"
 
 namespace Render {
     class Camera {
