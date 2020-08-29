@@ -4,8 +4,7 @@
 #include "imgui/imgui_impl_opengl3.h"
 #include <SDL.h>
 #include <glad/glad.h>
-#include <stdio.h>
-#include <iostream>
+#include <spdlog/spdlog.h>
 
 #include "Boids.hpp"
 
@@ -15,17 +14,22 @@
 #include "CL/cl.h"
 #endif
 
+#if __APPLE__
+constexpr auto GLSL_VERSION = "#version 150";
+#else
+constexpr auto GLSL_VERSION = "#version 130";
+#endif
+
 bool ParticleSystemApp::initWindow()
 {
     // Setup SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
     {
-        printf("Error: %s\n", SDL_GetError());
+        spdlog::error("Error: {}", SDL_GetError());
         return false;
     }
 
     // GL 3.0 + GLSL 130
-    const char* glsl_version = "#version 130";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -46,7 +50,7 @@ bool ParticleSystemApp::initWindow()
 
     if (err)
     {
-        fprintf(stderr, "Failed to initialize OpenGL loader!\n");
+        spdlog::error( "Failed to initialize OpenGL loader!");
         return false;
     }
 
@@ -56,14 +60,10 @@ bool ParticleSystemApp::initWindow()
     ImGui::StyleColorsDark();
 
     ImGui_ImplSDL2_InitForOpenGL(m_window, m_OGLContext);
-    ImGui_ImplOpenGL3_Init(glsl_version);
+    ImGui_ImplOpenGL3_Init(GLSL_VERSION);
 
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-    // Load Fonts
-    // ImFont* font = io.Fonts->AddFontFromFileTTF("assets/verdana.ttf", 18.0f, NULL, NULL);
-    //IM_ASSERT(font != NULL);
 
     return true;
 }
@@ -113,7 +113,7 @@ bool ParticleSystemApp::checkSDLStatus()
     {
         ImGui_ImplSDL2_ProcessEvent(&event);
         switch(event.type)
-        { 
+        {
             case SDL_QUIT :
                 stopRendering = true;
                 break;
@@ -131,7 +131,7 @@ bool ParticleSystemApp::checkSDLStatus()
             case SDL_MOUSEBUTTONDOWN:
                 {
                     if (event.button.button == SDL_BUTTON_LEFT || event.button.button == SDL_BUTTON_RIGHT)
-                    {      
+                    {
                         Math::int2 currentMousePos;
                         SDL_GetMouseState(&currentMousePos.x, &currentMousePos.y);
                         m_mousePrevPos = currentMousePos;
@@ -139,11 +139,11 @@ bool ParticleSystemApp::checkSDLStatus()
                 }
                 break;
             case SDL_MOUSEWHEEL :
-                if(event.wheel.y > 0) 
+                if(event.wheel.y > 0)
                 {
                     m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-0.4f, 0.f));
                 }
-                else if(event.wheel.y < 0) 
+                else if(event.wheel.y < 0)
                 {
                     m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(0.4f, 0.f));
                 }
@@ -159,11 +159,11 @@ ParticleSystemApp::ParticleSystemApp() : m_mousePrevPos(0, 0), m_backGroundColor
 {
     initWindow();
 
-    m_physicsEngine = std::make_shared<Core::Boids>(m_boxSize, m_numEntities);
+    m_physicsEngine = std::make_unique<Core::Boids>(m_boxSize, m_numEntities);
 
     if(!m_physicsEngine) return;
 
-    m_physicsWidget = std::make_unique<UI::BoidsWidget>(m_physicsEngine);
+    m_physicsWidget = std::make_unique<UI::BoidsWidget>(*m_physicsEngine);
 
     if(!m_physicsWidget) return;
 
@@ -223,7 +223,7 @@ void ParticleSystemApp::displayMainWidget()
     const auto cameraPos = m_OGLRender->cameraPos();
     const auto targetPos = m_OGLRender->targetPos();
 
-    ImGui::Begin("Main Widget", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Begin("Main Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::PushItemWidth(150);
 
     bool isPaused = m_physicsEngine->getPause();
@@ -284,7 +284,7 @@ void ParticleSystemApp::displayMainWidget()
     ImGui::Text(" Dist. camera target : %.1f", Math::length(cameraPos - targetPos));
     ImGui::Spacing();
     if(ImGui::Button(" Reset Camera "))
-    { 
+    {
         m_OGLRender->resetCamera();
     }
 
@@ -295,8 +295,14 @@ void ParticleSystemApp::displayMainWidget()
     ImGui::End();
 }
 
+auto initializeLogger() {
+    spdlog::set_level(spdlog::level::debug);
+}
+
 int main(int, char**)
 {
+    initializeLogger();
+
     ParticleSystemApp app;
 
     if(app.isInit())
