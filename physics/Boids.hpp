@@ -14,7 +14,7 @@ namespace Core
 
         void updatePhysics() override;
 
-        void setmaxSteering(float maxSteering) { m_maxSteering = maxSteering; }
+        void setMaxSteering(float maxSteering) { m_maxSteering = maxSteering; }
         float getmaxSteering() { return m_maxSteering; }
 
         void setRadiusAlignment(float alignment) { m_radiusAlignment = alignment; }

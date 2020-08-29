@@ -1,15 +1,15 @@
 
 #include "Physics.hpp"
 
-Core::Physics::Physics(int boxSize, int numEntities) : m_boxSize(boxSize), m_numEntities(numEntities),m_maxVelocity(0.5f)
-,m_activateBouncingWall(false),m_activateCyclicWall(true),m_forcedmaxspeed(true),m_pause(true) {}
+Core::Physics::Physics(int boxSize, int numEntities, Dimension dimension) : m_boxSize(boxSize), m_numEntities(numEntities), m_maxSpeed(4.0f), m_dimension(dimension),
+                                                                            m_activateBouncingWall(false), m_activateCyclicWall(true), m_forceMaxSpeed(true), m_pause(true) {}
 
-void *Core::Physics::getCoordsBufferStart()
+void* Core::Physics::getCoordsBufferStart()
 {
     return &m_coordsBuffer[0];
 }
 
-void *Core::Physics::getColorsBufferStart()
+void* Core::Physics::getColorsBufferStart()
 {
     return &m_colorsBuffer[0];
 }
@@ -22,8 +22,7 @@ void Core::Physics::update()
 
 void Core::Physics::updateBuffers()
 {
-    if (m_numEntities > NUM_MAX_ENTITIES)
-        return;
+    if (m_numEntities > NUM_MAX_ENTITIES) return;
 
     for (int i = 0; i < m_numEntities; ++i)
     {
@@ -38,9 +37,9 @@ void Core::Physics::updateParticle(Entity &particle)
     {
         particle.vxyz += particle.axyz;
 
-        if (Math::length(particle.vxyz) > m_maxVelocity || m_forcedmaxspeed)
+        if (Math::length(particle.vxyz) > m_maxSpeed || m_forceMaxSpeed)
         {
-            particle.vxyz = normalize(particle.vxyz) * m_maxVelocity;
+            particle.vxyz = normalize(particle.vxyz) * m_maxSpeed;
         }
         particle.xyz += particle.vxyz;
         particle.axyz = {0.0f, 0.0f, 0.0f};
@@ -49,18 +48,17 @@ void Core::Physics::updateParticle(Entity &particle)
 
 void Core::Physics::bouncingWall(Entity &particle)
 {
-
     if (abs(particle.xyz[0]) > m_boxSize / 2)
     {
-        particle.vxyz[0] = -particle.vxyz[0];
+        particle.vxyz[0] *= -1;
     }
     if (abs(particle.xyz[1]) > m_boxSize / 2)
     {
-        particle.vxyz[1] = -particle.vxyz[1];
+        particle.vxyz[1] *= -1;
     }
     if (abs(particle.xyz[2]) > m_boxSize / 2)
     {
-        particle.vxyz[2] = -particle.vxyz[2];
+        particle.vxyz[2] *= -1;
     }
 }
 
@@ -85,9 +83,9 @@ void Core::Physics::cyclicWall(Entity &particle)
     }
 }
 
-void Core::Physics::resetParticle(Dimension dim)
+void Core::Physics::resetParticles()
 {
-    float mult = (dim == Dimension::dim3D) ? 1.0f : 0.0f;
+    float mult = (m_dimension == Dimension::dim3D) ? 1.0f : 0.0f;
     for (int i = 0; i < NUM_MAX_ENTITIES; ++i)
     {
         int boxHalfSize = m_boxSize / 2;
@@ -107,7 +105,7 @@ void Core::Physics::resetParticle(Dimension dim)
         m_entities[i].xyz = {x, y, z};
         m_entities[i].rgb = {rx, ry, rz};
         m_entities[i].vxyz = {vx, vy, vz};
-        m_entities[i].vxyz = normalize(m_entities[i].vxyz) * m_maxVelocity;
+        m_entities[i].vxyz = normalize(m_entities[i].vxyz) * m_maxSpeed;
         m_entities[i].axyz = {0.0f, 0.0f, 0.0f};
     }
 }

@@ -7,81 +7,37 @@ void UI::BoidsWidget::display()
 {
     auto *boidsEngine = dynamic_cast<Core::Boids *>(m_physicsEngine.get());
 
-    if (!boidsEngine)
-        return;
+    if (!boidsEngine) return;
 
-    ImGui::Begin("Boids Widget");
-
-    /*bool isPaused = boidsEngine->getPause();
-    if (ImGui::Checkbox("Pause System", &isPaused))
-    {
-        boidsEngine->setPause(isPaused);
-    }*/
-
-    bool isPaused = boidsEngine->getPause();
-    if (isPaused)
-    {
-
-        if (ImGui::Button("Run"))
-        {
-            boidsEngine->setPause(!isPaused);
-        }
-    }
-    else
-    {
-        if (ImGui::Button("Pause"))
-        {
-            boidsEngine->setPause(!isPaused);
-        }
-    }
-
-    ImGui::SameLine();
-    if (ImGui::Button("Reset 2D"))
-    {
-        boidsEngine->resetParticle(Core::Dimension::dim2D);
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Reset 3D"))
-    {
-        boidsEngine->resetParticle(Core::Dimension::dim3D);
-    }
-    ImGui::Spacing();
-    float maxVelocity = boidsEngine->getmaxVelocity();
-    if (ImGui::SliderFloat("Maximum Velocity", &maxVelocity, 0.01f, 20.0f))
-    {
-        boidsEngine->setmaxVelocity(maxVelocity);
-    }
-    bool isForcedmaxSpeed = boidsEngine->getForcedMaxspeed();
-    if (ImGui::Checkbox("Force System to Max Speed", &isForcedmaxSpeed))
-    {
-        boidsEngine->setForcedMaxSpeed(isForcedmaxSpeed);
-    }
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
+    ImGui::Begin("Boids Widget", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::PushItemWidth(150);
 
     bool isSteering = boidsEngine->getSteering();
     if (ImGui::Checkbox("Steering", &isSteering))
     {
         boidsEngine->setSteering(isSteering);
     }
+
     if (isSteering)
     {
         float maxSteering = boidsEngine->getmaxSteering();
-        if (ImGui::SliderFloat("Maximum Steering", &maxSteering, 0.005f, 2.0f))
+        if (ImGui::SliderFloat("Max. Steering", &maxSteering, 0.005f, 2.0f))
         {
-            boidsEngine->setmaxSteering(maxSteering);
+            boidsEngine->setMaxSteering(maxSteering);
         }
+
+       // ImGui::Spacing();
+        
+       // bool isTarget = boidsEngine->getActivateTargets();
+       // if (ImGui::Checkbox("Targets", &isTarget))
+       // {
+       //    boidsEngine->setActivateTargets(isTarget);
+       // }
+
         ImGui::Spacing();
-        bool isTarget = boidsEngine->getActivateTargets();
-        if (ImGui::Checkbox("Targets", &isTarget))
-        {
-            boidsEngine->setActivateTargets(isTarget);
-        }
+        ImGui::Separator();
         ImGui::Spacing();
-        ImGui::Text(" Boids Behavior");
-        ImGui::Spacing();
+
         bool isAlignment = boidsEngine->getActivateAlignment();
         if (ImGui::Checkbox("Alignment", &isAlignment))
         {
@@ -89,18 +45,23 @@ void UI::BoidsWidget::display()
         }
         if (isAlignment)
         {
+            ImGui::PushItemWidth(75);
+
             float scaleAlignment = boidsEngine->getScaleAlignment();
-            float radiusAlignment = boidsEngine->getRadiusAlignment();
-            if (ImGui::SliderFloat("Scale Alignment", &scaleAlignment, 0.0, 5.0f))
+            if (ImGui::SliderFloat("##scaleAlign", &scaleAlignment, 0.0, 5.0f))
             {
                 boidsEngine->setScaleAlignment(scaleAlignment);
             }
-            if (ImGui::SliderFloat("Radius Alignment", &radiusAlignment, 10.0f, 100.0f))
+            ImGui::SameLine();
+            float radiusAlignment = boidsEngine->getRadiusAlignment();
+            if (ImGui::SliderFloat("##radAlign", &radiusAlignment, 10.0f, 100.0f))
             {
                 boidsEngine->setRadiusAlignment(radiusAlignment);
             }
+
+            ImGui::PushItemWidth(150);
         }
-        ImGui::Spacing();
+
         bool isCohesion = boidsEngine->getActivateCohesion();
         if (ImGui::Checkbox("Cohesion", &isCohesion))
         {
@@ -108,54 +69,66 @@ void UI::BoidsWidget::display()
         }
         if (isCohesion)
         {
+            ImGui::PushItemWidth(75);
+
             float scaleCohesion = boidsEngine->getScaleCohesion();
-            float radiusCohesion = boidsEngine->getRadiusCohesion();
-            if (ImGui::SliderFloat("Scale Cohesion", &scaleCohesion, 0.0f, 5.0f))
+            if (ImGui::SliderFloat("##scaleCoh", &scaleCohesion, 0.0f, 5.0f))
             {
                 boidsEngine->setScaleCohesion(scaleCohesion);
             }
-            if (ImGui::SliderFloat("Radius Cohesion", &radiusCohesion, 10.0f, 100.0f))
+            ImGui::SameLine();
+            float radiusCohesion = boidsEngine->getRadiusCohesion();
+            if (ImGui::SliderFloat("##radCoh", &radiusCohesion, 10.0f, 100.0f))
             {
                 boidsEngine->setRadiusCohesion(radiusCohesion);
             }
+
+            ImGui::PushItemWidth(150);
         }
+
         bool isSeparation = boidsEngine->getActivateSeparation();
         if (ImGui::Checkbox("Separation", &isSeparation))
         {
             boidsEngine->setActivateSeparation(isSeparation);
         }
-                if (isSeparation)
+        if (isSeparation)
         {
+            ImGui::PushItemWidth(75);
+
             float scaleSeparation = boidsEngine->getScaleSeparation();
-            float radiusSeparation = boidsEngine->getRadiusSeparation();
-            if (ImGui::SliderFloat("Scale Separation", &scaleSeparation, 0.0f, 5.0f))
+            if (ImGui::SliderFloat("##scaleSep", &scaleSeparation, 0.0f, 5.0f))
             {
                 boidsEngine->setScaleSeparation(scaleSeparation);
             }
-            if (ImGui::SliderFloat("Radius Separation", &radiusSeparation, 10.0f, 100.0f))
+            ImGui::SameLine();
+            float radiusSeparation = boidsEngine->getRadiusSeparation();
+            if (ImGui::SliderFloat("##radSep", &radiusSeparation, 10.0f, 100.0f))
             {
                 boidsEngine->setRadiusSeparation(radiusSeparation);
             }
+
+            ImGui::PushItemWidth(150);
         }
     }
 
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::Text(" Walls Behavior");
+
+    ImGui::Text(" Wall Behavior");
     bool isBouncingWall = boidsEngine->getBouncingWall();
-    bool isCyclicWall = boidsEngine->getCyclicWall();
-    if (ImGui::Checkbox("BouncingWall", &isBouncingWall))
+    if (ImGui::Checkbox("Bouncing Wall", &isBouncingWall))
     {
-        isCyclicWall = false;
         boidsEngine->setBouncingWall(isBouncingWall);
-        boidsEngine->setCyclicWall(isCyclicWall);
+        boidsEngine->setCyclicWall(!isBouncingWall);
     }
+
     ImGui::SameLine();
-    if (ImGui::Checkbox("CyclicWall", &isCyclicWall))
+
+    bool isCyclicWall = boidsEngine->getCyclicWall();
+    if (ImGui::Checkbox("Cyclic Wall", &isCyclicWall))
     {
-        isBouncingWall = false;
-        boidsEngine->setBouncingWall(isBouncingWall);
+        boidsEngine->setBouncingWall(!isCyclicWall);
         boidsEngine->setCyclicWall(isCyclicWall);
     }
 
