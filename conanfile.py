@@ -16,7 +16,3 @@ class Conanfile(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-
-    def package(self):
-        self.copy('*.py*')
-        self.copy("*.so")
