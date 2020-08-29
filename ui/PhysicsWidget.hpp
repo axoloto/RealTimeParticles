@@ -4,6 +4,7 @@
 #include<memory>
 #include "Physics.hpp"
 
+
 namespace UI {
 
     class PhysicsWidget {
@@ -21,7 +22,9 @@ namespace UI {
         public:
         BoidsWidget(std::shared_ptr<Core::Physics> physicsEngine ) : PhysicsWidget(physicsEngine) {};
         ~BoidsWidget() = default;
-
         void display() override;
+
+        private:
+
     };
 }

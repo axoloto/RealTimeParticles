@@ -11,7 +11,6 @@
 
 #include "ParticleSystemApp.hpp"
 
-
 #if OPENCL_ACTIVATED
 #include "CL/cl.h"
 #endif
@@ -156,7 +155,7 @@ bool ParticleSystemApp::checkSDLStatus()
 
 ParticleSystemApp::ParticleSystemApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f),
                        m_buttonRightActivated(false), m_buttonLeftActivated(false), m_windowSize(1280, 720),
-                       m_init(false), m_boxSize(400), m_numEntities(400)
+                       m_init(false), m_boxSize(500), m_numEntities(1000)
 {
     initWindow();
 
@@ -224,27 +223,75 @@ void ParticleSystemApp::displayMainWidget()
     const auto cameraPos = m_OGLRender->cameraPos();
     const auto targetPos = m_OGLRender->targetPos();
 
-    ImGui::Begin("Main Widget");
-    if(ImGui::SliderInt("Num Particles", &m_numEntities, 1, Core::NUM_MAX_ENTITIES))
+    ImGui::Begin("Main Widget", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::PushItemWidth(150);
+
+    bool isPaused = m_physicsEngine->getPause();
+    std::string pauseRun = isPaused ? "  Start  " : "  Pause  ";
+    if (ImGui::Button(pauseRun.c_str()))
+    {
+        m_physicsEngine->setPause(!isPaused);
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("  Reset  "))
+    {
+        m_physicsEngine->resetParticles();
+    }
+
+    if(ImGui::SliderInt("Particles", &m_numEntities, 1, Core::NUM_MAX_ENTITIES))
     {
         m_physicsEngine->setNumEntities(m_numEntities);
         m_OGLRender->setNumEntities(m_numEntities);
     }
+
+    bool isSystemDim2D = (m_physicsEngine->getDimension() == Core::Dimension::dim2D);
+    if (ImGui::Checkbox("2D", &isSystemDim2D))
+    {
+        m_physicsEngine->setDimension(isSystemDim2D ? Core::Dimension::dim2D : Core::Dimension::dim3D);
+    }
+
+    ImGui::SameLine();
+
+    bool isSystemDim3D = (m_physicsEngine->getDimension() == Core::Dimension::dim3D);
+    if (ImGui::Checkbox("3D", &isSystemDim3D))
+    {
+        m_physicsEngine->setDimension(isSystemDim3D ? Core::Dimension::dim3D : Core::Dimension::dim2D);
+    }
+
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::Text(" Camera position : %.1f x, %.1f y, %.1f z", cameraPos.x, cameraPos.y, cameraPos.z);
-    ImGui::Text(" Target position : %.1f x, %.1f y, %.1f z", targetPos.x, targetPos.y, targetPos.z);
-    ImGui::Text(" Distance camera target : %.1f", Math::length(cameraPos - targetPos));
+
+    float maxVelocity = m_physicsEngine->getmaxVelocity();
+    if (ImGui::SliderFloat("Speed", &maxVelocity, 0.01f, 20.0f))
+    {
+        m_physicsEngine->setMaxVelocity(maxVelocity);
+    }
+
+    bool isMaxSpeedForced = m_physicsEngine->isMaxSpeedForced();
+    if (ImGui::Checkbox("Force Max. Speed", &isMaxSpeedForced))
+    {
+        m_physicsEngine->forceMaxSpeed(isMaxSpeedForced);
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text(" Camera (%.1f, %.1f, %.1f)", cameraPos.x, cameraPos.y, cameraPos.z);
+    ImGui::Text(" Target (%.1f, %.1f, %.1f)", targetPos.x, targetPos.y, targetPos.z);
+    ImGui::Text(" Dist. camera target : %.1f", Math::length(cameraPos - targetPos));
     ImGui::Spacing();
     if(ImGui::Button(" Reset Camera "))
     { 
         m_OGLRender->resetCamera();
     }
+
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::Text(" %.3f ms/frame (%.1f FPS)                     ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     ImGui::End();
 }
 
