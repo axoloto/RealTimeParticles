@@ -14,6 +14,12 @@
 #include "CL/cl.h"
 #endif
 
+#if __APPLE__
+constexpr auto GLSL_VERSION = "#version 150";
+#else
+constexpr auto GLSL_VERSION = "#version 130";
+#endif
+
 bool ParticleSystemApp::initWindow()
 {
     // Setup SDL
@@ -24,7 +30,6 @@ bool ParticleSystemApp::initWindow()
     }
 
     // GL 3.0 + GLSL 130
-    const char* glsl_version = "#version 130";
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -55,14 +60,10 @@ bool ParticleSystemApp::initWindow()
     ImGui::StyleColorsDark();
 
     ImGui_ImplSDL2_InitForOpenGL(m_window, m_OGLContext);
-    ImGui_ImplOpenGL3_Init(glsl_version);
+    ImGui_ImplOpenGL3_Init(GLSL_VERSION);
 
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
-    // Load Fonts
-    // ImFont* font = io.Fonts->AddFontFromFileTTF("assets/verdana.ttf", 18.0f, NULL, NULL);
-    //IM_ASSERT(font != NULL);
 
     return true;
 }

@@ -10,7 +10,7 @@ namespace UI {
     class PhysicsWidget {
         public:
         PhysicsWidget(std::shared_ptr<Core::Physics> physicsEngine ) : m_physicsEngine(physicsEngine) {};
-        ~PhysicsWidget() = default;
+        virtual ~PhysicsWidget() = default;
 
         virtual void display() = 0;
 
