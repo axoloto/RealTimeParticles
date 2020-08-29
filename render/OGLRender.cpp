@@ -181,18 +181,18 @@ void OGLRender::checkMouseEvents(UserAction action, Math::float2 delta)
         case UserAction::TRANSLATION :
         {
             const auto displacement = 0.4f * delta;
-            m_camera.get()->translate(-displacement.x, displacement.y);
+            m_camera->translate(-displacement.x, displacement.y);
             break;
         }
         case UserAction::ROTATION :
         {
             const auto angle = delta * Math::PI_F / 180.0f * 0.5;
-            m_camera.get()->rotate(angle.y, angle.x);
+            m_camera->rotate(angle.y, angle.x);
             break;
         }
         case UserAction::ZOOM :
         {
-            m_camera.get()->zoom(delta.x);
+            m_camera->zoom(delta.x);
             break;
         }
     }

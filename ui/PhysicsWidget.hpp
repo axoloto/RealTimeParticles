@@ -9,19 +9,19 @@ namespace UI {
 
     class PhysicsWidget {
         public:
-        PhysicsWidget(std::shared_ptr<Core::Physics> physicsEngine ) : m_physicsEngine(physicsEngine) {};
+        explicit PhysicsWidget(const Core::Physics &physicsEngine ) : m_physicsEngine(physicsEngine) {};
         virtual ~PhysicsWidget() = default;
 
         virtual void display() = 0;
 
         protected:
-            std::shared_ptr<Core::Physics> m_physicsEngine;
+            const Core::Physics &m_physicsEngine;
     };
 
     class BoidsWidget : public PhysicsWidget {
         public:
-        BoidsWidget(std::shared_ptr<Core::Physics> physicsEngine ) : PhysicsWidget(physicsEngine) {};
-        ~BoidsWidget() = default;
+        explicit BoidsWidget(const Core::Physics &physicsEngine ) : PhysicsWidget(physicsEngine) {};
+        ~BoidsWidget() override = default;
         void display() override;
 
         private:
