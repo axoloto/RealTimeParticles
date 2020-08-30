@@ -18,7 +18,7 @@ cd "$DEV_BUILD_DIR"
 printf "======================= Starting Conan third-parties installation ========================== \n"
 
 #conan install -s build_type=$DEV_BUILD_TYPE ..
-conan install -s build_type=$DEV_BUILD_TYPE .. -s compiler.runtime=MDd --build=missing
+conan install -s build_type=$DEV_BUILD_TYPE ..
 
 printf "======================= Finishing Conan third-parties installation ========================== \n"
 
