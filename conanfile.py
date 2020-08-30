@@ -18,3 +18,7 @@ class Conanfile(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
+
+    def imports(self):
+        self.copy(pattern="*.pdb", dst="bin", src="bin")
+

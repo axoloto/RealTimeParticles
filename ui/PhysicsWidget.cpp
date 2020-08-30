@@ -5,7 +5,7 @@
 
 void UI::BoidsWidget::display()
 {
-    auto boidsEngine = dynamic_cast<const Core::Boids &>(m_physicsEngine);
+    auto& boidsEngine = dynamic_cast<Core::Boids &>(m_physicsEngine);
 
     ImGui::Begin("Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::PushItemWidth(150);
