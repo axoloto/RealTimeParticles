@@ -11,7 +11,7 @@ namespace Core {
 
     class Physics {
         public:
-            Physics(int boxSize, int numEntities, Dimension dimension = Dimension::dim2D);
+            Physics(int boxSize, int numEntities, Dimension dimension = Dimension::dim3D);
             ~Physics() = default;
 
             void* getCoordsBufferStart();

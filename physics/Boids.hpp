@@ -10,7 +10,7 @@ namespace Core
     {
     public:
         Boids(int boxSize, int numEntities);
-        ~Boids() = default;
+        virtual ~Boids() = default;
 
         void updatePhysics() override;
 
@@ -50,13 +50,15 @@ namespace Core
         void setActivateSeparation(bool separation) { m_activeSeparation = separation; }
         bool getActivateSeparation() const { return m_activeSeparation; }
 
-    private:
+    protected:
         Math::float3 steerForceCalculation(Entity boid, Math::float3 desired_velocity);
+
         void seekTarget(Entity &boid, Math::float3 target_loc,float scale);
         void alignment(Entity &boid);
         void cohesion(Entity &boid);
         void separation(Entity &boid);
         void repulseWall(Entity &boid); // WIP
+
         float m_maxSteering;
         float m_radiusAlignment;
         float m_scaleAlignment;
@@ -64,6 +66,7 @@ namespace Core
         float m_scaleCohesion;
         float m_radiusSeparation;
         float m_scaleSeparation;
+
         bool m_activeSteering;
         bool m_activeTargets;
         bool m_activeAlignment;

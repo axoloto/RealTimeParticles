@@ -2,13 +2,13 @@
 project(ParticleSystemApp)
 
 file(GLOB SRC "ParticleSystemApp.cpp" "ParticleSystemApp.hpp")
+
 add_executable(ParticleSystemApp ${SRC})
 set_target_properties(ParticleSystemApp PROPERTIES FOLDER app)
 
 add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
 
 target_include_directories(ParticleSystemApp PRIVATE ${OPENGL_INCLUDE_DIRS}
-                                            ${OPENCL_INCLUDE_DIRS}
                                             "$ENV{TP_DIR}/diligentGraphics"
                                             "$ENV{TP_DIR}/imgui")
 

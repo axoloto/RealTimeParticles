@@ -7,12 +7,11 @@
 #include <spdlog/spdlog.h>
 
 #include "Boids.hpp"
+#if OPENCL_ACTIVATED
+#include "ocl/OCLBoids.hpp"
+#endif
 
 #include "ParticleSystemApp.hpp"
-
-#if OPENCL_ACTIVATED
-#include "CL/cl.h"
-#endif
 
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
@@ -160,6 +159,8 @@ ParticleSystemApp::ParticleSystemApp() : m_mousePrevPos(0, 0), m_backGroundColor
     initWindow();
 
     m_physicsEngine = std::make_unique<Core::Boids>(m_boxSize, m_numEntities);
+
+    //auto test = Core::OCLBoids(m_boxSize, m_numEntities);
 
     if(!m_physicsEngine) return;
 

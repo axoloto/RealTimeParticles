@@ -2,7 +2,7 @@
 #include "Physics.hpp"
 
 Core::Physics::Physics(int boxSize, int numEntities, Dimension dimension) : m_boxSize(boxSize), m_numEntities(numEntities), m_maxSpeed(4.0f), m_dimension(dimension),
-                                                                            m_activateBouncingWall(false), m_activateCyclicWall(true), m_forceMaxSpeed(true), m_pause(true) {}
+                                                                            m_activateBouncingWall(false), m_activateCyclicWall(true), m_forceMaxSpeed(true), m_pause(false) {}
 
 void* Core::Physics::getCoordsBufferStart()
 {
