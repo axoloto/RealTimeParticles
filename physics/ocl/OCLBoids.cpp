@@ -3,7 +3,7 @@
 
 using namespace Core;
 
-#define PROGRAM_FILE "c/Dev_perso/boids/physics/ocl/kernels/matvec.cl"
+#define PROGRAM_FILE "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\matvec.cl"
 #define KERNEL_FUNC "matvec_mult"
 
 OCLBoids::OCLBoids(int boxSize, int numEntities) : Boids(boxSize, numEntities)
@@ -77,11 +77,9 @@ int OCLBoids::initOpenCL()
     
     work_units_per_kernel = 4;
     
-    clEnqueueNDRangeKernel(queue, kernel, 1, NULL,
-                           &work_units_per_kernel, NULL, 0, NULL, NULL);
+    clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &work_units_per_kernel, NULL, 0, NULL, NULL);
     
-    clEnqueueReadBuffer(queue, res_buff, CL_TRUE, 0,
-                        sizeof(float) * 4, result, 0, NULL, NULL);
+    clEnqueueReadBuffer(queue, res_buff, CL_TRUE, 0, sizeof(float) * 4, result, 0, NULL, NULL);
     
     if ((result[0] == correct[0]) && (result[1] == correct[1]) && (result[2] == correct[2]) && (result[3] == correct[3]))
     {
