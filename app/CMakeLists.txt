@@ -5,6 +5,7 @@ file(GLOB SRC "ParticleSystemApp.cpp" "ParticleSystemApp.hpp")
 
 add_executable(ParticleSystemApp ${SRC})
 set_target_properties(ParticleSystemApp PROPERTIES FOLDER app)
+set_target_properties(ParticleSystemApp PROPERTIES LINK_FLAGS "/ignore:4099")
 
 add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
 

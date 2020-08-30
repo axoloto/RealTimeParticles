@@ -1,7 +1,3 @@
-
-mkdir -p "$DEV_BUILD_DIR"
-mkdir -p "$DEV_INSTALL_DIR"
-
 # Log
 info=" -BUILD- \n"
 info+=" - build type = $DEV_BUILD_TYPE\n"
@@ -19,9 +15,17 @@ fi
 
 cd "$DEV_BUILD_DIR"
 
+printf "======================= Starting Conan third-parties installation ========================== \n"
+
+#conan install -s build_type=$DEV_BUILD_TYPE ..
+conan install -s build_type=$DEV_BUILD_TYPE .. -s compiler.runtime=MDd --build=missing
+
+printf "======================= Finishing Conan third-parties installation ========================== \n"
+
 cmake "$DEV_DIR" \
       -DCMAKE_INSTALL_PREFIX="$DEV_INSTALL_DIR" \
       -DCMAKE_BUILD_TYPE=$DEV_BUILD_TYPE \
+      -DCMAKE_BUILD_DIR=$DEV_BUILD_DIR \
       -DCMAKE_GENERATOR_PLATFORM=x64 \
       -DUSE_OPENCL=$USE_OPENCL
 
