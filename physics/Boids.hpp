@@ -72,5 +72,7 @@ namespace Core
         bool m_activeAlignment;
         bool m_activeCohesion;
         bool m_activeSeparation;
+
+        Math::float3 m_target;
     };
 } // namespace Core

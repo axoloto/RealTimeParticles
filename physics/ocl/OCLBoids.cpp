@@ -47,7 +47,7 @@ int OCLBoids::initOpenCL()
     clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
     context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
 
-    program_handle = fopen(PROGRAM_FILE, "r");
+    program_handle = fopen(PROGRAM_FILE, "rb");
     fseek(program_handle, 0, SEEK_END);
     program_size = ftell(program_handle);
     rewind(program_handle);
@@ -59,28 +59,41 @@ int OCLBoids::initOpenCL()
     fclose(program_handle);
 
     program = clCreateProgramWithSource(context, 1, (const char **)&program_buffer, &program_size, &err);
+    if (err != CL_SUCCESS)
+    {
+        printf("error in program");
+    }
     free(program_buffer);
-    
-    clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
-    
+
+    err = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+    if (err != CL_SUCCESS)
+    {
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+        program_log = (char *)malloc(log_size + 1);
+        program_log[log_size] = '\0';
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size + 1, program_log, NULL);
+        printf("%s\n", program_log);
+        free(program_log);
+        exit(1);
+    }
     kernel = clCreateKernel(program, KERNEL_FUNC, &err);
-    
+
     queue = clCreateCommandQueue(context, device, 0, &err);
-    
+
     mat_buff = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * 16, mat, &err);
     vec_buff = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * 4, vec, &err);
     res_buff = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(float) * 4, NULL, &err);
-    
+
     clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat_buff);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), &vec_buff);
     clSetKernelArg(kernel, 2, sizeof(cl_mem), &res_buff);
-    
+
     work_units_per_kernel = 4;
-    
+
     clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &work_units_per_kernel, NULL, 0, NULL, NULL);
-    
+
     clEnqueueReadBuffer(queue, res_buff, CL_TRUE, 0, sizeof(float) * 4, result, 0, NULL, NULL);
-    
+
     if ((result[0] == correct[0]) && (result[1] == correct[1]) && (result[2] == correct[2]) && (result[3] == correct[3]))
     {
         printf("Matrix-vector multiplication successful.\n");

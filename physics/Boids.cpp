@@ -8,12 +8,13 @@ Core::Boids::Boids(int boxSize, int numEntities) : Physics(boxSize, numEntities)
     m_radiusAlignment = m_boxSize * 0.1f;
     m_radiusCohesion = m_boxSize * 0.1f;
     m_radiusSeparation = m_boxSize * 0.1f;
+    m_target = {0, 0, 0};
 
-    Core::Boids::resetParticles();
+    resetParticles();
 }
 
 void Core::Boids::updatePhysics()
-{
+{        
     // The three Boids rules + target seeking
     for (int i = 0; i < m_numEntities; ++i)
     {
@@ -95,7 +96,7 @@ void Core::Boids::alignment(Entity &boid)
 
     if (count > 0) 
     {
-        averageHeading=normalize(averageHeading)*m_maxSpeed;
+        averageHeading = normalize(averageHeading)*m_maxSpeed;
         boid.axyz += steerForceCalculation(boid, averageHeading)*m_scaleAlignment;
     }
 }
@@ -110,16 +111,17 @@ void Core::Boids::cohesion(Entity &boid)
     {
         float dist = Math::length(boid.xyz - m_entities[i].xyz);
         if (dist < m_radiusCohesion && dist != 0)
-        {   count++;
+        {
+            count++;
             averagePosition += m_entities[i].xyz;
         }
     }
 
     if (count > 0)
     {
-        averagePosition /=float(count);
-        averagePosition -=boid.xyz;
-        averagePosition =normalize(averagePosition)*m_maxSpeed;
+        averagePosition /= float(count);
+        averagePosition -= boid.xyz;
+        averagePosition = normalize(averagePosition)*m_maxSpeed;
         boid.axyz += steerForceCalculation(boid, averagePosition)*m_scaleCohesion;
     }
 }
