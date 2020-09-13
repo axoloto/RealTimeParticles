@@ -3,7 +3,7 @@
 using namespace Core;
 
 #define PROGRAM_FILE "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\matvec.cl"
-#define KERNEL_FUNC "matvec_mult"
+#define KERNEL_RANDOM_FUNC "randomPositions"
 
 static void openCLExample();
 
@@ -11,12 +11,16 @@ OCLBoids::OCLBoids(int boxSize, int numEntities) : Boids(boxSize, numEntities)
 {
     m_init = initOpenCL();
 
-    if(m_init) createKernel();
+    if(m_init)
+    { 
+        createKernel();
+        runKernel();
+    }
 }
 
 OCLBoids::~OCLBoids()
 {
-    clReleaseKernel(cl_boidKernel);
+    clReleaseKernel(cl_randomKernel);
     //clReleaseMemObject(mat_buff); //WIP release buffer from kernel
     //clReleaseMemObject(vec_buff);
     //clReleaseMemObject(res_buff);
@@ -74,6 +78,13 @@ bool OCLBoids::initOpenCL()
         return false;
     }
 
+    cl_queue = clCreateCommandQueue(cl_context, cl_device, 0, &err);
+    if (err != CL_SUCCESS)
+    {
+        printf("error when creating queue");
+        return false;
+    }
+
     return true;
 }
 
@@ -81,64 +92,24 @@ bool OCLBoids::createKernel()
 {
     cl_int err;
 
-    float mat[16], vec[4], result[4];
-    float correct[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-
-    cl_mem mat_buff, vec_buff, res_buff;
-
-    cl_boidKernel = clCreateKernel(cl_program, KERNEL_FUNC, &err);
+    cl_randomKernel = clCreateKernel(cl_program, KERNEL_RANDOM_FUNC, &err);
     if (err != CL_SUCCESS) printf("error when creating kernel");
 
-    cl_queue = clCreateCommandQueue(cl_context, cl_device, 0, &err);
-    if (err != CL_SUCCESS) printf("error when creating kernel");
+    cl_random_buff = clCreateBuffer(cl_context, CL_MEM_WRITE_ONLY, sizeof(float) * 3 * NUM_MAX_ENTITIES, NULL, &err);
+    if (err != CL_SUCCESS) printf("error when creating boid buffer");
 
-    mat_buff = clCreateBuffer(cl_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * 16, mat, &err);
-    if (err != CL_SUCCESS) printf("error when creating buffer");
-
-    vec_buff = clCreateBuffer(cl_context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, sizeof(float) * 4, vec, &err);
-    cl_res_buff = clCreateBuffer(cl_context, CL_MEM_WRITE_ONLY, sizeof(float) * 4, NULL, &err);
-
-    clSetKernelArg(cl_boidKernel, 0, sizeof(cl_mem), &mat_buff);
-    clSetKernelArg(cl_boidKernel, 1, sizeof(cl_mem), &vec_buff);
-    clSetKernelArg(cl_boidKernel, 2, sizeof(cl_mem), &cl_res_buff);
+    clSetKernelArg(cl_randomKernel, 0, sizeof(cl_mem), &cl_random_buff);
 
     return 0;
 }
 
 void OCLBoids::runKernel()
 {
-    float mat[16], vec[4], result[4];
-    float correct[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    size_t numWOrkItems = NUM_MAX_ENTITIES;
+    clEnqueueNDRangeKernel(cl_queue, cl_randomKernel, 1, NULL, &numWOrkItems, NULL, 0, NULL, NULL);
 
-    cl_mem mat_buff, vec_buff;
-
-    for (int i = 0; i < 16; i++)
-    {
-        mat[i] = i * 2.0f;
-    }
-
-    for (int i = 0; i < 4; i++)
-    {
-        vec[i] = i * 3.0f;
-        correct[0] += mat[i] * vec[i];
-        correct[1] += mat[i + 4] * vec[i];
-        correct[2] += mat[i + 8] * vec[i];
-        correct[3] += mat[i + 12] * vec[i];
-    }
-
-    size_t work_units_per_kernel = 4;
-    clEnqueueNDRangeKernel(cl_queue, cl_boidKernel, 1, NULL, &work_units_per_kernel, NULL, 0, NULL, NULL);
-
-    clEnqueueReadBuffer(cl_queue, cl_res_buff, CL_TRUE, 0, sizeof(float) * 4, result, 0, NULL, NULL);
-
-    if ((result[0] == correct[0]) && (result[1] == correct[1]) && (result[2] == correct[2]) && (result[3] == correct[3]))
-    {
-        printf("Matrix-vector multiplication successful.\n");
-    }
-    else
-    {
-        printf("Matrix-vector multiplication unsuccessful.\n");
-    }
+    float result[3 * NUM_MAX_ENTITIES];
+    clEnqueueReadBuffer(cl_queue, cl_random_buff, CL_TRUE, 0, sizeof(float) * 3 * NUM_MAX_ENTITIES, result, 0, NULL, NULL);
 }
 
 void OCLBoids::updatePhysics()
@@ -211,7 +182,7 @@ static void openCLExample()
         free(program_log);
         exit(1);
     }
-    kernel = clCreateKernel(program, KERNEL_FUNC, &err);
+    kernel = clCreateKernel(program, KERNEL_RANDOM_FUNC, &err);
 
     queue = clCreateCommandQueue(context, device, 0, &err);
 

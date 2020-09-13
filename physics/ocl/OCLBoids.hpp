@@ -27,8 +27,8 @@ namespace Core
         cl_context cl_context;
         cl_program cl_program;
         cl_command_queue cl_queue;
-        cl_kernel cl_boidKernel;
+        cl_kernel cl_randomKernel;
 
-        cl_mem cl_res_buff;
+        cl_mem cl_random_buff;
     };
 }
