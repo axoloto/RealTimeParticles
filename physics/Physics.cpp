@@ -26,7 +26,7 @@ void Core::Physics::updateBuffers()
 
     for (int i = 0; i < m_numEntities; ++i)
     {
-        m_coordsBuffer[i] = {m_entities[i].xyz[0], m_entities[i].xyz[1], m_entities[i].xyz[2]};
+        m_coordsBuffer[i] = {m_entities[i].xyz[0], m_entities[i].xyz[1], m_entities[i].xyz[2], 1.0f};
         m_colorsBuffer[i] = {m_entities[i].rgb[0], m_entities[i].rgb[1], m_entities[i].rgb[2]};
     }
 }

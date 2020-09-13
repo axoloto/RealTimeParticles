@@ -60,7 +60,7 @@ namespace Core {
 
             std::array<Entity, NUM_MAX_ENTITIES> m_entities;
             
-            std::array<std::array<float, 3>, NUM_MAX_ENTITIES> m_coordsBuffer;
+            std::array<std::array<float, 4>, NUM_MAX_ENTITIES> m_coordsBuffer;
             std::array<std::array<float, 3>, NUM_MAX_ENTITIES> m_colorsBuffer;
 
             int m_numEntities;

@@ -1,4 +1,6 @@
 #include "OCLBoids.hpp"
+#include "CL/cl_gl.h"  // WIP
+#include "windows.h"  // WIP
 
 using namespace Core;
 
@@ -6,6 +8,7 @@ using namespace Core;
 #define KERNEL_RANDOM_FUNC "randomPositions"
 
 static void openCLExample();
+static bool isOCLExtensionSupported(cl_device_id device, const char* extension);
 
 OCLBoids::OCLBoids(int boxSize, int numEntities) : Boids(boxSize, numEntities)
 {
@@ -40,7 +43,22 @@ bool OCLBoids::initOpenCL()
     
     clGetPlatformIDs(1, &cl_platform, NULL);
     clGetDeviceIDs(cl_platform, CL_DEVICE_TYPE_GPU, 1, &cl_device, NULL);
-    cl_context = clCreateContext(NULL, 1, &cl_device, NULL, NULL, &err);
+
+    if(!isOCLExtensionSupported(cl_device, "cl_khr_gl_sharing"))
+    {
+        printf("error, extension missing to do inter operation between opencl and opengl");
+        return false;
+    }
+
+    cl_context_properties props[] =
+    {
+        CL_GL_CONTEXT_KHR, (cl_context_properties) wglGetCurrentContext(),
+        CL_WGL_HDC_KHR, (cl_context_properties) wglGetCurrentDC(),
+        CL_CONTEXT_PLATFORM, (cl_context_properties) cl_platform,
+        0
+    };
+
+    cl_context = clCreateContext(props, 1, &cl_device, NULL, NULL, &err);
     if (err != CL_SUCCESS)
     {
         printf("error when creating context");
@@ -115,6 +133,39 @@ void OCLBoids::runKernel()
 void OCLBoids::updatePhysics()
 {
     runKernel();
+}
+
+static bool isOCLExtensionSupported(cl_device_id device, const char* extension)
+{
+    if(extension == NULL || extension[0] == '\0') return false;
+
+    char * where = (char *) strchr(extension, ' ');
+    if(where != NULL) return false;
+
+    size_t extensionSize;
+    clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, NULL, &extensionSize);
+
+    char *extensions = new char [ extensionSize ];
+    clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, extensionSize, extensions, NULL);
+    
+    bool foundExtension = false;
+    for(char* start = extensions; ;)
+    {
+        where = (char *) strstr((const char *) start, extension);
+        char* terminator = where + strlen(extension); 
+
+        if(*terminator == ' ' || *terminator == '\0' || *terminator == '\r' || *terminator == '\n')
+        {
+            foundExtension = true;
+            break;
+        }
+
+        start = terminator;
+    }
+
+    delete[] extensions;
+
+    return foundExtension;
 }
 
 static void openCLExample()
