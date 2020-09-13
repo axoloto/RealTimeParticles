@@ -9,10 +9,6 @@ set_target_properties(ParticleSystemApp PROPERTIES LINK_FLAGS "/ignore:4099")
 
 add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
 
-if(USE_OPENCL)
-    add_definitions("-DOPENCL_ACTIVATED")
-endif()
-
 target_include_directories(ParticleSystemApp PRIVATE ${OPENGL_INCLUDE_DIRS}
                                             "$ENV{TP_DIR}/diligentGraphics"
                                             "$ENV{TP_DIR}/imgui")

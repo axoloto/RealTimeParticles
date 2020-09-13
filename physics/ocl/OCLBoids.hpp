@@ -2,6 +2,7 @@
 
 #include <array>
 #include "Boids.hpp"
+#include "CL/cl.h"
 
 namespace Core
 {
@@ -10,11 +11,24 @@ namespace Core
     {
     public:
         OCLBoids(int boxSize, int numEntities);
-        ~OCLBoids() = default;
+        ~OCLBoids();
 
-        //void updatePhysics() override;
+        void updatePhysics() override;
 
     private: 
-        int initOpenCL();
+        bool initOpenCL();
+        bool createKernel();
+        void runKernel();
+
+        bool m_init;
+
+        cl_platform_id cl_platform;
+        cl_device_id cl_device;
+        cl_context cl_context;
+        cl_program cl_program;
+        cl_command_queue cl_queue;
+        cl_kernel cl_boidKernel;
+
+        cl_mem cl_res_buff;
     };
 }
