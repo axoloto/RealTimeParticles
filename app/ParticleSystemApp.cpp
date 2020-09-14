@@ -94,12 +94,12 @@ void ParticleSystemApp::checkMouseState()
 
     if(mouseState & SDL_BUTTON(1))
     {
-        m_OGLRender->checkMouseEvents(Render::UserAction::ROTATION, fDelta);
+        m_graphicsEngine->checkMouseEvents(Render::UserAction::ROTATION, fDelta);
         m_mousePrevPos = currentMousePos;
     }
     else if(mouseState & SDL_BUTTON(3))
     {
-        m_OGLRender->checkMouseEvents(Render::UserAction::TRANSLATION, fDelta);
+        m_graphicsEngine->checkMouseEvents(Render::UserAction::TRANSLATION, fDelta);
         m_mousePrevPos = currentMousePos;
     }
 }
@@ -125,7 +125,7 @@ bool ParticleSystemApp::checkSDLStatus()
                 if (event.window.event == SDL_WINDOWEVENT_RESIZED)
                 {
                     m_windowSize = Math::int2(event.window.data1, event.window.data2);
-                    m_OGLRender->setWindowSize(m_windowSize);
+                    m_graphicsEngine->setWindowSize(m_windowSize);
                 }
                 break;
             case SDL_MOUSEBUTTONDOWN:
@@ -141,11 +141,11 @@ bool ParticleSystemApp::checkSDLStatus()
             case SDL_MOUSEWHEEL :
                 if(event.wheel.y > 0)
                 {
-                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-0.4f, 0.f));
+                    m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-0.4f, 0.f));
                 }
                 else if(event.wheel.y < 0)
                 {
-                    m_OGLRender->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(0.4f, 0.f));
+                    m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(0.4f, 0.f));
                 }
                 break;
         }
@@ -159,21 +159,19 @@ ParticleSystemApp::ParticleSystemApp() : m_mousePrevPos(0, 0), m_backGroundColor
 {
     initWindow();
 
-    m_physicsEngine = std::make_unique<Core::Boids>(m_boxSize, m_numEntities);
+    m_graphicsEngine = std::make_unique<Render::OGLRender>(m_boxSize, m_numEntities, (float) m_windowSize.x / m_windowSize.y);
 
-    auto test = Core::OCLBoids(m_boxSize, m_numEntities);
+    if(!m_graphicsEngine) return;
+
+    m_physicsEngine = std::make_unique<Core::OCLBoids>(m_boxSize, m_numEntities,
+                                                      (unsigned int) m_graphicsEngine->pointCloudCoordVBO(),
+                                                      (unsigned int) m_graphicsEngine->pointCloudColorVBO());
 
     if(!m_physicsEngine) return;
 
     m_physicsWidget = std::make_unique<UI::BoidsWidget>(*m_physicsEngine);
 
     if(!m_physicsWidget) return;
-
-    m_OGLRender = std::make_unique<Render::OGLRender>(m_boxSize, m_numEntities, (float) m_windowSize.x / m_windowSize.y);
-
-    if(!m_OGLRender) return;
-
-    m_OGLRender->setPointCloudBuffers(m_physicsEngine->getCoordsBufferStart(), m_physicsEngine->getColorsBufferStart());
 
     m_init = true;
 }
@@ -193,7 +191,7 @@ void ParticleSystemApp::run()
         ImGui_ImplSDL2_NewFrame(m_window);
         ImGui::NewFrame();
 
-        if(!m_OGLRender)
+        if(!m_graphicsEngine)
         {
             stopRendering = true;
             return;
@@ -209,7 +207,7 @@ void ParticleSystemApp::run()
 
         m_physicsEngine->update();
 
-        m_OGLRender->draw();
+        m_graphicsEngine->draw();
 
         ImGui::Render();
 
@@ -222,8 +220,8 @@ void ParticleSystemApp::run()
 
 void ParticleSystemApp::displayMainWidget()
 {
-    const auto cameraPos = m_OGLRender->cameraPos();
-    const auto targetPos = m_OGLRender->targetPos();
+    const auto cameraPos = m_graphicsEngine->cameraPos();
+    const auto targetPos = m_graphicsEngine->targetPos();
 
     ImGui::Begin("Main Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::PushItemWidth(150);
@@ -245,7 +243,7 @@ void ParticleSystemApp::displayMainWidget()
     if(ImGui::SliderInt("Particles", &m_numEntities, 1, Core::NUM_MAX_ENTITIES))
     {
         m_physicsEngine->setNumEntities(m_numEntities);
-        m_OGLRender->setNumEntities(m_numEntities);
+        m_graphicsEngine->setNumEntities(m_numEntities);
     }
 
     bool isSystemDim2D = (m_physicsEngine->getDimension() == Core::Dimension::dim2D);
@@ -287,7 +285,7 @@ void ParticleSystemApp::displayMainWidget()
     ImGui::Spacing();
     if(ImGui::Button(" Reset Camera "))
     {
-        m_OGLRender->resetCamera();
+        m_graphicsEngine->resetCamera();
     }
 
     ImGui::Spacing();

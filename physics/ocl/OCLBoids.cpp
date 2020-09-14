@@ -5,32 +5,41 @@
 using namespace Core;
 
 #define PROGRAM_FILE "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\matvec.cl"
-#define KERNEL_RANDOM_FUNC "randomPositions"
 
-static void openCLExample();
+#define KERNEL_RANDOM_FUNC "randPosVerts"
+#define KERNEL_COLOR_FUNC "colorVerts"
+
+static void OCLExample();
 static bool isOCLExtensionSupported(cl_device_id device, const char* extension);
 
-OCLBoids::OCLBoids(int boxSize, int numEntities) : Boids(boxSize, numEntities)
+OCLBoids::OCLBoids(int boxSize, int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO) : Boids(boxSize, numEntities)
 {
     m_init = initOpenCL();
 
     if(m_init)
-    { 
-        createKernel();
-        runKernel();
+    {
+        createRandomKernel(pointCloudCoordVBO);
+        createColorKernel(pointCloudColorVBO);
+        runKernel(cl_colorKernel, cl_colorBuff);
     }
 }
 
 OCLBoids::~OCLBoids()
 {
+    clReleaseKernel(cl_colorKernel);
+    clReleaseMemObject(cl_colorBuff);
+
     clReleaseKernel(cl_randomKernel);
-    //clReleaseMemObject(mat_buff); //WIP release buffer from kernel
-    //clReleaseMemObject(vec_buff);
-    //clReleaseMemObject(res_buff);
+    clReleaseMemObject(cl_randomBuff);
 
     clReleaseCommandQueue(cl_queue);
     clReleaseProgram(cl_program);
     clReleaseContext(cl_context);
+}
+
+void OCLBoids::updatePhysics()
+{
+    runKernel(cl_randomKernel, cl_randomBuff);
 }
 
 bool OCLBoids::initOpenCL()
@@ -106,33 +115,50 @@ bool OCLBoids::initOpenCL()
     return true;
 }
 
-bool OCLBoids::createKernel()
+bool OCLBoids::createColorKernel(unsigned int bufferGL)
+{
+    cl_int err;
+
+    cl_colorKernel = clCreateKernel(cl_program, KERNEL_COLOR_FUNC, &err);
+    if (err != CL_SUCCESS) printf("error when creating color kernel");
+
+    cl_colorBuff = clCreateFromGLBuffer(cl_context, CL_MEM_WRITE_ONLY, bufferGL, &err);
+    if (err != CL_SUCCESS) printf("error when creating color buffer");
+
+    clSetKernelArg(cl_colorKernel, 0, sizeof(cl_mem), &cl_colorBuff);
+
+    return true;
+}
+
+bool OCLBoids::createRandomKernel(unsigned int bufferGL)
 {
     cl_int err;
 
     cl_randomKernel = clCreateKernel(cl_program, KERNEL_RANDOM_FUNC, &err);
-    if (err != CL_SUCCESS) printf("error when creating kernel");
+    if (err != CL_SUCCESS) printf("error when creating random kernel");
 
-    cl_random_buff = clCreateBuffer(cl_context, CL_MEM_WRITE_ONLY, sizeof(float) * 3 * NUM_MAX_ENTITIES, NULL, &err);
-    if (err != CL_SUCCESS) printf("error when creating boid buffer");
+    cl_randomBuff = clCreateFromGLBuffer(cl_context, CL_MEM_WRITE_ONLY, bufferGL, &err);
+    if (err != CL_SUCCESS) printf("error when creating random buffer");
 
-    clSetKernelArg(cl_randomKernel, 0, sizeof(cl_mem), &cl_random_buff);
+    clSetKernelArg(cl_randomKernel, 0, sizeof(cl_mem), &cl_randomBuff);
 
-    return 0;
+    return true;
 }
 
-void OCLBoids::runKernel()
+void OCLBoids::runKernel(cl_kernel kernel, cl_mem GLCLbuffer )
 {
-    size_t numWOrkItems = NUM_MAX_ENTITIES;
-    clEnqueueNDRangeKernel(cl_queue, cl_randomKernel, 1, NULL, &numWOrkItems, NULL, 0, NULL, NULL);
+    if(!m_init) return;
 
-    float result[3 * NUM_MAX_ENTITIES];
-    clEnqueueReadBuffer(cl_queue, cl_random_buff, CL_TRUE, 0, sizeof(float) * 3 * NUM_MAX_ENTITIES, result, 0, NULL, NULL);
-}
+    cl_int err = clEnqueueAcquireGLObjects(cl_queue, 1, &GLCLbuffer, 0, NULL, NULL);
+    if (err != CL_SUCCESS) printf("error when acquiring GL buffer");
 
-void OCLBoids::updatePhysics()
-{
-    runKernel();
+    size_t numWorkItems = NUM_MAX_ENTITIES;
+    clEnqueueNDRangeKernel(cl_queue, kernel, 1, NULL, &numWorkItems, NULL, 0, NULL, NULL);
+
+    err = clEnqueueReleaseGLObjects(cl_queue, 1, &GLCLbuffer, 0, NULL, NULL);
+    if (err != CL_SUCCESS) printf("error when releasing GL buffer");
+
+    clFinish(cl_queue);
 }
 
 static bool isOCLExtensionSupported(cl_device_id device, const char* extension)
@@ -145,7 +171,7 @@ static bool isOCLExtensionSupported(cl_device_id device, const char* extension)
     size_t extensionSize;
     clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, NULL, &extensionSize);
 
-    char *extensions = new char [ extensionSize ];
+    char *extensions = new char [extensionSize];
     clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, extensionSize, extensions, NULL);
     
     bool foundExtension = false;
@@ -168,7 +194,7 @@ static bool isOCLExtensionSupported(cl_device_id device, const char* extension)
     return foundExtension;
 }
 
-static void openCLExample()
+static void OCLExample()
 {
     cl_platform_id platform;
     cl_device_id device;

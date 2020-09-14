@@ -21,8 +21,8 @@ OGLRender::OGLRender(int boxSize, int numEntities, float sceneAspectRatio) : m_b
 
 OGLRender::~OGLRender()
 {
-    glDeleteBuffers(1, &m_pointCloudCoordsVBO);
-    glDeleteBuffers(1, &m_pointCloudColorsVBO);
+    glDeleteBuffers(1, &m_pointCloudCoordVBO);
+    glDeleteBuffers(1, &m_pointCloudColorVBO);
     glDeleteBuffers(1, &m_boxVBO);
 }
 
@@ -42,15 +42,17 @@ void OGLRender::connectVBOsToVAO()
     glGenVertexArrays(1, &m_VAO);
     glBindVertexArray(m_VAO);
 
-    glGenBuffers(1, &m_pointCloudCoordsVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudCoordsVBO);
+    glGenBuffers(1, &m_pointCloudCoordVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudCoordVBO);
+    glBufferData(GL_ARRAY_BUFFER, 4 * 2000 * sizeof(float), NULL, GL_DYNAMIC_DRAW); // WIP
     glVertexAttribPointer(m_pointCloudPosAttribIndex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), NULL);
     glEnableVertexAttribArray(m_pointCloudPosAttribIndex);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    glGenBuffers(1, &m_pointCloudColorsVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudColorsVBO);
-    glVertexAttribPointer(m_pointCloudColAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), NULL);
+    glGenBuffers(1, &m_pointCloudColorVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudColorVBO);
+    glBufferData(GL_ARRAY_BUFFER, 4 * 2000 * sizeof(float), NULL, GL_DYNAMIC_DRAW); // WIP
+    glVertexAttribPointer(m_pointCloudColAttribIndex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), NULL);
     glEnableVertexAttribArray(m_pointCloudColAttribIndex);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -82,11 +84,11 @@ void OGLRender::updatePointCloud()
     if(m_numEntities > 0)
     {
         size_t vertBufferSize = 4 * sizeof(float) * m_numEntities;
-        glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudCoordsVBO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudCoordVBO);
         glBufferData(GL_ARRAY_BUFFER, vertBufferSize, m_pointCloudCoordsBufferStart, GL_DYNAMIC_DRAW);
 
-        size_t colBufferSize = 3 * sizeof(float) * m_numEntities;
-        glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudColorsVBO);
+        size_t colBufferSize = 4 * sizeof(float) * m_numEntities;
+        glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudColorVBO);
         glBufferData(GL_ARRAY_BUFFER, colBufferSize, m_pointCloudColorsBufferStart, GL_DYNAMIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
     }
@@ -94,7 +96,7 @@ void OGLRender::updatePointCloud()
 
 void OGLRender::drawPointCloud()
 {
-    updatePointCloud();
+    //updatePointCloud();
 
     m_pointCloudShader->activate();
 

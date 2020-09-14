@@ -17,6 +17,8 @@ namespace Core {
             void* getCoordsBufferStart();
             void* getColorsBufferStart();
 
+            int numMaxEntities() const { return NUM_MAX_ENTITIES; }
+            
             int numEntities() const { return m_numEntities; }
             void setNumEntities(int numEntities) { m_numEntities = numEntities; }
 

@@ -23,7 +23,7 @@ class ParticleSystemApp {
             void displayMainWidget();
 
             std::shared_ptr<Core::Physics> m_physicsEngine;
-            std::unique_ptr<Render::OGLRender> m_OGLRender;
+            std::unique_ptr<Render::OGLRender> m_graphicsEngine;
             std::unique_ptr<UI::PhysicsWidget> m_physicsWidget;
 
             SDL_Window* m_window;

@@ -28,7 +28,9 @@ namespace Render {
             inline void setNumEntities(int numEntities) { m_numEntities = numEntities; }
             
             void setPointCloudBuffers(void* coordsBufferStart, void* colorsBufferStart);
-
+            GLuint pointCloudCoordVBO() { return m_pointCloudCoordVBO; }
+            GLuint pointCloudColorVBO() { return m_pointCloudColorVBO; }
+            
         private:
 
             void buildShaders();
@@ -43,7 +45,7 @@ namespace Render {
             void initCamera(float sceneAspectRatio);
 
             const GLuint m_pointCloudPosAttribIndex { 0 }, m_pointCloudColAttribIndex { 1 }, m_boxPosAttribIndex { 2 }, m_boxColAttribIndex { 3 };
-            GLuint m_pointCloudCoordsVBO, m_pointCloudColorsVBO, m_boxVBO, m_boxEBO, m_VAO;
+            GLuint m_pointCloudCoordVBO, m_pointCloudColorVBO, m_boxVBO, m_boxEBO, m_VAO;
 
             std::unique_ptr<OGLShader> m_pointCloudShader;
             std::unique_ptr<OGLShader> m_boxShader;
