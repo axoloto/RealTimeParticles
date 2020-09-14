@@ -44,14 +44,14 @@ void OGLRender::connectVBOsToVAO()
 
     glGenBuffers(1, &m_pointCloudCoordVBO);
     glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudCoordVBO);
-    glBufferData(GL_ARRAY_BUFFER, 4 * 2000 * sizeof(float), NULL, GL_DYNAMIC_DRAW); // WIP
+    glBufferData(GL_ARRAY_BUFFER, 4 * 100000 * sizeof(float), NULL, GL_DYNAMIC_DRAW); // WIP
     glVertexAttribPointer(m_pointCloudPosAttribIndex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), NULL);
     glEnableVertexAttribArray(m_pointCloudPosAttribIndex);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     glGenBuffers(1, &m_pointCloudColorVBO);
     glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudColorVBO);
-    glBufferData(GL_ARRAY_BUFFER, 4 * 2000 * sizeof(float), NULL, GL_DYNAMIC_DRAW); // WIP
+    glBufferData(GL_ARRAY_BUFFER, 4 * 100000 * sizeof(float), NULL, GL_DYNAMIC_DRAW); // WIP
     glVertexAttribPointer(m_pointCloudColAttribIndex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), NULL);
     glEnableVertexAttribArray(m_pointCloudColAttribIndex);
     glBindBuffer(GL_ARRAY_BUFFER, 0);

@@ -4,7 +4,7 @@
 
 using namespace Core;
 
-#define PROGRAM_FILE "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\matvec.cl"
+#define PROGRAM_FILE "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\boids.cl"
 
 #define KERNEL_RANDOM_FUNC "randPosVerts"
 #define KERNEL_COLOR_FUNC "colorVerts"

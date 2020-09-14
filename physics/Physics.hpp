@@ -5,9 +5,9 @@
 
 namespace Core {
 
-    static constexpr int NUM_MAX_ENTITIES = 2000;
+    static constexpr int NUM_MAX_ENTITIES = 100000;
 
-    enum Dimension {dim2D, dim3D}; 
+    enum Dimension {dim2D, dim3D};
 
     class Physics {
         public:

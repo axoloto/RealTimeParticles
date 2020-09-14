@@ -155,7 +155,7 @@ bool ParticleSystemApp::checkSDLStatus()
 
 ParticleSystemApp::ParticleSystemApp() : m_mousePrevPos(0, 0), m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f),
                        m_buttonRightActivated(false), m_buttonLeftActivated(false), m_windowSize(1280, 720),
-                       m_init(false), m_boxSize(500), m_numEntities(1000)
+                       m_init(false), m_boxSize(500), m_numEntities(50000)
 {
     initWindow();
 
