@@ -61,12 +61,50 @@ bool OCLBoids::initOpenCL()
 {
   cl_int err;
 
-  FILE* program_handle;
-  char *program_buffer, *program_log;
-  size_t program_size, log_size;
+  cl_uint numPlatforms;
+  err = clGetPlatformIDs(1, nullptr, &numPlatforms);
+  if (err != CL_SUCCESS)
+  {
+    printf("error when looking for platforms");
+    return false;
+  }
 
-  clGetPlatformIDs(1, &cl_platform, NULL);
-  clGetDeviceIDs(cl_platform, CL_DEVICE_TYPE_GPU, 1, &cl_device, NULL);
+  cl_platform_id* platforms = (cl_platform_id*)malloc(sizeof(cl_platform_id) * numPlatforms);
+  clGetPlatformIDs(numPlatforms, platforms, nullptr);
+  for (int i = 0; i < numPlatforms; i++)
+  {
+    char data[1024];
+    size_t retsize;
+    err = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(data), data, &retsize);
+    if (err != CL_SUCCESS)
+    {
+      printf("Couldn't find platform name.");
+      return false;
+    }
+
+    if (retsize > 0)
+    {
+      std::string strData = data;
+      if (strData.find("NVIDIA") != std::string::npos)
+      {
+        cl_platform = platforms[i];
+        err = clGetDeviceIDs(cl_platform, CL_DEVICE_TYPE_GPU, 1, &cl_device, nullptr);
+        if (err != CL_SUCCESS)
+        {
+          printf("Couldn't find NVIDIA GPU");
+          return false;
+        }
+        printf("Found NVIDIA GPU");
+        break;
+      }
+    }
+  }
+
+  if (cl_device < 0)
+  {
+    printf("Couldn't find NVIDIA GPU.");
+    return false;
+  }
 
   if (!isOCLExtensionSupported(cl_device, "cl_khr_gl_sharing"))
   {
@@ -87,6 +125,10 @@ bool OCLBoids::initOpenCL()
     printf("error when creating context");
     return false;
   }
+
+  FILE* program_handle;
+  char *program_buffer, *program_log;
+  size_t program_size, log_size;
 
   program_handle = fopen(PROGRAM_FILE, "rb");
   fseek(program_handle, 0, SEEK_END);
