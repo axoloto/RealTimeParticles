@@ -1,6 +1,8 @@
 #include "CL/cl_gl.h" // WIP
 #include "OCLBoids.hpp"
 #include "windows.h" // WIP
+#include <ctime>
+#include <iostream>
 #include <spdlog/spdlog.h>
 
 using namespace Core;
@@ -51,10 +53,16 @@ OCLBoids::~OCLBoids()
 
 void OCLBoids::updatePhysics()
 {
+  std::clock_t clock_0, clock_1;
+  clock_0 = std::clock();
+
   acquireGLBuffers({ cl_posBuff });
   runKernel(cl_boidsRulesKernel);
   runKernel(cl_updatePosKernel);
   releaseGLBuffers({ cl_posBuff });
+
+  clock_1 = std::clock();
+  std::cout << "opencl update physics  " << clock_1 - clock_0 << "ms" << std::endl;
 }
 
 bool OCLBoids::initOpenCL()

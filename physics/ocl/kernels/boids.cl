@@ -22,7 +22,7 @@ __kernel void colorVerts(__global float4* color)
 {
   int i = get_global_id(0);
   float col = i / (float)get_global_size(0);
-  color[i] = (float4)(col, col, col, 1.0);
+  color[i] = (float4)(0.7, 0.7, 0.7, 0.7);
 }
 
 __kernel void randPosVerts(__global float4* pos)
