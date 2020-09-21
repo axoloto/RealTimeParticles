@@ -46,7 +46,7 @@ __kernel void randPosVerts(__global float4* pos)
 __constant int MAX_VELOCITY = 5;
 __constant int EFFECT_RADIUS = 50;
 __constant float MAX_STEERING = 0.5;
-__constant float BOX_SIZE = 500.0;
+__constant float ABS_WALL_POS = 250.0;
 
 __kernel void applyBoidsRules(__global float4* pos, __global float4* vel, __global float4* acc)
 {
@@ -96,20 +96,11 @@ __kernel void updatePosVerts(__global float4* pos, __global float4* vel, __globa
   vel[i] += acc[i];
   vel[i] = clamp(vel[i], 0.0, normalize(vel[i]) * MAX_VELOCITY);
 
-  if (isgreaterequal(fabs(pos[i].x), (float)(BOX_SIZE * 0.5)) != 0)
+  float4 currPos = pos[i] + vel[i];
+  float4 clampedCurrPos = clamp(currPos, -ABS_WALL_POS, ABS_WALL_POS);
+  if (!all(isequal(clampedCurrPos.xyz, currPos.xyz)))
   {
-    vel[i].x *= -1;
+    vel[i] *= -1;
   }
-
-  if (isgreaterequal(fabs(pos[i].y), (float)(BOX_SIZE * 0.5)) != 0)
-  {
-    vel[i].y *= -1;
-  }
-
-  if (isgreaterequal(fabs(pos[i].z), (float)(BOX_SIZE * 0.5)) != 0)
-  {
-    vel[i].z *= -1;
-  }
-
-  pos[i] += vel[i];
+  pos[i] = clampedCurrPos;
 }
