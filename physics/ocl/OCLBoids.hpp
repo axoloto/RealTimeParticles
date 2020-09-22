@@ -21,7 +21,7 @@ class OCLBoids : public Boids
   bool acquireGLBuffers(const std::vector<cl_mem>& GLBuffers);
   bool releaseGLBuffers(const std::vector<cl_mem>& GLBuffers);
   bool createKernels();
-  void runKernel(cl_kernel kernel);
+  void runKernel(cl_kernel kernel, double* profilingTimeMs = nullptr);
 
   bool m_init;
 
@@ -40,5 +40,7 @@ class OCLBoids : public Boids
   cl_kernel cl_initPosKernel;
   cl_kernel cl_boidsRulesKernel;
   cl_kernel cl_updatePosKernel;
+
+  bool m_kernelProfilingEnabled;
 };
 }

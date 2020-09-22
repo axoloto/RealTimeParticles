@@ -19,6 +19,7 @@ static bool isOCLExtensionSupported(cl_device_id device, const char* extension);
 OCLBoids::OCLBoids(int boxSize, int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
     : Boids(boxSize, numEntities)
     , m_init(false)
+    , m_kernelProfilingEnabled(true)
 {
   if (initOpenCL())
   {
@@ -27,9 +28,13 @@ OCLBoids::OCLBoids(int boxSize, int numEntities, unsigned int pointCloudCoordVBO
 
     m_init = true;
 
+    double timeMs = 0.0;
     acquireGLBuffers({ cl_colorBuff, cl_posBuff });
-    runKernel(cl_colorKernel);
-    runKernel(cl_initPosKernel);
+    runKernel(cl_colorKernel, &timeMs);
+    printf("cl_colorKernel %f ms \n", timeMs);
+    runKernel(cl_initPosKernel, &timeMs);
+    printf("cl_initPosKernel %f ms \n", timeMs);
+
     releaseGLBuffers({ cl_colorBuff, cl_posBuff });
   }
 }
@@ -53,12 +58,19 @@ OCLBoids::~OCLBoids()
 
 void OCLBoids::updatePhysics()
 {
+  if (m_pause)
+    return;
+
   std::clock_t clock_0, clock_1;
   clock_0 = std::clock();
 
+  double timeMs = 0.0;
+
   acquireGLBuffers({ cl_posBuff });
-  runKernel(cl_boidsRulesKernel);
-  runKernel(cl_updatePosKernel);
+  runKernel(cl_boidsRulesKernel, &timeMs);
+  printf("cl_boidsRulesKernel %f ms \n", timeMs);
+  runKernel(cl_updatePosKernel, &timeMs);
+  printf("cl_updatePosKernel %f ms \n", timeMs);
   releaseGLBuffers({ cl_posBuff });
 
   clock_1 = std::clock();
@@ -170,7 +182,13 @@ bool OCLBoids::initOpenCL()
     return false;
   }
 
-  cl_queue = clCreateCommandQueue(cl_context, cl_device, 0, &err);
+  cl_command_queue_properties properties = 0;
+  if (m_kernelProfilingEnabled)
+  {
+    properties |= CL_QUEUE_PROFILING_ENABLE;
+  }
+
+  cl_queue = clCreateCommandQueue(cl_context, cl_device, properties, &err);
   if (err != CL_SUCCESS)
   {
     printf("error when creating queue");
@@ -278,13 +296,34 @@ bool OCLBoids::releaseGLBuffers(const std::vector<cl_mem>& GLBuffers)
   return true;
 }
 
-void OCLBoids::runKernel(cl_kernel kernel)
+void OCLBoids::runKernel(cl_kernel kernel, double* profilingTimeMs)
 {
   if (!m_init)
     return;
 
+  cl_event event;
+
   size_t numWorkItems = NUM_MAX_ENTITIES;
-  clEnqueueNDRangeKernel(cl_queue, kernel, 1, NULL, &numWorkItems, NULL, 0, NULL, NULL);
+  clEnqueueNDRangeKernel(cl_queue, kernel, 1, NULL, &numWorkItems, NULL, 0, NULL, &event);
+
+  if (m_kernelProfilingEnabled)
+  {
+    cl_int err;
+
+    err = clFlush(cl_queue);
+    if (err != CL_SUCCESS)
+      printf("error when flushing opencl run");
+
+    err = clFinish(cl_queue);
+    if (err != CL_SUCCESS)
+      printf("error when finishing opencl run");
+
+    cl_ulong start = 0, end = 0;
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, NULL);
+    clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, NULL);
+    //the resolution of the events is 1e-09 sec
+    *profilingTimeMs = (double)((cl_double)(end - start) * (1e-06));
+  }
 }
 
 static bool isOCLExtensionSupported(cl_device_id device, const char* extension)
