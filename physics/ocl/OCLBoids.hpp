@@ -14,6 +14,7 @@ class OCLBoids : public Boids
   ~OCLBoids();
 
   void updatePhysics() override;
+  void resetParticles() override;
 
   private:
   bool initOpenCL();

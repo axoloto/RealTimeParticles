@@ -28,24 +28,17 @@ OCLBoids::OCLBoids(int boxSize, int numEntities, unsigned int pointCloudCoordVBO
 
     m_init = true;
 
-    double timeMs = 0.0;
-    acquireGLBuffers({ cl_colorBuff, cl_posBuff });
-    runKernel(cl_colorKernel, &timeMs);
-    printf("cl_colorKernel %f ms \n", timeMs);
-    runKernel(cl_initPosKernel, &timeMs);
-    printf("cl_initPosKernel %f ms \n", timeMs);
-
-    releaseGLBuffers({ cl_colorBuff, cl_posBuff });
+    resetParticles();
   }
 }
 
 OCLBoids::~OCLBoids()
 {
   clReleaseKernel(cl_colorKernel);
-  clReleaseMemObject(cl_colorBuff);
+  //clReleaseMemObject(cl_colorBuff);
 
   clReleaseKernel(cl_initPosKernel);
-  clReleaseMemObject(cl_posBuff);
+  //clReleaseMemObject(cl_posBuff);
 
   clReleaseKernel(cl_boidsRulesKernel);
   clReleaseMemObject(cl_accBuff);
@@ -54,6 +47,18 @@ OCLBoids::~OCLBoids()
   clReleaseCommandQueue(cl_queue);
   clReleaseProgram(cl_program);
   clReleaseContext(cl_context);
+}
+
+void OCLBoids::resetParticles()
+{
+  double timeMs = 0.0;
+
+  acquireGLBuffers({ cl_colorBuff, cl_posBuff });
+  runKernel(cl_colorKernel, &timeMs);
+  printf("cl_colorKernel %f ms \n", timeMs);
+  runKernel(cl_initPosKernel, &timeMs);
+  printf("cl_initPosKernel %f ms \n", timeMs);
+  releaseGLBuffers({ cl_colorBuff, cl_posBuff });
 }
 
 void OCLBoids::updatePhysics()
@@ -169,7 +174,8 @@ bool OCLBoids::initOpenCL()
   }
   free(program_buffer);
 
-  err = clBuildProgram(cl_program, 1, &cl_device, NULL, NULL, NULL);
+  const char options[] = "-DBOIDS_EFFECT_RADIUS=20 -cl-denorms-are-zero -cl-fast-relaxed-math";
+  err = clBuildProgram(cl_program, 1, &cl_device, options, NULL, NULL);
   if (err != CL_SUCCESS)
   {
     clGetProgramBuildInfo(cl_program, cl_device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);

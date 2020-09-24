@@ -32,7 +32,7 @@ class Physics
   void update();
   void updateBuffers();
 
-  void resetParticles();
+  virtual void resetParticles();
 
   void setDimension(Dimension dim)
   {

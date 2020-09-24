@@ -22,7 +22,7 @@ __kernel void colorVerts(__global float4* color)
 {
   int i = get_global_id(0);
   float col = i / (float)get_global_size(0);
-  color[i] = (float4)(0.7, 0.7, 0.7, 0.7);
+  color[i] = (float4)(col, col, col, 1.0);
 }
 
 __kernel void randPosVerts(__global float4* pos)
@@ -48,48 +48,58 @@ __constant int EFFECT_RADIUS = 50;
 __constant float MAX_STEERING = 0.5;
 __constant float ABS_WALL_POS = 250.0;
 
-__kernel void applyBoidsRules(__global float4* pos, __global float4* vel, __global float4* acc)
+__kernel void applyBoidsRules(__global __read_only float4* pos, __global __read_only float4* vel, __global __write_only float4* acc)
 {
   unsigned int i = get_global_id(0);
   unsigned int nbEntities = get_global_size(0);
 
   int count = 0;
-  float3 entityPos = pos[i].xyz;
-  float3 averageBoidsPos = (float3)(0.0, 0.0, 0.0);
-  float3 averageBoidsVel = (float3)(0.0, 0.0, 0.0);
-  float3 repulseHeading = (float3)(0.0, 0.0, 0.0);
-  for (int e = 0; e < nbEntities; ++e)
+  float4 entityPos = pos[i];
+  float4 averageBoidsPos = (float4)(0.0, 0.0, 0.0, 0.0);
+  float4 averageBoidsVel = (float4)(0.0, 0.0, 0.0, 0.0);
+  float4 repulseHeading = (float4)(0.0, 0.0, 0.0, 0.0);
+  float dist = 0.0f;
+  //float effect = 0.0f;
+  for (int e = 0; e < nbEntities / 2; ++e)
   {
-    if (e == i)
-      continue;
+    dist = fast_distance(entityPos, pos[e]);
 
-    float dist = fast_distance(entityPos, pos[e].xyz);
-    if (dist < EFFECT_RADIUS)
+    if (dist < BOIDS_EFFECT_RADIUS && i != e)
     {
-      averageBoidsPos += pos[e].xyz;
-      averageBoidsVel += vel[e].xyz;
-      repulseHeading += (entityPos - pos[e].xyz) / (dist * dist);
+      averageBoidsPos += pos[e];
+      averageBoidsVel += vel[e];
+      repulseHeading += (entityPos - pos[e]) / (dist * dist);
       ++count;
     }
+
+    /*
+    effect = (1.0f - step(EFFECT_RADIUS, dist));
+    averageBoidsPos += effect * pos[e];
+    averageBoidsVel += effect * vel[e];
+    repulseHeading += effect * (entityPos - pos[e]) / (dist * dist);
+    count += effect * count;
+    */
   }
 
   // cohesion
   averageBoidsPos /= count;
   averageBoidsPos -= entityPos;
-  averageBoidsPos = normalize(averageBoidsPos) * MAX_VELOCITY - vel[i].xyz;
+  averageBoidsPos = normalize(averageBoidsPos) * MAX_VELOCITY - vel[i];
 
   // alignment
-  averageBoidsVel = normalize(averageBoidsVel) * MAX_VELOCITY - vel[i].xyz;
+  averageBoidsVel = normalize(averageBoidsVel) * MAX_VELOCITY - vel[i];
 
   // separation
-  repulseHeading = normalize(repulseHeading) * MAX_VELOCITY - vel[i].xyz;
+  repulseHeading = normalize(repulseHeading) * MAX_VELOCITY - vel[i];
 
-  acc[i].xyz = clamp(averageBoidsPos, 0.0, normalize(averageBoidsPos) * MAX_STEERING)
+  float4 target = -pos[i];
+  acc[i] = clamp(averageBoidsPos, 0.0, normalize(averageBoidsPos) * MAX_STEERING)
       + clamp(averageBoidsVel, 0.0, normalize(averageBoidsVel) * MAX_STEERING)
-      + clamp(repulseHeading, 0.0, normalize(repulseHeading) * MAX_STEERING);
+      + clamp(repulseHeading, 0.0, normalize(repulseHeading) * MAX_STEERING)
+      + clamp(target, 0.0, normalize(target) * MAX_STEERING);
 }
 
-__kernel void updatePosVerts(__global float4* pos, __global float4* vel, __global float4* acc)
+__kernel void updatePosVerts(__global float4* pos, __global float4* vel, __global __read_only float4* acc)
 {
   unsigned int i = get_global_id(0);
 
