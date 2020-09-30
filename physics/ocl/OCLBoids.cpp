@@ -9,10 +9,10 @@ using namespace Core;
 
 #define PROGRAM_FILE "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\boids.cl"
 
-#define KERNEL_RANDOM_POS_FUNC "randPosVerts"
-#define KERNEL_BOIDS_RULES_FUNC "applyBoidsRules"
-#define KERNEL_UPDATE_POS_FUNC "updatePosVerts"
-#define KERNEL_COLOR_FUNC "colorVerts"
+#define KERNEL_RANDOM_POS "randPosVerts"
+#define KERNEL_BOIDS_RULES "applyBoidsRules"
+#define KERNEL_UPDATE_POS "updatePosVerts"
+#define KERNEL_COLOR "colorVerts"
 
 static bool isOCLExtensionSupported(cl_device_id device, const char* extension);
 
@@ -56,8 +56,12 @@ void OCLBoids::resetParticles()
   acquireGLBuffers({ cl_colorBuff, cl_posBuff });
   runKernel(cl_colorKernel, &timeMs);
   printf("cl_colorKernel %f ms \n", timeMs);
+
+  cl_float dim = (m_dimension == Dimension::dim2D) ? 2.0f : 3.0f;
+  clSetKernelArg(cl_initPosKernel, 2, sizeof(cl_float), &dim);
   runKernel(cl_initPosKernel, &timeMs);
   printf("cl_initPosKernel %f ms \n", timeMs);
+
   releaseGLBuffers({ cl_colorBuff, cl_posBuff });
 }
 
@@ -217,9 +221,6 @@ bool OCLBoids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int point
     printf("error when creating boids position buffer");
 
   size_t boidsBufferSize = 4 * NUM_MAX_ENTITIES * sizeof(float);
-  //clGetMemObjectInfo(cl_posBuff, CL_MEM_SIZE, sizeof(boidsBufferSize), &boidsBufferSize, NULL);
-  //if (boidsBufferSize == 0)
-  //  return false; //WIP
 
   cl_velBuff = clCreateBuffer(cl_context, CL_MEM_READ_WRITE, boidsBufferSize, nullptr, &err);
   if (err != CL_SUCCESS)
@@ -239,19 +240,20 @@ bool OCLBoids::createKernels()
 
   cl_int err;
 
-  cl_colorKernel = clCreateKernel(cl_program, KERNEL_COLOR_FUNC, &err);
+  cl_colorKernel = clCreateKernel(cl_program, KERNEL_COLOR, &err);
   if (err != CL_SUCCESS)
     printf("error when creating color kernel");
 
   clSetKernelArg(cl_colorKernel, 0, sizeof(cl_mem), &cl_colorBuff);
 
-  cl_initPosKernel = clCreateKernel(cl_program, KERNEL_RANDOM_POS_FUNC, &err);
+  cl_initPosKernel = clCreateKernel(cl_program, KERNEL_RANDOM_POS, &err);
   if (err != CL_SUCCESS)
     printf("error when creating random init position kernel");
 
   clSetKernelArg(cl_initPosKernel, 0, sizeof(cl_mem), &cl_posBuff);
+  clSetKernelArg(cl_initPosKernel, 1, sizeof(cl_mem), &cl_velBuff);
 
-  cl_boidsRulesKernel = clCreateKernel(cl_program, KERNEL_BOIDS_RULES_FUNC, &err);
+  cl_boidsRulesKernel = clCreateKernel(cl_program, KERNEL_BOIDS_RULES, &err);
   if (err != CL_SUCCESS)
     printf("error when creating boids rules kernel");
 
@@ -259,7 +261,7 @@ bool OCLBoids::createKernels()
   clSetKernelArg(cl_boidsRulesKernel, 1, sizeof(cl_mem), &cl_velBuff);
   clSetKernelArg(cl_boidsRulesKernel, 2, sizeof(cl_mem), &cl_accBuff);
 
-  cl_updatePosKernel = clCreateKernel(cl_program, KERNEL_UPDATE_POS_FUNC, &err);
+  cl_updatePosKernel = clCreateKernel(cl_program, KERNEL_UPDATE_POS, &err);
   if (err != CL_SUCCESS)
     printf("error when creating update position kernel");
 

@@ -25,7 +25,7 @@ __kernel void colorVerts(__global float4* color)
   color[i] = (float4)(col, col, col, 1.0);
 }
 
-__kernel void randPosVerts(__global float4* pos)
+__kernel void randPosVerts(__global float4* pos, __global float4* vel, float dim)
 {
   unsigned int i = get_global_id(0);
 
@@ -37,10 +37,13 @@ __kernel void randPosVerts(__global float4* pos)
   float y = (float)(randomIntY & 0x0ff) * 2.0 - 250.0;
   float z = (float)(randomIntZ & 0x0ff) * 2.0 - 250.0;
 
-  float3 randomCoords = (float3)(x, y, z);
+  float3 randomXYZ = (float3)(x * step(3.0f, dim), y, z);
 
-  pos[i].xyz = clamp(randomCoords, (float)-250.0, (float)250.0);
+  pos[i].xyz = clamp(randomXYZ, (float)-250.0, (float)250.0);
   pos[i].w = 1.0;
+
+  vel[i].xyz = clamp(randomXYZ, (float)-10.0, (float)10.0);
+  vel[i].w = 1.0;
 }
 
 __constant int MAX_VELOCITY = 5;
@@ -60,7 +63,7 @@ __kernel void applyBoidsRules(__global __read_only float4* pos, __global __read_
   float4 repulseHeading = (float4)(0.0, 0.0, 0.0, 0.0);
   float dist = 0.0f;
   //float effect = 0.0f;
-  for (int e = 0; e < nbEntities / 2; ++e)
+  for (int e = 0; e < nbEntities; ++e)
   {
     dist = fast_distance(entityPos, pos[e]);
 

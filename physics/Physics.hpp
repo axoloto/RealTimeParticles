@@ -5,7 +5,7 @@
 
 namespace Core
 {
-static constexpr int NUM_MAX_ENTITIES = 100000;
+static constexpr int NUM_MAX_ENTITIES = 10000;
 
 enum Dimension
 {
@@ -16,7 +16,7 @@ enum Dimension
 class Physics
 {
   public:
-  Physics(int boxSize, int numEntities, Dimension dimension = Dimension::dim3D);
+  Physics(int boxSize, int numEntities, Dimension dimension = Dimension::dim2D);
   ~Physics() = default;
 
   void* getCoordsBufferStart();
