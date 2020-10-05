@@ -21,6 +21,10 @@ OCLBoids::OCLBoids(int boxSize, int numEntities, unsigned int pointCloudCoordVBO
     , m_init(false)
     , m_kernelProfilingEnabled(true)
 {
+  m_scaleAlignment = 1.1f;
+  m_scaleCohesion = 0.7f;
+  m_scaleSeparation = 1.2f;
+
   if (initOpenCL())
   {
     createBuffers(pointCloudCoordVBO, pointCloudColorVBO);
@@ -70,20 +74,40 @@ void OCLBoids::updatePhysics()
   if (m_pause)
     return;
 
-  std::clock_t clock_0, clock_1;
-  clock_0 = std::clock();
+  updateBoidsParamsInKernel();
 
   double timeMs = 0.0;
-
   acquireGLBuffers({ cl_posBuff });
   runKernel(cl_boidsRulesKernel, &timeMs);
   printf("cl_boidsRulesKernel %f ms \n", timeMs);
   runKernel(cl_updatePosKernel, &timeMs);
   printf("cl_updatePosKernel %f ms \n", timeMs);
   releaseGLBuffers({ cl_posBuff });
+}
 
-  clock_1 = std::clock();
-  std::cout << "opencl update physics  " << clock_1 - clock_0 << "ms" << std::endl;
+void OCLBoids::updateBoidsParamsInKernel()
+{
+  m_boidsParams.activeTarget = m_activeTargets ? 1 : 0;
+
+  m_boidsParams.scaleCohesion = m_activeCohesion ? m_scaleCohesion : 0.0f;
+  m_boidsParams.scaleAlignment = m_activeAlignment ? m_scaleAlignment : 0.0f;
+  m_boidsParams.scaleSeparation = m_activeSeparation ? m_scaleSeparation : 0.0f;
+
+  if (cl_queue < 0 || cl_boidsParamsBuff < 0)
+    return;
+
+  cl_int err;
+  void* mappedMemory = clEnqueueMapBuffer(cl_queue, cl_boidsParamsBuff, CL_TRUE, CL_MAP_WRITE, 0, sizeof(m_boidsParams), 0, nullptr, nullptr, &err);
+  if (err < 0)
+  {
+    printf("Couldn't map the buffer to host memory");
+  }
+  memcpy(mappedMemory, &m_boidsParams, sizeof(m_boidsParams));
+  err = clEnqueueUnmapMemObject(cl_queue, cl_boidsParamsBuff, mappedMemory, 0, nullptr, nullptr);
+  if (err < 0)
+  {
+    printf("Couldn't unmap the buffer");
+  }
 }
 
 bool OCLBoids::initOpenCL()
@@ -178,7 +202,7 @@ bool OCLBoids::initOpenCL()
   }
   free(program_buffer);
 
-  const char options[] = "-DBOIDS_EFFECT_RADIUS=20 -cl-denorms-are-zero -cl-fast-relaxed-math";
+  const char options[] = "-DBOIDS_EFFECT_RADIUS_SQUARED=400 -cl-denorms-are-zero -cl-fast-relaxed-math";
   err = clBuildProgram(cl_program, 1, &cl_device, options, NULL, NULL);
   if (err != CL_SUCCESS)
   {
@@ -230,12 +254,14 @@ bool OCLBoids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int point
   if (err != CL_SUCCESS)
     printf("error when creating boids acceleration buffer");
 
+  cl_boidsParamsBuff = clCreateBuffer(cl_context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, sizeof(m_boidsParams), nullptr, &err);
+
   return true;
 }
 
 bool OCLBoids::createKernels()
 {
-  if (cl_colorBuff < 0 || cl_posBuff < 0 || cl_accBuff < 0 || cl_velBuff < 0)
+  if (cl_colorBuff < 0 || cl_posBuff < 0 || cl_accBuff < 0 || cl_velBuff < 0 || cl_boidsParamsBuff < 0)
     return false;
 
   cl_int err;
@@ -260,6 +286,7 @@ bool OCLBoids::createKernels()
   clSetKernelArg(cl_boidsRulesKernel, 0, sizeof(cl_mem), &cl_posBuff);
   clSetKernelArg(cl_boidsRulesKernel, 1, sizeof(cl_mem), &cl_velBuff);
   clSetKernelArg(cl_boidsRulesKernel, 2, sizeof(cl_mem), &cl_accBuff);
+  clSetKernelArg(cl_boidsRulesKernel, 3, sizeof(cl_mem), &cl_boidsParamsBuff);
 
   cl_updatePosKernel = clCreateKernel(cl_program, KERNEL_UPDATE_POS, &err);
   if (err != CL_SUCCESS)

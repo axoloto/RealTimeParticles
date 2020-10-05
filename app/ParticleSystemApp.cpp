@@ -180,7 +180,7 @@ ParticleSystemApp::ParticleSystemApp()
   if (!m_physicsEngine)
     return;
 
-  m_physicsWidget = std::make_unique<UI::BoidsWidget>(*m_physicsEngine);
+  m_physicsWidget = std::make_unique<UI::OCLBoidsWidget>(*m_physicsEngine);
 
   if (!m_physicsWidget)
     return;

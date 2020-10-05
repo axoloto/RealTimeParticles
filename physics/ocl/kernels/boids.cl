@@ -51,55 +51,64 @@ __constant int EFFECT_RADIUS = 50;
 __constant float MAX_STEERING = 0.5;
 __constant float ABS_WALL_POS = 250.0;
 
-__kernel void applyBoidsRules(__global __read_only float4* pos, __global __read_only float4* vel, __global __write_only float4* acc)
+typedef struct
+{
+  float scaleCohesion;
+  float scaleAlignment;
+  float scaleSeparation;
+  int activeTarget;
+} boidsParams;
+
+__kernel void applyBoidsRules(__global __read_only float4* position, __global __read_only float4* velocity, __global __write_only float4* acc, __global boidsParams* params)
 {
   unsigned int i = get_global_id(0);
-  unsigned int nbEntities = get_global_size(0);
+  unsigned int numEnt = get_global_size(0);
+
+  float4 pos = position[i];
+  float4 vel = velocity[i];
 
   int count = 0;
-  float4 entityPos = pos[i];
+
   float4 averageBoidsPos = (float4)(0.0, 0.0, 0.0, 0.0);
   float4 averageBoidsVel = (float4)(0.0, 0.0, 0.0, 0.0);
   float4 repulseHeading = (float4)(0.0, 0.0, 0.0, 0.0);
-  float dist = 0.0f;
-  //float effect = 0.0f;
-  for (int e = 0; e < nbEntities; ++e)
-  {
-    dist = fast_distance(entityPos, pos[e]);
 
-    if (dist < BOIDS_EFFECT_RADIUS && i != e)
+  float squaredDist = 0.0f;
+  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  for (int e = 0; e < numEnt; ++e)
+  {
+    vec = pos - position[e];
+    squaredDist = dot(vec, vec);
+
+    if (squaredDist < BOIDS_EFFECT_RADIUS_SQUARED && i != e)
     {
-      averageBoidsPos += pos[e];
-      averageBoidsVel += vel[e];
-      repulseHeading += (entityPos - pos[e]) / (dist * dist);
+      averageBoidsPos += position[e];
+      averageBoidsVel += velocity[e];
+      repulseHeading += vec / squaredDist;
       ++count;
     }
-
-    /*
-    effect = (1.0f - step(EFFECT_RADIUS, dist));
-    averageBoidsPos += effect * pos[e];
-    averageBoidsVel += effect * vel[e];
-    repulseHeading += effect * (entityPos - pos[e]) / (dist * dist);
-    count += effect * count;
-    */
   }
 
-  // cohesion
-  averageBoidsPos /= count;
-  averageBoidsPos -= entityPos;
-  averageBoidsPos = normalize(averageBoidsPos) * MAX_VELOCITY - vel[i];
+  if (count != 0)
+  {
+    // cohesion
+    averageBoidsPos /= count;
+    averageBoidsPos -= pos;
+    averageBoidsPos = normalize(averageBoidsPos) * MAX_VELOCITY - vel;
 
-  // alignment
-  averageBoidsVel = normalize(averageBoidsVel) * MAX_VELOCITY - vel[i];
+    // alignment
+    averageBoidsVel = normalize(averageBoidsVel) * MAX_VELOCITY - vel;
 
-  // separation
-  repulseHeading = normalize(repulseHeading) * MAX_VELOCITY - vel[i];
+    // separation
+    repulseHeading = normalize(repulseHeading) * MAX_VELOCITY - vel;
+  }
 
-  float4 target = -pos[i];
-  acc[i] = clamp(averageBoidsPos, 0.0, normalize(averageBoidsPos) * MAX_STEERING)
-      + clamp(averageBoidsVel, 0.0, normalize(averageBoidsVel) * MAX_STEERING)
-      + clamp(repulseHeading, 0.0, normalize(repulseHeading) * MAX_STEERING)
-      + clamp(target, 0.0, normalize(target) * MAX_STEERING);
+  float4 target = -pos;
+
+  acc[i] = clamp(averageBoidsPos, 0.0, normalize(averageBoidsPos) * MAX_STEERING) * params->scaleCohesion
+      + clamp(averageBoidsVel, 0.0, normalize(averageBoidsVel) * MAX_STEERING) * params->scaleAlignment
+      + clamp(repulseHeading, 0.0, normalize(repulseHeading) * MAX_STEERING) * params->scaleSeparation
+      + clamp(target, 0.0, normalize(target) * MAX_STEERING) * params->activeTarget;
 }
 
 __kernel void updatePosVerts(__global float4* pos, __global float4* vel, __global __read_only float4* acc)

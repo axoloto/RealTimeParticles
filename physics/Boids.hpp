@@ -71,6 +71,7 @@ class Boids : public Physics
   bool m_activeAlignment;
   bool m_activeCohesion;
   bool m_activeSeparation;
+  bool m_activeTarget;
 
   Math::float3 m_target;
 };
