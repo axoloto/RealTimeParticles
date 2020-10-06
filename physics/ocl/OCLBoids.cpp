@@ -21,7 +21,7 @@ OCLBoids::OCLBoids(int boxSize, int numEntities, unsigned int pointCloudCoordVBO
     , m_init(false)
     , m_kernelProfilingEnabled(true)
 {
-  m_scaleAlignment = 1.1f;
+  m_scaleAlignment = 2.0f;
   m_scaleCohesion = 0.7f;
   m_scaleSeparation = 1.2f;
 
@@ -202,7 +202,7 @@ bool OCLBoids::initOpenCL()
   }
   free(program_buffer);
 
-  const char options[] = "-DBOIDS_EFFECT_RADIUS_SQUARED=400 -cl-denorms-are-zero -cl-fast-relaxed-math";
+  const char options[] = "-DBOIDS_EFFECT_RADIUS_SQUARED=400 -DBOIDS_MAX_STEERING=0.5f -DBOIDS_MAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f -cl-denorms-are-zero -cl-fast-relaxed-math";
   err = clBuildProgram(cl_program, 1, &cl_device, options, NULL, NULL);
   if (err != CL_SUCCESS)
   {

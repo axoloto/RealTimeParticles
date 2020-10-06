@@ -1,10 +1,3 @@
-
-__kernel void matvec_mult(__global float4* matrix, __global float4* vector, __global float* result)
-{
-  int i = get_global_id(0);
-  result[i] = dot(matrix[i], vector[0]);
-}
-
 unsigned int parallelRNG(unsigned int i)
 {
   unsigned int value = i;
@@ -33,23 +26,18 @@ __kernel void randPosVerts(__global float4* pos, __global float4* vel, float dim
   unsigned int randomIntY = parallelRNG(i + 1);
   unsigned int randomIntZ = parallelRNG(i + 2);
 
-  float x = (float)(randomIntX & 0x0ff) * 2.0 - 250.0;
-  float y = (float)(randomIntY & 0x0ff) * 2.0 - 250.0;
-  float z = (float)(randomIntZ & 0x0ff) * 2.0 - 250.0;
+  float x = (float)(randomIntX & 0x0ff) * 2.0 - 250.0f;
+  float y = (float)(randomIntY & 0x0ff) * 2.0 - 250.0f;
+  float z = (float)(randomIntZ & 0x0ff) * 2.0 - 250.0f;
 
   float3 randomXYZ = (float3)(x * step(3.0f, dim), y, z);
 
-  pos[i].xyz = clamp(randomXYZ, (float)-250.0, (float)250.0);
+  pos[i].xyz = clamp(randomXYZ, -250.0f, 250.0f);
   pos[i].w = 1.0;
 
-  vel[i].xyz = clamp(randomXYZ, (float)-10.0, (float)10.0);
+  vel[i].xyz = clamp(randomXYZ, -10.0f, 10.0f);
   vel[i].w = 1.0;
 }
-
-__constant int MAX_VELOCITY = 5;
-__constant int EFFECT_RADIUS = 50;
-__constant float MAX_STEERING = 0.5;
-__constant float ABS_WALL_POS = 250.0;
 
 typedef struct
 {
@@ -58,6 +46,16 @@ typedef struct
   float scaleSeparation;
   int activeTarget;
 } boidsParams;
+
+inline float4 steerForce(float4 desiredVel, float4 vel)
+{
+  float4 steerForce = desiredVel - vel;
+  if (length(steerForce) > BOIDS_MAX_STEERING)
+  {
+    steerForce = normalize(steerForce) * BOIDS_MAX_STEERING;
+  }
+  return steerForce;
+}
 
 __kernel void applyBoidsRules(__global __read_only float4* position, __global __read_only float4* velocity, __global __write_only float4* acc, __global boidsParams* params)
 {
@@ -94,21 +92,19 @@ __kernel void applyBoidsRules(__global __read_only float4* position, __global __
     // cohesion
     averageBoidsPos /= count;
     averageBoidsPos -= pos;
-    averageBoidsPos = normalize(averageBoidsPos) * MAX_VELOCITY - vel;
-
+    averageBoidsPos = normalize(averageBoidsPos) * BOIDS_MAX_VELOCITY;
     // alignment
-    averageBoidsVel = normalize(averageBoidsVel) * MAX_VELOCITY - vel;
-
+    averageBoidsVel = normalize(averageBoidsVel) * BOIDS_MAX_VELOCITY;
     // separation
-    repulseHeading = normalize(repulseHeading) * MAX_VELOCITY - vel;
+    repulseHeading = normalize(repulseHeading) * BOIDS_MAX_VELOCITY;
   }
 
   float4 target = -pos;
 
-  acc[i] = clamp(averageBoidsPos, 0.0, normalize(averageBoidsPos) * MAX_STEERING) * params->scaleCohesion
-      + clamp(averageBoidsVel, 0.0, normalize(averageBoidsVel) * MAX_STEERING) * params->scaleAlignment
-      + clamp(repulseHeading, 0.0, normalize(repulseHeading) * MAX_STEERING) * params->scaleSeparation
-      + clamp(target, 0.0, normalize(target) * MAX_STEERING) * params->activeTarget;
+  acc[i] = steerForce(averageBoidsPos, vel) * params->scaleCohesion
+      + steerForce(averageBoidsVel, vel) * params->scaleAlignment
+      + steerForce(repulseHeading, vel) * params->scaleSeparation
+      + clamp(target, 0.0, normalize(target) * BOIDS_MAX_STEERING) * params->activeTarget;
 }
 
 __kernel void updatePosVerts(__global float4* pos, __global float4* vel, __global __read_only float4* acc)
@@ -116,7 +112,8 @@ __kernel void updatePosVerts(__global float4* pos, __global float4* vel, __globa
   unsigned int i = get_global_id(0);
 
   vel[i] += acc[i];
-  vel[i] = clamp(vel[i], 0.0, normalize(vel[i]) * MAX_VELOCITY);
+
+  vel[i] = normalize(vel[i]) * BOIDS_MAX_VELOCITY;
 
   float4 currPos = pos[i] + vel[i];
   float4 clampedCurrPos = clamp(currPos, -ABS_WALL_POS, ABS_WALL_POS);
