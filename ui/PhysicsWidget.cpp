@@ -84,7 +84,7 @@ void UI::OCLBoidsWidget::display()
   ImGui::Spacing();
 
   ImGui::Text(" Wall Behavior");
-  bool isBouncingWall = boidsEngine.getBouncingWall();
+  bool isBouncingWall = boidsEngine.isBouncingWallEnabled();
   if (ImGui::Checkbox("Bouncing Wall", &isBouncingWall))
   {
     boidsEngine.setBouncingWall(isBouncingWall);
@@ -93,7 +93,7 @@ void UI::OCLBoidsWidget::display()
 
   ImGui::SameLine();
 
-  bool isCyclicWall = boidsEngine.getCyclicWall();
+  bool isCyclicWall = boidsEngine.isCyclicWallEnabled();
   if (ImGui::Checkbox("Cyclic Wall", &isCyclicWall))
   {
     boidsEngine.setBouncingWall(!isCyclicWall);

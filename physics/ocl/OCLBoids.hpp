@@ -11,7 +11,7 @@ namespace Core
 class OCLBoids : public Physics
 {
   public:
-  OCLBoids(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
+  OCLBoids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
   ~OCLBoids();
 
   void update() override;

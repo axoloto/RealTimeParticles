@@ -16,37 +16,42 @@ enum Dimension
 class Physics
 {
   public:
-  Physics(Dimension dimension = Dimension::dim2D)
-      : m_velocity(4.0f)
+  Physics(int numEntities, Dimension dimension = Dimension::dim2D)
+      : m_numEntities(numEntities)
+      , m_velocity(4.0f)
       , m_dimension(dimension)
       , m_activateBouncingWall(false)
       , m_activateCyclicWall(true)
       , m_pause(false) {};
   virtual ~Physics() = default;
 
+  void setNumEntities(int numEntities) { m_numEntities = numEntities; }
+  int numEntities() const { return m_numEntities; }
+
   void setDimension(Dimension dim)
   {
     m_dimension = dim;
     reset();
   }
-  Dimension getDimension() const { return m_dimension; }
+  Dimension dimension() const { return m_dimension; }
 
   virtual void update() = 0;
   virtual void reset() = 0;
 
-  void setPause(bool pause) { m_pause = pause; }
-  float getPause() { return m_pause; }
+  void pause(bool pause) { m_pause = pause; }
+  bool onPause() const { return m_pause; }
 
   void setVelocity(float velocity) { m_velocity = velocity; }
-  float getVelocity() { return m_velocity; }
+  float velocity() { return m_velocity; }
 
   void setBouncingWall(bool bouncingwall) { m_activateBouncingWall = bouncingwall; }
-  float getBouncingWall() { return m_activateBouncingWall; }
+  bool isBouncingWallEnabled() const { return m_activateBouncingWall; }
 
   void setCyclicWall(bool Cyclicwall) { m_activateCyclicWall = Cyclicwall; }
-  float getCyclicWall() { return m_activateCyclicWall; }
+  bool isCyclicWallEnabled() const { return m_activateCyclicWall; }
 
   protected:
+  int m_numEntities;
   float m_velocity;
   Dimension m_dimension;
   bool m_activateBouncingWall;

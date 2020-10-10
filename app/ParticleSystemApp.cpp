@@ -171,7 +171,7 @@ ParticleSystemApp::ParticleSystemApp()
   if (!m_graphicsEngine)
     return;
 
-  m_physicsEngine = std::make_unique<Core::OCLBoids>((unsigned int)m_graphicsEngine->pointCloudCoordVBO(), (unsigned int)m_graphicsEngine->pointCloudColorVBO());
+  m_physicsEngine = std::make_unique<Core::OCLBoids>(m_numEntities, (unsigned int)m_graphicsEngine->pointCloudCoordVBO(), (unsigned int)m_graphicsEngine->pointCloudColorVBO());
 
   if (!m_physicsEngine)
     return;
@@ -232,11 +232,11 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Begin("Main Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);
 
-  bool isPaused = m_physicsEngine->getPause();
-  std::string pauseRun = isPaused ? "  Start  " : "  Pause  ";
+  bool isOnPaused = m_physicsEngine->onPause();
+  std::string pauseRun = isOnPaused ? "  Start  " : "  Pause  ";
   if (ImGui::Button(pauseRun.c_str()))
   {
-    m_physicsEngine->setPause(!isPaused);
+    m_physicsEngine->pause(!isOnPaused);
   }
 
   ImGui::SameLine();
@@ -248,10 +248,12 @@ void ParticleSystemApp::displayMainWidget()
 
   if (ImGui::SliderInt("Particles", &m_numEntities, 1, Core::NUM_MAX_ENTITIES))
   {
+    m_physicsEngine->setNumEntities(m_numEntities);
+    m_physicsEngine->reset();
     m_graphicsEngine->setNumDisplayedEntities(m_numEntities);
   }
 
-  bool isSystemDim2D = (m_physicsEngine->getDimension() == Core::Dimension::dim2D);
+  bool isSystemDim2D = (m_physicsEngine->dimension() == Core::Dimension::dim2D);
   if (ImGui::Checkbox("2D", &isSystemDim2D))
   {
     m_physicsEngine->setDimension(isSystemDim2D ? Core::Dimension::dim2D : Core::Dimension::dim3D);
@@ -259,7 +261,7 @@ void ParticleSystemApp::displayMainWidget()
 
   ImGui::SameLine();
 
-  bool isSystemDim3D = (m_physicsEngine->getDimension() == Core::Dimension::dim3D);
+  bool isSystemDim3D = (m_physicsEngine->dimension() == Core::Dimension::dim3D);
   if (ImGui::Checkbox("3D", &isSystemDim3D))
   {
     m_physicsEngine->setDimension(isSystemDim3D ? Core::Dimension::dim3D : Core::Dimension::dim2D);
@@ -269,7 +271,7 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Separator();
   ImGui::Spacing();
 
-  float velocity = m_physicsEngine->getVelocity();
+  float velocity = m_physicsEngine->velocity();
   if (ImGui::SliderFloat("Speed", &velocity, 0.01f, 20.0f))
   {
     m_physicsEngine->setVelocity(velocity);

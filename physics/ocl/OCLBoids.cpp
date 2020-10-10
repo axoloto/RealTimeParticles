@@ -18,8 +18,8 @@ using namespace Core;
 
 static bool isOCLExtensionSupported(cl_device_id device, const char* extension);
 
-OCLBoids::OCLBoids(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
-    : Physics()
+OCLBoids::OCLBoids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
+    : Physics(numEntities)
     , m_init(false)
     , m_kernelProfilingEnabled(true)
     , m_scaleAlignment(2.0f)
@@ -372,7 +372,7 @@ void OCLBoids::runKernel(cl_kernel kernel, double* profilingTimeMs)
 
   cl_event event;
 
-  size_t numWorkItems = NUM_MAX_ENTITIES;
+  size_t numWorkItems = (m_numEntities > 10) ? m_numEntities - (m_numEntities % 10) : m_numEntities;
   clEnqueueNDRangeKernel(cl_queue, kernel, 1, NULL, &numWorkItems, NULL, 0, NULL, &event);
 
   if (m_kernelProfilingEnabled)
