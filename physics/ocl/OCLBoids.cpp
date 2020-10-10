@@ -18,15 +18,19 @@ using namespace Core;
 
 static bool isOCLExtensionSupported(cl_device_id device, const char* extension);
 
-OCLBoids::OCLBoids(int boxSize, int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
-    : Boids(boxSize, numEntities)
+OCLBoids::OCLBoids(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
+    : Physics()
     , m_init(false)
     , m_kernelProfilingEnabled(true)
+    , m_scaleAlignment(2.0f)
+    , m_scaleCohesion(0.7f)
+    , m_scaleSeparation(1.2f)
+    , m_activeTargets(false)
+    , m_activeAlignment(true)
+    , m_activeSeparation(true)
+    , m_activeCohesion(true)
+    , m_target({ 0.0f, 0.0f, 0.0f })
 {
-  m_scaleAlignment = 2.0f;
-  m_scaleCohesion = 0.7f;
-  m_scaleSeparation = 1.2f;
-
   if (initOpenCL())
   {
     createBuffers(pointCloudCoordVBO, pointCloudColorVBO);
@@ -34,7 +38,7 @@ OCLBoids::OCLBoids(int boxSize, int numEntities, unsigned int pointCloudCoordVBO
 
     m_init = true;
 
-    resetParticles();
+    reset();
   }
 }
 
@@ -55,7 +59,7 @@ OCLBoids::~OCLBoids()
   clReleaseContext(cl_context);
 }
 
-void OCLBoids::resetParticles()
+void OCLBoids::reset()
 {
   double timeMs = 0.0;
 
@@ -71,7 +75,7 @@ void OCLBoids::resetParticles()
   releaseGLBuffers({ cl_colorBuff, cl_posBuff });
 }
 
-void OCLBoids::updatePhysics()
+void OCLBoids::update()
 {
   if (m_pause)
     return;
@@ -101,7 +105,7 @@ void OCLBoids::updatePhysics()
 
 void OCLBoids::updateBoidsParamsInKernel()
 {
-  m_boidsParams.velocity = m_maxSpeed;
+  m_boidsParams.velocity = m_velocity;
 
   m_boidsParams.scaleCohesion = m_activeCohesion ? m_scaleCohesion : 0.0f;
   m_boidsParams.scaleAlignment = m_activeAlignment ? m_scaleAlignment : 0.0f;
@@ -218,7 +222,7 @@ bool OCLBoids::initOpenCL()
   }
   free(program_buffer);
 
-  const char options[] = "-DBOIDS_EFFECT_RADIUS_SQUARED=2500 -DBOIDS_MAX_STEERING=0.5f -DBOIDS_MAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f -cl-denorms-are-zero -cl-fast-relaxed-math";
+  const char options[] = "-DBOIDS_EFFECT_RADIUS_SQUARED=1000 -DBOIDS_MAX_STEERING=0.5f -DBOIDS_MAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f -cl-denorms-are-zero -cl-fast-relaxed-math";
   err = clBuildProgram(cl_program, 1, &cl_device, options, NULL, NULL);
   if (err != CL_SUCCESS)
   {

@@ -6,8 +6,6 @@
 #include <glad/glad.h>
 #include <spdlog/spdlog.h>
 
-#include "Boids.hpp"
-
 #if OPENCL_ACTIVATED
 #include "ocl/OCLBoids.hpp"
 #endif
@@ -173,9 +171,7 @@ ParticleSystemApp::ParticleSystemApp()
   if (!m_graphicsEngine)
     return;
 
-  m_physicsEngine = std::make_unique<Core::OCLBoids>(m_boxSize, m_numEntities,
-      (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
-      (unsigned int)m_graphicsEngine->pointCloudColorVBO());
+  m_physicsEngine = std::make_unique<Core::OCLBoids>((unsigned int)m_graphicsEngine->pointCloudCoordVBO(), (unsigned int)m_graphicsEngine->pointCloudColorVBO());
 
   if (!m_physicsEngine)
     return;
@@ -233,9 +229,6 @@ void ParticleSystemApp::run()
 
 void ParticleSystemApp::displayMainWidget()
 {
-  const auto cameraPos = m_graphicsEngine->cameraPos();
-  const auto targetPos = m_graphicsEngine->targetPos();
-
   ImGui::Begin("Main Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);
 
@@ -250,12 +243,11 @@ void ParticleSystemApp::displayMainWidget()
 
   if (ImGui::Button("  Reset  "))
   {
-    m_physicsEngine->resetParticles();
+    m_physicsEngine->reset();
   }
 
   if (ImGui::SliderInt("Particles", &m_numEntities, 1, Core::NUM_MAX_ENTITIES))
   {
-    m_physicsEngine->setNumEntities(m_numEntities);
     m_graphicsEngine->setNumDisplayedEntities(m_numEntities);
   }
 
@@ -277,17 +269,14 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Separator();
   ImGui::Spacing();
 
-  float maxVelocity = m_physicsEngine->getmaxVelocity();
-  if (ImGui::SliderFloat("Speed", &maxVelocity, 0.01f, 20.0f))
+  float velocity = m_physicsEngine->getVelocity();
+  if (ImGui::SliderFloat("Speed", &velocity, 0.01f, 20.0f))
   {
-    m_physicsEngine->setMaxVelocity(maxVelocity);
+    m_physicsEngine->setVelocity(velocity);
   }
 
-  bool isMaxSpeedForced = m_physicsEngine->isMaxSpeedForced();
-  if (ImGui::Checkbox("Force Max. Speed", &isMaxSpeedForced))
-  {
-    m_physicsEngine->forceMaxSpeed(isMaxSpeedForced);
-  }
+  const auto cameraPos = m_graphicsEngine->cameraPos();
+  const auto targetPos = m_graphicsEngine->targetPos();
 
   ImGui::Spacing();
   ImGui::Separator();

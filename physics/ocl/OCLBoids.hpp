@@ -1,20 +1,42 @@
 #pragma once
 
-#include "Boids.hpp"
 #include "CL/cl.h"
 #include <array>
 #include <vector>
 
+#include "Physics.hpp"
+
 namespace Core
 {
-class OCLBoids : public Boids
+class OCLBoids : public Physics
 {
   public:
-  OCLBoids(int boxSize, int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
+  OCLBoids(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
   ~OCLBoids();
 
-  void updatePhysics() override;
-  void resetParticles() override;
+  void update() override;
+  void reset() override;
+
+  void setScaleAlignment(float alignment) { m_scaleAlignment = alignment; }
+  float getScaleAlignment() const { return m_scaleAlignment; }
+
+  void setScaleCohesion(float cohesion) { m_scaleCohesion = cohesion; }
+  float getScaleCohesion() const { return m_scaleCohesion; }
+
+  void setScaleSeparation(float separation) { m_scaleSeparation = separation; }
+  float getScaleSeparation() const { return m_scaleSeparation; }
+
+  void setActivateTargets(bool targets) { m_activeTargets = targets; }
+  bool getActivateTargets() { return m_activeTargets; }
+
+  void setActivateAlignment(bool alignment) { m_activeAlignment = alignment; }
+  bool getActivateAlignment() const { return m_activeAlignment; }
+
+  void setActivateCohesion(bool cohesion) { m_activeCohesion = cohesion; }
+  bool getActivateCohesion() const { return m_activeCohesion; }
+
+  void setActivateSeparation(bool separation) { m_activeSeparation = separation; }
+  bool getActivateSeparation() const { return m_activeSeparation; }
 
   private:
   bool initOpenCL();
@@ -26,6 +48,18 @@ class OCLBoids : public Boids
   void updateBoidsParamsInKernel();
 
   bool m_init;
+
+  bool m_activeAlignment;
+  bool m_activeCohesion;
+  bool m_activeSeparation;
+
+  float m_scaleAlignment;
+  float m_scaleCohesion;
+  float m_scaleSeparation;
+
+  bool m_activeTargets;
+
+  Math::float3 m_target;
 
   cl_platform_id cl_platform;
   cl_device_id cl_device;
