@@ -20,7 +20,6 @@ static bool isOCLExtensionSupported(cl_device_id device, const char* extension);
 
 OCLBoids::OCLBoids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
     : Physics(numEntities)
-    , m_init(false)
     , m_kernelProfilingEnabled(true)
     , m_scaleAlignment(2.0f)
     , m_scaleCohesion(0.7f)

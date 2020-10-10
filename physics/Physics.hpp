@@ -18,6 +18,7 @@ class Physics
   public:
   Physics(int numEntities, Dimension dimension = Dimension::dim2D)
       : m_numEntities(numEntities)
+      , m_init(false)
       , m_velocity(4.0f)
       , m_dimension(dimension)
       , m_activateBouncingWall(false)
@@ -38,6 +39,8 @@ class Physics
   virtual void update() = 0;
   virtual void reset() = 0;
 
+  bool isInit() const { return m_init; }
+
   void pause(bool pause) { m_pause = pause; }
   bool onPause() const { return m_pause; }
 
@@ -51,6 +54,7 @@ class Physics
   bool isCyclicWallEnabled() const { return m_activateCyclicWall; }
 
   protected:
+  bool m_init;
   int m_numEntities;
   float m_velocity;
   Dimension m_dimension;

@@ -6,16 +6,32 @@
 #include <glad/glad.h>
 #include <spdlog/spdlog.h>
 
+#include "ParticleSystemApp.hpp"
+
 #if OPENCL_ACTIVATED
 #include "ocl/OCLBoids.hpp"
-#endif
+#else
+namespace Core
+{
+class OCLBoids : public Physics
+{
+  public:
+  OCLBoids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
+      : Physics(numEntities) {};
+  ~OCLBoids() {};
 
-#include "ParticleSystemApp.hpp"
+  void update() {};
+  void reset() {};
+  bool isInit() const { return false; }
+};
+}
+#endif
 
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
 #else
-constexpr auto GLSL_VERSION = "#version 130";
+constexpr auto GLSL_VERSION
+    = "#version 130";
 #endif
 
 bool ParticleSystemApp::initWindow()
@@ -38,7 +54,7 @@ bool ParticleSystemApp::initWindow()
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
   SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
   SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-  m_window = SDL_CreateWindow("Particle System Sandbox", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_windowSize.x, m_windowSize.y, window_flags);
+  m_window = SDL_CreateWindow(m_nameApp.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_windowSize.x, m_windowSize.y, window_flags);
   m_OGLContext = SDL_GL_CreateContext(m_window);
   SDL_GL_MakeCurrent(m_window, m_OGLContext);
   SDL_GL_SetSwapInterval(1); // Enable vsync
@@ -155,7 +171,8 @@ bool ParticleSystemApp::checkSDLStatus()
 }
 
 ParticleSystemApp::ParticleSystemApp()
-    : m_mousePrevPos(0, 0)
+    : m_nameApp("Particle System Sandbox")
+    , m_mousePrevPos(0, 0)
     , m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f)
     , m_buttonRightActivated(false)
     , m_buttonLeftActivated(false)
@@ -189,6 +206,7 @@ void ParticleSystemApp::run()
   ImGuiIO& io = ImGui::GetIO();
   (void)io;
 
+  std::string errorMessage;
   bool stopRendering = false;
   while (!stopRendering)
   {
@@ -202,8 +220,28 @@ void ParticleSystemApp::run()
 
     if (!m_graphicsEngine)
     {
-      stopRendering = true;
-      return;
+      errorMessage = std::string("The application needs OpenGL to run.");
+    }
+
+    if (!m_physicsEngine->isInit())
+    {
+      errorMessage = std::string("The application needs OpenCL 1.2 or more recent to run.");
+    }
+
+    if (!errorMessage.empty())
+    {
+      ImGui::OpenPopup("Error");
+      bool open = true;
+      if (ImGui::BeginPopupModal("Error", &open))
+      {
+        ImGui::Text(errorMessage.c_str());
+        if (ImGui::Button((std::string("Close ") + m_nameApp).c_str()))
+        {
+          ImGui::CloseCurrentPopup();
+          break;
+        }
+        ImGui::EndPopup();
+      }
     }
 
     displayMainWidget();

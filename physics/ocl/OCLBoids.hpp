@@ -47,8 +47,6 @@ class OCLBoids : public Physics
   void runKernel(cl_kernel kernel, double* profilingTimeMs = nullptr);
   void updateBoidsParamsInKernel();
 
-  bool m_init;
-
   bool m_activeAlignment;
   bool m_activeCohesion;
   bool m_activeSeparation;

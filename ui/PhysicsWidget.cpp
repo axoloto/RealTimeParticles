@@ -1,11 +1,12 @@
 
 #include "PhysicsWidget.hpp"
 #include "imgui/imgui.h"
-#include "ocl/OCLBoids.hpp"
 
 #ifndef OPENCL_ACTIVATED
 void UI::OCLBoidsWidget::display() {}
 #else
+#include "ocl/OCLBoids.hpp"
+
 void UI::OCLBoidsWidget::display()
 {
   auto& boidsEngine = dynamic_cast<Core::OCLBoids&>(m_physicsEngine);
