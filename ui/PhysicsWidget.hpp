@@ -1,30 +1,43 @@
 
 #pragma once
 
-#include<memory>
 #include "Physics.hpp"
+#include <memory>
 
+namespace UI
+{
+class PhysicsWidget
+{
+  public:
+  explicit PhysicsWidget(Core::Physics& physicsEngine)
+      : m_physicsEngine(physicsEngine) {};
+  virtual ~PhysicsWidget() = default;
 
-namespace UI {
+  virtual void display() = 0;
 
-    class PhysicsWidget {
-        public:
-        explicit PhysicsWidget(const Core::Physics &physicsEngine ) : m_physicsEngine(physicsEngine) {};
-        virtual ~PhysicsWidget() = default;
+  protected:
+  Core::Physics& m_physicsEngine;
+};
 
-        virtual void display() = 0;
+class BoidsWidget : public PhysicsWidget
+{
+  public:
+  explicit BoidsWidget(Core::Physics& physicsEngine)
+      : PhysicsWidget(physicsEngine) {};
+  ~BoidsWidget() override = default;
+  void display() override;
 
-        protected:
-            const Core::Physics &m_physicsEngine;
-    };
+  private:
+};
 
-    class BoidsWidget : public PhysicsWidget {
-        public:
-        explicit BoidsWidget(const Core::Physics &physicsEngine ) : PhysicsWidget(physicsEngine) {};
-        ~BoidsWidget() override = default;
-        void display() override;
+class OCLBoidsWidget : public PhysicsWidget
+{
+  public:
+  explicit OCLBoidsWidget(Core::Physics& physicsEngine)
+      : PhysicsWidget(physicsEngine) {};
+  ~OCLBoidsWidget() override = default;
+  void display() override;
 
-        private:
-
-    };
+  private:
+};
 }

@@ -1,134 +1,107 @@
 
-#include "imgui/imgui.h"
 #include "PhysicsWidget.hpp"
-#include "Boids.hpp"
+#include "imgui/imgui.h"
 
-void UI::BoidsWidget::display()
+#ifndef OPENCL_ACTIVATED
+void UI::OCLBoidsWidget::display() {}
+#else
+#include "ocl/OCLBoids.hpp"
+
+void UI::OCLBoidsWidget::display()
 {
-    auto boidsEngine = dynamic_cast<const Core::Boids &>(m_physicsEngine);
+  auto& boidsEngine = dynamic_cast<Core::OCLBoids&>(m_physicsEngine);
 
-    ImGui::Begin("Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+  ImGui::Begin("OCL Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+  ImGui::PushItemWidth(150);
+
+  ImGui::Spacing();
+
+  bool isTarget = boidsEngine.getActivateTargets();
+  if (ImGui::Checkbox("Center Target", &isTarget))
+  {
+    boidsEngine.setActivateTargets(isTarget);
+  }
+
+  ImGui::Spacing();
+  ImGui::Separator();
+  ImGui::Spacing();
+
+  bool isAlignment = boidsEngine.getActivateAlignment();
+  if (ImGui::Checkbox("Alignment", &isAlignment))
+  {
+    boidsEngine.setActivateAlignment(isAlignment);
+  }
+  if (isAlignment)
+  {
+    ImGui::PushItemWidth(75);
+
+    float scaleAlignment = boidsEngine.getScaleAlignment();
+    if (ImGui::SliderFloat("##scaleAlign", &scaleAlignment, 0.0, 5.0f))
+    {
+      boidsEngine.setScaleAlignment(scaleAlignment);
+    }
+
     ImGui::PushItemWidth(150);
+  }
 
-    bool isSteering = boidsEngine.getSteering();
-    if (ImGui::Checkbox("Steering", &isSteering))
+  bool isCohesion = boidsEngine.getActivateCohesion();
+  if (ImGui::Checkbox("Cohesion", &isCohesion))
+  {
+    boidsEngine.setActivateCohesion(isCohesion);
+  }
+  if (isCohesion)
+  {
+    ImGui::PushItemWidth(75);
+
+    float scaleCohesion = boidsEngine.getScaleCohesion();
+    if (ImGui::SliderFloat("##scaleCoh", &scaleCohesion, 0.0f, 5.0f))
     {
-        boidsEngine.setSteering(isSteering);
+      boidsEngine.setScaleCohesion(scaleCohesion);
     }
 
-    if (isSteering)
+    ImGui::PushItemWidth(150);
+  }
+
+  bool isSeparation = boidsEngine.getActivateSeparation();
+  if (ImGui::Checkbox("Separation", &isSeparation))
+  {
+    boidsEngine.setActivateSeparation(isSeparation);
+  }
+  if (isSeparation)
+  {
+    ImGui::PushItemWidth(75);
+
+    float scaleSeparation = boidsEngine.getScaleSeparation();
+    if (ImGui::SliderFloat("##scaleSep", &scaleSeparation, 0.0f, 5.0f))
     {
-        float maxSteering = boidsEngine.getmaxSteering();
-        if (ImGui::SliderFloat("Max. Steering", &maxSteering, 0.005f, 2.0f))
-        {
-            boidsEngine.setMaxSteering(maxSteering);
-        }
-
-       // ImGui::Spacing();
-        
-       // bool isTarget = boidsEngine->getActivateTargets();
-       // if (ImGui::Checkbox("Targets", &isTarget))
-       // {
-       //    boidsEngine->setActivateTargets(isTarget);
-       // }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
-
-        bool isAlignment = boidsEngine.getActivateAlignment();
-        if (ImGui::Checkbox("Alignment", &isAlignment))
-        {
-            boidsEngine.setActivateAlignment(isAlignment);
-        }
-        if (isAlignment)
-        {
-            ImGui::PushItemWidth(75);
-
-            float scaleAlignment = boidsEngine.getScaleAlignment();
-            if (ImGui::SliderFloat("##scaleAlign", &scaleAlignment, 0.0, 5.0f))
-            {
-                boidsEngine.setScaleAlignment(scaleAlignment);
-            }
-            ImGui::SameLine();
-            float radiusAlignment = boidsEngine.getRadiusAlignment();
-            if (ImGui::SliderFloat("##radAlign", &radiusAlignment, 10.0f, 100.0f))
-            {
-                boidsEngine.setRadiusAlignment(radiusAlignment);
-            }
-
-            ImGui::PushItemWidth(150);
-        }
-
-        bool isCohesion = boidsEngine.getActivateCohesion();
-        if (ImGui::Checkbox("Cohesion", &isCohesion))
-        {
-            boidsEngine.setActivateCohesion(isCohesion);
-        }
-        if (isCohesion)
-        {
-            ImGui::PushItemWidth(75);
-
-            float scaleCohesion = boidsEngine.getScaleCohesion();
-            if (ImGui::SliderFloat("##scaleCoh", &scaleCohesion, 0.0f, 5.0f))
-            {
-                boidsEngine.setScaleCohesion(scaleCohesion);
-            }
-            ImGui::SameLine();
-            float radiusCohesion = boidsEngine.getRadiusCohesion();
-            if (ImGui::SliderFloat("##radCoh", &radiusCohesion, 10.0f, 100.0f))
-            {
-                boidsEngine.setRadiusCohesion(radiusCohesion);
-            }
-
-            ImGui::PushItemWidth(150);
-        }
-
-        bool isSeparation = boidsEngine.getActivateSeparation();
-        if (ImGui::Checkbox("Separation", &isSeparation))
-        {
-            boidsEngine.setActivateSeparation(isSeparation);
-        }
-        if (isSeparation)
-        {
-            ImGui::PushItemWidth(75);
-
-            float scaleSeparation = boidsEngine.getScaleSeparation();
-            if (ImGui::SliderFloat("##scaleSep", &scaleSeparation, 0.0f, 5.0f))
-            {
-                boidsEngine.setScaleSeparation(scaleSeparation);
-            }
-            ImGui::SameLine();
-            float radiusSeparation = boidsEngine.getRadiusSeparation();
-            if (ImGui::SliderFloat("##radSep", &radiusSeparation, 10.0f, 100.0f))
-            {
-                boidsEngine.setRadiusSeparation(radiusSeparation);
-            }
-
-            ImGui::PushItemWidth(150);
-        }
+      boidsEngine.setScaleSeparation(scaleSeparation);
     }
 
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
+    ImGui::PushItemWidth(150);
+  }
 
-    ImGui::Text(" Wall Behavior");
-    bool isBouncingWall = boidsEngine.getBouncingWall();
-    if (ImGui::Checkbox("Bouncing Wall", &isBouncingWall))
-    {
-        boidsEngine.setBouncingWall(isBouncingWall);
-        boidsEngine.setCyclicWall(!isBouncingWall);
-    }
+  ImGui::Spacing();
+  ImGui::Separator();
+  ImGui::Spacing();
 
-    ImGui::SameLine();
+  ImGui::Text(" Wall Behavior");
+  bool isBouncingWall = boidsEngine.isBouncingWallEnabled();
+  if (ImGui::Checkbox("Bouncing Wall", &isBouncingWall))
+  {
+    boidsEngine.setBouncingWall(isBouncingWall);
+    boidsEngine.setCyclicWall(!isBouncingWall);
+  }
 
-    bool isCyclicWall = boidsEngine.getCyclicWall();
-    if (ImGui::Checkbox("Cyclic Wall", &isCyclicWall))
-    {
-        boidsEngine.setBouncingWall(!isCyclicWall);
-        boidsEngine.setCyclicWall(isCyclicWall);
-    }
+  ImGui::SameLine();
 
-    ImGui::End();
+  bool isCyclicWall = boidsEngine.isCyclicWallEnabled();
+  if (ImGui::Checkbox("Cyclic Wall", &isCyclicWall))
+  {
+    boidsEngine.setBouncingWall(!isCyclicWall);
+    boidsEngine.setCyclicWall(isCyclicWall);
+  }
+
+  ImGui::End();
 }
+
+#endif

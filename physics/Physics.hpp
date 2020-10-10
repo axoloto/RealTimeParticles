@@ -1,82 +1,65 @@
-#pragma once 
+#pragma once
 
-#include<array>
-#include"diligentGraphics/Math.hpp"
+#include "diligentGraphics/Math.hpp"
+#include <array>
 
-namespace Core {
+namespace Core
+{
+static constexpr int NUM_MAX_ENTITIES = 30000;
 
-    static constexpr int NUM_MAX_ENTITIES = 2000;
+enum Dimension
+{
+  dim2D,
+  dim3D
+};
 
-    enum Dimension {dim2D, dim3D}; 
+class Physics
+{
+  public:
+  Physics(int numEntities, Dimension dimension = Dimension::dim2D)
+      : m_numEntities(numEntities)
+      , m_init(false)
+      , m_velocity(4.0f)
+      , m_dimension(dimension)
+      , m_activateBouncingWall(false)
+      , m_activateCyclicWall(true)
+      , m_pause(false) {};
+  virtual ~Physics() = default;
 
-    class Physics {
-        public:
-            Physics(int boxSize, int numEntities, Dimension dimension = Dimension::dim2D);
-            ~Physics() = default;
+  void setNumEntities(int numEntities) { m_numEntities = numEntities; }
+  int numEntities() const { return m_numEntities; }
 
-            void* getCoordsBufferStart();
-            void* getColorsBufferStart();
+  void setDimension(Dimension dim)
+  {
+    m_dimension = dim;
+    reset();
+  }
+  Dimension dimension() const { return m_dimension; }
 
-            int numEntities() const { return m_numEntities; }
-            void setNumEntities(int numEntities) { m_numEntities = numEntities; }
+  virtual void update() = 0;
+  virtual void reset() = 0;
 
-            virtual void updatePhysics() = 0;
+  bool isInit() const { return m_init; }
 
-            void update();
-            void updateBuffers();
+  void pause(bool pause) { m_pause = pause; }
+  bool onPause() const { return m_pause; }
 
-            void resetParticles();
+  void setVelocity(float velocity) { m_velocity = velocity; }
+  float velocity() { return m_velocity; }
 
-            void setDimension(Dimension dim) { m_dimension = dim; resetParticles(); }
-            Dimension getDimension() const { return m_dimension; }
+  void setBouncingWall(bool bouncingwall) { m_activateBouncingWall = bouncingwall; }
+  bool isBouncingWallEnabled() const { return m_activateBouncingWall; }
 
-            void setPause(bool pause) { m_pause = pause; }
-            float getPause() { return m_pause; }
+  void setCyclicWall(bool Cyclicwall) { m_activateCyclicWall = Cyclicwall; }
+  bool isCyclicWallEnabled() const { return m_activateCyclicWall; }
 
-            void forceMaxSpeed(bool forcedmax) { m_forceMaxSpeed = forcedmax; }
-            float isMaxSpeedForced() { return m_forceMaxSpeed; }
-
-            void setMaxVelocity(float maxVelocity) { m_maxSpeed = maxVelocity; }
-            float getmaxVelocity() { return m_maxSpeed; }
-
-            void setBouncingWall(bool bouncingwall) { m_activateBouncingWall = bouncingwall; }
-            float getBouncingWall() { return m_activateBouncingWall; }
-
-            void setCyclicWall(bool Cyclicwall) { m_activateCyclicWall = Cyclicwall; }
-            float getCyclicWall() { return m_activateCyclicWall; }
-
-        protected:
-
-            struct Entity
-            {
-                // Mandatory
-                Math::float3 xyz;
-                // Mandatory
-                Math::float3 rgb;
-
-                Math::float3 vxyz;
-                Math::float3 axyz;
-            };
-
-            std::array<Entity, NUM_MAX_ENTITIES> m_entities;
-            
-            std::array<std::array<float, 3>, NUM_MAX_ENTITIES> m_coordsBuffer;
-            std::array<std::array<float, 3>, NUM_MAX_ENTITIES> m_colorsBuffer;
-
-            int m_numEntities;
-            int m_boxSize;
-
-            void updateParticle(Entity& particle);
-            void bouncingWall(Entity& particle);
-            void cyclicWall(Entity& particle); 
-            void randomWall(Entity& particle); // WIP
-
-            float m_maxSpeed;       
-
-            Dimension m_dimension;
-            bool m_activateBouncingWall;     
-            bool m_activateCyclicWall;       
-            bool m_forceMaxSpeed;
-            bool m_pause;
-    };
+  protected:
+  bool m_init;
+  int m_numEntities;
+  float m_velocity;
+  Dimension m_dimension;
+  bool m_activateBouncingWall;
+  bool m_activateCyclicWall;
+  bool m_pause;
+};
 }

@@ -1,59 +1,70 @@
-#pragma once 
+#pragma once
 
-#include <glad/glad.h>
-#include "OGLShader.hpp"
 #include "Camera.hpp"
+#include "OGLShader.hpp"
 #include <array>
-#include <vector>
+#include <glad/glad.h>
 #include <memory>
+#include <vector>
 
+namespace Render
+{
+enum class UserAction
+{
+  TRANSLATION,
+  ROTATION,
+  ZOOM
+};
 
-namespace Render {
+class OGLRender
+{
+  public:
+  OGLRender(int halfBoxSize, int numDisplayedEntities, int numMaxEntities, float aspectRatio);
+  ~OGLRender();
 
-    enum class UserAction { TRANSLATION, ROTATION, ZOOM };
+  void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);
+  void draw();
 
-    class OGLRender {
-        public:
-            OGLRender(int halfBoxSize, int numEntities, float aspectRatio);
-            ~OGLRender();
+  inline const Math::float3 cameraPos() const { return m_camera->cameraPos(); }
+  inline const Math::float3 targetPos() const { return m_camera->targetPos(); }
 
-            void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);
-            void draw();
+  inline void resetCamera() { m_camera->reset(); }
+  inline void setWindowSize(Math::int2 windowSize)
+  {
+    if (m_camera)
+      m_camera->setSceneAspectRatio((float)windowSize.x / windowSize.y);
+  }
+  inline void setNumDisplayedEntities(int numDisplayedEntities) { m_numDisplayedEntities = numDisplayedEntities; }
 
-            inline const Math::float3 cameraPos() const { return m_camera->cameraPos();}
-            inline const Math::float3 targetPos() const { return m_camera->targetPos();}
+  void setPointCloudBuffers(void* coordsBufferStart, void* colorsBufferStart);
+  GLuint pointCloudCoordVBO() { return m_pointCloudCoordVBO; }
+  GLuint pointCloudColorVBO() { return m_pointCloudColorVBO; }
 
-            inline void resetCamera() { m_camera->reset(); }
-            inline void setWindowSize(Math::int2 windowSize) { if(m_camera) m_camera->setSceneAspectRatio((float) windowSize.x / windowSize.y); }
-            inline void setNumEntities(int numEntities) { m_numEntities = numEntities; }
-            
-            void setPointCloudBuffers(void* coordsBufferStart, void* colorsBufferStart);
+  private:
+  void buildShaders();
+  void connectVBOsToVAO();
+  void generateBox();
 
-        private:
+  void updatePointCloud();
+  void drawPointCloud();
 
-            void buildShaders();
-            void connectVBOsToVAO();
-            void generateBox();
+  void drawBox();
 
-            void updatePointCloud();
-            void drawPointCloud();
+  void initCamera(float sceneAspectRatio);
 
-            void drawBox();
+  const GLuint m_pointCloudPosAttribIndex { 0 }, m_pointCloudColAttribIndex { 1 }, m_boxPosAttribIndex { 2 }, m_boxColAttribIndex { 3 };
+  GLuint m_pointCloudCoordVBO, m_pointCloudColorVBO, m_boxVBO, m_boxEBO, m_VAO;
 
-            void initCamera(float sceneAspectRatio);
+  std::unique_ptr<OGLShader> m_pointCloudShader;
+  std::unique_ptr<OGLShader> m_boxShader;
 
-            const GLuint m_pointCloudPosAttribIndex { 0 }, m_pointCloudColAttribIndex { 1 }, m_boxPosAttribIndex { 2 }, m_boxColAttribIndex { 3 };
-            GLuint m_pointCloudCoordsVBO, m_pointCloudColorsVBO, m_boxVBO, m_boxEBO, m_VAO;
+  int m_boxSize;
+  int m_numDisplayedEntities;
+  int m_numMaxEntities;
 
-            std::unique_ptr<OGLShader> m_pointCloudShader;
-            std::unique_ptr<OGLShader> m_boxShader;
+  std::unique_ptr<Camera> m_camera;
 
-            int m_boxSize;
-            int m_numEntities;
-
-            std::unique_ptr<Camera> m_camera;
-
-            void* m_pointCloudCoordsBufferStart;
-            void* m_pointCloudColorsBufferStart;
-    };
+  void* m_pointCloudCoordsBufferStart;
+  void* m_pointCloudColorsBufferStart;
+};
 }
