@@ -41,6 +41,7 @@ __kernel void randPosVerts(__global float4* pos, __global float4* vel, float dim
 
 typedef struct
 {
+  float velocity;
   float scaleCohesion;
   float scaleAlignment;
   float scaleSeparation;
@@ -92,11 +93,11 @@ __kernel void applyBoidsRules(__global __read_only float4* position, __global __
     // cohesion
     averageBoidsPos /= count;
     averageBoidsPos -= pos;
-    averageBoidsPos = normalize(averageBoidsPos) * BOIDS_MAX_VELOCITY;
+    averageBoidsPos = normalize(averageBoidsPos) * params->velocity;
     // alignment
-    averageBoidsVel = normalize(averageBoidsVel) * BOIDS_MAX_VELOCITY;
+    averageBoidsVel = normalize(averageBoidsVel) * params->velocity;
     // separation
-    repulseHeading = normalize(repulseHeading) * BOIDS_MAX_VELOCITY;
+    repulseHeading = normalize(repulseHeading) * params->velocity;
   }
 
   float4 target = -pos;
@@ -107,19 +108,45 @@ __kernel void applyBoidsRules(__global __read_only float4* position, __global __
       + clamp(target, 0.0, normalize(target) * BOIDS_MAX_STEERING) * params->activeTarget;
 }
 
-__kernel void updatePosVerts(__global float4* pos, __global float4* vel, __global __read_only float4* acc)
+__kernel void updateVelVerts(__global float4* vel, __global __read_only float4* acc, __global boidsParams* params)
 {
   unsigned int i = get_global_id(0);
 
   vel[i] += acc[i];
 
-  vel[i] = normalize(vel[i]) * BOIDS_MAX_VELOCITY;
+  vel[i] = normalize(vel[i]) * params->velocity;
+}
 
-  float4 currPos = pos[i] + vel[i];
-  float4 clampedCurrPos = clamp(currPos, -ABS_WALL_POS, ABS_WALL_POS);
-  if (!all(isequal(clampedCurrPos.xyz, currPos.xyz)))
+__kernel void updatePosVertsWithBouncingWalls(__global float4* pos, __global float4* vel)
+{
+  unsigned int i = get_global_id(0);
+
+  float4 newPos = pos[i] + vel[i];
+  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
+  if (!all(isequal(clampedNewPos.xyz, newPos.xyz)))
   {
     vel[i] *= -1;
   }
-  pos[i] = clampedCurrPos;
+  pos[i] = clampedNewPos;
+}
+
+__kernel void updatePosVertsWithCyclicWalls(__global float4* pos, __global __read_only float4* vel)
+{
+  unsigned int i = get_global_id(0);
+
+  float4 newPos = pos[i] + vel[i];
+  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
+  if (!isequal(clampedNewPos.x, newPos.x))
+  {
+    clampedNewPos.x *= -1;
+  }
+  if (!isequal(clampedNewPos.y, newPos.y))
+  {
+    clampedNewPos.y *= -1;
+  }
+  if (!isequal(clampedNewPos.z, newPos.z))
+  {
+    clampedNewPos.z *= -1;
+  }
+  pos[i] = clampedNewPos;
 }

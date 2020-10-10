@@ -41,10 +41,13 @@ class OCLBoids : public Boids
   cl_kernel cl_colorKernel;
   cl_kernel cl_initPosKernel;
   cl_kernel cl_boidsRulesKernel;
-  cl_kernel cl_updatePosKernel;
+  cl_kernel cl_updateVelKernel;
+  cl_kernel cl_updatePosCyclicWallsKernel;
+  cl_kernel cl_updatePosBouncingWallsKernel;
 
   struct boidsParams
   {
+    cl_float velocity;
     cl_float scaleCohesion;
     cl_float scaleAlignment;
     cl_float scaleSeparation;

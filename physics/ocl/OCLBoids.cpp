@@ -11,7 +11,9 @@ using namespace Core;
 
 #define KERNEL_RANDOM_POS "randPosVerts"
 #define KERNEL_BOIDS_RULES "applyBoidsRules"
-#define KERNEL_UPDATE_POS "updatePosVerts"
+#define KERNEL_UPDATE_POS_BOUNCING "updatePosVertsWithBouncingWalls"
+#define KERNEL_UPDATE_POS_CYCLIC "updatePosVertsWithCyclicWalls"
+#define KERNEL_UPDATE_VEL "updateVelVerts"
 #define KERNEL_COLOR "colorVerts"
 
 static bool isOCLExtensionSupported(cl_device_id device, const char* extension);
@@ -80,18 +82,32 @@ void OCLBoids::updatePhysics()
   acquireGLBuffers({ cl_posBuff });
   runKernel(cl_boidsRulesKernel, &timeMs);
   printf("cl_boidsRulesKernel %f ms \n", timeMs);
-  runKernel(cl_updatePosKernel, &timeMs);
-  printf("cl_updatePosKernel %f ms \n", timeMs);
+  runKernel(cl_updateVelKernel, &timeMs);
+  printf("cl_updateVelKernel %f ms \n", timeMs);
+
+  if (m_activateCyclicWall)
+  {
+    runKernel(cl_updatePosCyclicWallsKernel, &timeMs);
+    printf("cl_updatePosCyclicWallsKernel %f ms \n", timeMs);
+  }
+  else
+  {
+    runKernel(cl_updatePosBouncingWallsKernel, &timeMs);
+    printf("cl_updatePosBouncingWallsKernel %f ms \n", timeMs);
+  }
+
   releaseGLBuffers({ cl_posBuff });
 }
 
 void OCLBoids::updateBoidsParamsInKernel()
 {
-  m_boidsParams.activeTarget = m_activeTargets ? 1 : 0;
+  m_boidsParams.velocity = m_maxSpeed;
 
   m_boidsParams.scaleCohesion = m_activeCohesion ? m_scaleCohesion : 0.0f;
   m_boidsParams.scaleAlignment = m_activeAlignment ? m_scaleAlignment : 0.0f;
   m_boidsParams.scaleSeparation = m_activeSeparation ? m_scaleSeparation : 0.0f;
+
+  m_boidsParams.activeTarget = m_activeTargets ? 1 : 0;
 
   if (cl_queue < 0 || cl_boidsParamsBuff < 0)
     return;
@@ -202,7 +218,7 @@ bool OCLBoids::initOpenCL()
   }
   free(program_buffer);
 
-  const char options[] = "-DBOIDS_EFFECT_RADIUS_SQUARED=400 -DBOIDS_MAX_STEERING=0.5f -DBOIDS_MAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f -cl-denorms-are-zero -cl-fast-relaxed-math";
+  const char options[] = "-DBOIDS_EFFECT_RADIUS_SQUARED=2500 -DBOIDS_MAX_STEERING=0.5f -DBOIDS_MAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f -cl-denorms-are-zero -cl-fast-relaxed-math";
   err = clBuildProgram(cl_program, 1, &cl_device, options, NULL, NULL);
   if (err != CL_SUCCESS)
   {
@@ -288,13 +304,27 @@ bool OCLBoids::createKernels()
   clSetKernelArg(cl_boidsRulesKernel, 2, sizeof(cl_mem), &cl_accBuff);
   clSetKernelArg(cl_boidsRulesKernel, 3, sizeof(cl_mem), &cl_boidsParamsBuff);
 
-  cl_updatePosKernel = clCreateKernel(cl_program, KERNEL_UPDATE_POS, &err);
+  cl_updateVelKernel = clCreateKernel(cl_program, KERNEL_UPDATE_VEL, &err);
   if (err != CL_SUCCESS)
     printf("error when creating update position kernel");
 
-  clSetKernelArg(cl_updatePosKernel, 0, sizeof(cl_mem), &cl_posBuff);
-  clSetKernelArg(cl_updatePosKernel, 1, sizeof(cl_mem), &cl_velBuff);
-  clSetKernelArg(cl_updatePosKernel, 2, sizeof(cl_mem), &cl_accBuff);
+  clSetKernelArg(cl_updateVelKernel, 0, sizeof(cl_mem), &cl_velBuff);
+  clSetKernelArg(cl_updateVelKernel, 1, sizeof(cl_mem), &cl_accBuff);
+  clSetKernelArg(cl_updateVelKernel, 2, sizeof(cl_mem), &cl_boidsParamsBuff);
+
+  cl_updatePosBouncingWallsKernel = clCreateKernel(cl_program, KERNEL_UPDATE_POS_BOUNCING, &err);
+  if (err != CL_SUCCESS)
+    printf("error when creating update position kernel");
+
+  clSetKernelArg(cl_updatePosBouncingWallsKernel, 0, sizeof(cl_mem), &cl_posBuff);
+  clSetKernelArg(cl_updatePosBouncingWallsKernel, 1, sizeof(cl_mem), &cl_velBuff);
+
+  cl_updatePosCyclicWallsKernel = clCreateKernel(cl_program, KERNEL_UPDATE_POS_CYCLIC, &err);
+  if (err != CL_SUCCESS)
+    printf("error when creating update position kernel");
+
+  clSetKernelArg(cl_updatePosCyclicWallsKernel, 0, sizeof(cl_mem), &cl_posBuff);
+  clSetKernelArg(cl_updatePosCyclicWallsKernel, 1, sizeof(cl_mem), &cl_velBuff);
 
   return true;
 }
