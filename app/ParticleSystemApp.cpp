@@ -206,7 +206,6 @@ void ParticleSystemApp::run()
   ImGuiIO& io = ImGui::GetIO();
   (void)io;
 
-  std::string errorMessage;
   bool stopRendering = false;
   while (!stopRendering)
   {
@@ -218,30 +217,9 @@ void ParticleSystemApp::run()
     ImGui_ImplSDL2_NewFrame(m_window);
     ImGui::NewFrame();
 
-    if (!m_graphicsEngine)
-    {
-      errorMessage = std::string("The application needs OpenGL to run.");
-    }
-
     if (!m_physicsEngine->isInit())
     {
-      errorMessage = std::string("The application needs OpenCL 1.2 or more recent to run.");
-    }
-
-    if (!errorMessage.empty())
-    {
-      ImGui::OpenPopup("Error");
-      bool open = true;
-      if (ImGui::BeginPopupModal("Error", &open))
-      {
-        ImGui::Text(errorMessage.c_str());
-        if (ImGui::Button((std::string("Close ") + m_nameApp).c_str()))
-        {
-          ImGui::CloseCurrentPopup();
-          break;
-        }
-        ImGui::EndPopup();
-      }
+      stopRendering = popUpErrorMessage("The application needs OpenCL 1.2 or more recent to run.");
     }
 
     displayMainWidget();
@@ -335,6 +313,26 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Spacing();
   ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
   ImGui::End();
+}
+
+bool ParticleSystemApp::popUpErrorMessage(std::string errorMessage)
+{
+  bool closePopUp = false;
+
+  bool open = true;
+  ImGui::OpenPopup("Error");
+  if (ImGui::BeginPopupModal("Error", &open))
+  {
+    ImGui::Text(errorMessage.c_str());
+    if (ImGui::Button((std::string("Close ") + m_nameApp).c_str()))
+    {
+      ImGui::CloseCurrentPopup();
+      closePopUp = true;
+    }
+    ImGui::EndPopup();
+  }
+
+  return closePopUp;
 }
 
 auto initializeLogger()

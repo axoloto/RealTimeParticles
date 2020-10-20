@@ -16,26 +16,26 @@ void UI::OCLBoidsWidget::display()
 
   ImGui::Spacing();
 
-  bool isTarget = boidsEngine.getActivateTargets();
+  bool isTarget = boidsEngine.isTargetActivated();
   if (ImGui::Checkbox("Center Target", &isTarget))
   {
-    boidsEngine.setActivateTargets(isTarget);
+    boidsEngine.activateTarget(isTarget);
   }
 
   ImGui::Spacing();
   ImGui::Separator();
   ImGui::Spacing();
 
-  bool isAlignment = boidsEngine.getActivateAlignment();
+  bool isAlignment = boidsEngine.isAlignmentActivated();
   if (ImGui::Checkbox("Alignment", &isAlignment))
   {
-    boidsEngine.setActivateAlignment(isAlignment);
+    boidsEngine.activateAlignment(isAlignment);
   }
   if (isAlignment)
   {
     ImGui::PushItemWidth(75);
 
-    float scaleAlignment = boidsEngine.getScaleAlignment();
+    float scaleAlignment = boidsEngine.scaleAlignment();
     if (ImGui::SliderFloat("##scaleAlign", &scaleAlignment, 0.0, 5.0f))
     {
       boidsEngine.setScaleAlignment(scaleAlignment);
@@ -44,16 +44,16 @@ void UI::OCLBoidsWidget::display()
     ImGui::PushItemWidth(150);
   }
 
-  bool isCohesion = boidsEngine.getActivateCohesion();
+  bool isCohesion = boidsEngine.isCohesionActivated();
   if (ImGui::Checkbox("Cohesion", &isCohesion))
   {
-    boidsEngine.setActivateCohesion(isCohesion);
+    boidsEngine.activateCohesion(isCohesion);
   }
   if (isCohesion)
   {
     ImGui::PushItemWidth(75);
 
-    float scaleCohesion = boidsEngine.getScaleCohesion();
+    float scaleCohesion = boidsEngine.scaleCohesion();
     if (ImGui::SliderFloat("##scaleCoh", &scaleCohesion, 0.0f, 5.0f))
     {
       boidsEngine.setScaleCohesion(scaleCohesion);
@@ -62,16 +62,16 @@ void UI::OCLBoidsWidget::display()
     ImGui::PushItemWidth(150);
   }
 
-  bool isSeparation = boidsEngine.getActivateSeparation();
+  bool isSeparation = boidsEngine.isSeparationActivated();
   if (ImGui::Checkbox("Separation", &isSeparation))
   {
-    boidsEngine.setActivateSeparation(isSeparation);
+    boidsEngine.activateSeparation(isSeparation);
   }
   if (isSeparation)
   {
     ImGui::PushItemWidth(75);
 
-    float scaleSeparation = boidsEngine.getScaleSeparation();
+    float scaleSeparation = boidsEngine.scaleSeparation();
     if (ImGui::SliderFloat("##scaleSep", &scaleSeparation, 0.0f, 5.0f))
     {
       boidsEngine.setScaleSeparation(scaleSeparation);

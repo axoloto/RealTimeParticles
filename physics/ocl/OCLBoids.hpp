@@ -4,6 +4,7 @@
 #include <array>
 #include <vector>
 
+#include "Context.hpp"
 #include "Physics.hpp"
 
 namespace Core
@@ -17,26 +18,62 @@ class OCLBoids : public Physics
   void update() override;
   void reset() override;
 
-  void setScaleAlignment(float alignment) { m_scaleAlignment = alignment; }
-  float getScaleAlignment() const { return m_scaleAlignment; }
+  //
 
-  void setScaleCohesion(float cohesion) { m_scaleCohesion = cohesion; }
-  float getScaleCohesion() const { return m_scaleCohesion; }
+  void setScaleAlignment(float alignment)
+  {
+    m_scaleAlignment = alignment;
+    updateBoidsParamsInKernel();
+  }
+  float scaleAlignment() const { return m_scaleAlignment; }
 
-  void setScaleSeparation(float separation) { m_scaleSeparation = separation; }
-  float getScaleSeparation() const { return m_scaleSeparation; }
+  void activateAlignment(bool alignment)
+  {
+    m_activeAlignment = alignment;
+    updateBoidsParamsInKernel();
+  }
+  bool isAlignmentActivated() const { return m_activeAlignment; }
 
-  void setActivateTargets(bool targets) { m_activeTargets = targets; }
-  bool getActivateTargets() { return m_activeTargets; }
+  //
 
-  void setActivateAlignment(bool alignment) { m_activeAlignment = alignment; }
-  bool getActivateAlignment() const { return m_activeAlignment; }
+  void setScaleCohesion(float cohesion)
+  {
+    m_scaleCohesion = cohesion;
+    updateBoidsParamsInKernel();
+  }
+  float scaleCohesion() const { return m_scaleCohesion; }
 
-  void setActivateCohesion(bool cohesion) { m_activeCohesion = cohesion; }
-  bool getActivateCohesion() const { return m_activeCohesion; }
+  void activateCohesion(bool cohesion)
+  {
+    m_activeCohesion = cohesion;
+    updateBoidsParamsInKernel();
+  }
+  bool isCohesionActivated() const { return m_activeCohesion; }
 
-  void setActivateSeparation(bool separation) { m_activeSeparation = separation; }
-  bool getActivateSeparation() const { return m_activeSeparation; }
+  //
+
+  void setScaleSeparation(float separation)
+  {
+    m_scaleSeparation = separation;
+    updateBoidsParamsInKernel();
+  }
+  float scaleSeparation() const { return m_scaleSeparation; }
+
+  void activateSeparation(bool separation)
+  {
+    m_activeSeparation = separation;
+    updateBoidsParamsInKernel();
+  }
+  bool isSeparationActivated() const { return m_activeSeparation; }
+
+  //
+
+  void activateTarget(bool targets)
+  {
+    m_activeTargets = targets;
+    updateBoidsParamsInKernel();
+  }
+  bool isTargetActivated() { return m_activeTargets; }
 
   private:
   bool initOpenCL();
@@ -58,12 +95,6 @@ class OCLBoids : public Physics
   bool m_activeTargets;
 
   Math::float3 m_target;
-
-  cl_platform_id cl_platform;
-  cl_device_id cl_device;
-  cl_context cl_context;
-  cl_program cl_program;
-  cl_command_queue cl_queue;
 
   cl_mem cl_colorBuff;
   cl_mem cl_posBuff;
@@ -89,6 +120,6 @@ class OCLBoids : public Physics
   boidsParams m_boidsParams;
   cl_mem cl_boidsParamsBuff;
 
-  bool m_kernelProfilingEnabled;
+  std::unique_ptr<CL::Context> m_clContext;
 };
 }

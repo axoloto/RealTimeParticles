@@ -22,6 +22,7 @@ class ParticleSystemApp
   bool checkSDLStatus();
   void checkMouseState();
   void displayMainWidget();
+  bool popUpErrorMessage(std::string errorMessage);
 
   std::shared_ptr<Core::Physics> m_physicsEngine;
   std::unique_ptr<Render::OGLRender> m_graphicsEngine;

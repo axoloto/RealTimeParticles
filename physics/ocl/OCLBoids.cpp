@@ -7,7 +7,7 @@
 
 using namespace Core;
 
-#define PROGRAM_FILE "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\boids.cl"
+//#define PROGRAM_FILE "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\boids.cl"
 
 #define KERNEL_RANDOM_POS "randPosVerts"
 #define KERNEL_BOIDS_RULES "applyBoidsRules"
@@ -16,11 +16,9 @@ using namespace Core;
 #define KERNEL_UPDATE_VEL "updateVelVerts"
 #define KERNEL_COLOR "colorVerts"
 
-static bool isOCLExtensionSupported(cl_device_id device, const char* extension);
-
 OCLBoids::OCLBoids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
     : Physics(numEntities)
-    , m_kernelProfilingEnabled(true)
+    // , m_kernelProfilingEnabled(true)
     , m_scaleAlignment(2.0f)
     , m_scaleCohesion(0.7f)
     , m_scaleSeparation(1.2f)
@@ -29,11 +27,14 @@ OCLBoids::OCLBoids(int numEntities, unsigned int pointCloudCoordVBO, unsigned in
     , m_activeSeparation(true)
     , m_activeCohesion(true)
     , m_target({ 0.0f, 0.0f, 0.0f })
+    , m_clContext(std::make_unique<CL::Context>())
 {
-  if (initOpenCL())
+  if (m_clContext->init())
   {
     createBuffers(pointCloudCoordVBO, pointCloudColorVBO);
     createKernels();
+
+    updateBoidsParamsInKernel();
 
     m_init = true;
 
@@ -52,10 +53,6 @@ OCLBoids::~OCLBoids()
   clReleaseKernel(cl_boidsRulesKernel);
   clReleaseMemObject(cl_accBuff);
   clReleaseMemObject(cl_velBuff);
-
-  clReleaseCommandQueue(cl_queue);
-  clReleaseProgram(cl_program);
-  clReleaseContext(cl_context);
 }
 
 void OCLBoids::reset()
@@ -78,8 +75,6 @@ void OCLBoids::update()
 {
   if (m_pause)
     return;
-
-  updateBoidsParamsInKernel();
 
   double timeMs = 0.0;
   acquireGLBuffers({ cl_posBuff });
@@ -112,148 +107,31 @@ void OCLBoids::updateBoidsParamsInKernel()
 
   m_boidsParams.activeTarget = m_activeTargets ? 1 : 0;
 
-  if (cl_queue < 0 || cl_boidsParamsBuff < 0)
+  /////
+  if (m_clContext->cl_queue < 0 || cl_boidsParamsBuff < 0)
     return;
 
   cl_int err;
-  void* mappedMemory = clEnqueueMapBuffer(cl_queue, cl_boidsParamsBuff, CL_TRUE, CL_MAP_WRITE, 0, sizeof(m_boidsParams), 0, nullptr, nullptr, &err);
+  void* mappedMemory = clEnqueueMapBuffer(m_clContext->cl_queue, cl_boidsParamsBuff, CL_TRUE, CL_MAP_WRITE, 0, sizeof(m_boidsParams), 0, nullptr, nullptr, &err);
   if (err < 0)
   {
     printf("Couldn't map the buffer to host memory");
   }
   memcpy(mappedMemory, &m_boidsParams, sizeof(m_boidsParams));
-  err = clEnqueueUnmapMemObject(cl_queue, cl_boidsParamsBuff, mappedMemory, 0, nullptr, nullptr);
+  err = clEnqueueUnmapMemObject(m_clContext->cl_queue, cl_boidsParamsBuff, mappedMemory, 0, nullptr, nullptr);
   if (err < 0)
   {
     printf("Couldn't unmap the buffer");
   }
-}
-
-bool OCLBoids::initOpenCL()
-{
-  cl_int err;
-
-  cl_uint numPlatforms;
-  err = clGetPlatformIDs(1, nullptr, &numPlatforms);
-  if (err != CL_SUCCESS)
-  {
-    printf("error when looking for platforms");
-    return false;
-  }
-
-  cl_platform_id* platforms = (cl_platform_id*)malloc(sizeof(cl_platform_id) * numPlatforms);
-  clGetPlatformIDs(numPlatforms, platforms, nullptr);
-  for (int i = 0; i < numPlatforms; i++)
-  {
-    char data[1024];
-    size_t retsize;
-    err = clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME, sizeof(data), data, &retsize);
-    if (err != CL_SUCCESS)
-    {
-      printf("Couldn't find platform name.");
-      return false;
-    }
-
-    if (retsize > 0)
-    {
-      std::string strData = data;
-      if (strData.find("NVIDIA") != std::string::npos)
-      {
-        cl_platform = platforms[i];
-        err = clGetDeviceIDs(cl_platform, CL_DEVICE_TYPE_GPU, 1, &cl_device, nullptr);
-        if (err != CL_SUCCESS)
-        {
-          printf("Couldn't find NVIDIA GPU");
-          return false;
-        }
-        printf("Found NVIDIA GPU");
-        break;
-      }
-    }
-  }
-
-  if (cl_device < 0)
-  {
-    printf("Couldn't find NVIDIA GPU.");
-    return false;
-  }
-
-  if (!isOCLExtensionSupported(cl_device, "cl_khr_gl_sharing"))
-  {
-    printf("error, extension missing to do inter operation between opencl and opengl");
-    return false;
-  }
-
-  cl_context_properties props[] = {
-    CL_GL_CONTEXT_KHR, (cl_context_properties)wglGetCurrentContext(),
-    CL_WGL_HDC_KHR, (cl_context_properties)wglGetCurrentDC(),
-    CL_CONTEXT_PLATFORM, (cl_context_properties)cl_platform,
-    0
-  };
-
-  cl_context = clCreateContext(props, 1, &cl_device, NULL, NULL, &err);
-  if (err != CL_SUCCESS)
-  {
-    printf("error when creating context");
-    return false;
-  }
-
-  FILE* program_handle;
-  char *program_buffer, *program_log;
-  size_t program_size, log_size;
-
-  program_handle = fopen(PROGRAM_FILE, "rb");
-  fseek(program_handle, 0, SEEK_END);
-  program_size = ftell(program_handle);
-  rewind(program_handle);
-
-  program_buffer = (char*)malloc(program_size + 1);
-  program_buffer[program_size] = '\0';
-
-  fread(program_buffer, sizeof(char), program_size, program_handle);
-  fclose(program_handle);
-
-  cl_program = clCreateProgramWithSource(cl_context, 1, (const char**)&program_buffer, &program_size, &err);
-  if (err != CL_SUCCESS)
-  {
-    printf("error when creating program");
-    return false;
-  }
-  free(program_buffer);
-
-  const char options[] = "-DBOIDS_EFFECT_RADIUS_SQUARED=1000 -DBOIDS_MAX_STEERING=0.5f -DBOIDS_MAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f -cl-denorms-are-zero -cl-fast-relaxed-math";
-  err = clBuildProgram(cl_program, 1, &cl_device, options, NULL, NULL);
-  if (err != CL_SUCCESS)
-  {
-    clGetProgramBuildInfo(cl_program, cl_device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
-    program_log = (char*)malloc(log_size + 1);
-    program_log[log_size] = '\0';
-    clGetProgramBuildInfo(cl_program, cl_device, CL_PROGRAM_BUILD_LOG, log_size + 1, program_log, NULL);
-    printf("%s\n", program_log);
-    spdlog::error(program_log);
-    free(program_log);
-    return false;
-  }
-
-  cl_command_queue_properties properties = 0;
-  if (m_kernelProfilingEnabled)
-  {
-    properties |= CL_QUEUE_PROFILING_ENABLE;
-  }
-
-  cl_queue = clCreateCommandQueue(cl_context, cl_device, properties, &err);
-  if (err != CL_SUCCESS)
-  {
-    printf("error when creating queue");
-    return false;
-  }
-
-  return true;
+  ////
 }
 
 bool OCLBoids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
 {
   cl_int err;
+
+  ////
+  auto cl_context = m_clContext->cl_context;
 
   cl_colorBuff = clCreateFromGLBuffer(cl_context, CL_MEM_WRITE_ONLY, pointCloudColorVBO, &err);
   if (err != CL_SUCCESS)
@@ -274,6 +152,7 @@ bool OCLBoids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int point
     printf("error when creating boids acceleration buffer");
 
   cl_boidsParamsBuff = clCreateBuffer(cl_context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, sizeof(m_boidsParams), nullptr, &err);
+  /////
 
   return true;
 }
@@ -284,6 +163,9 @@ bool OCLBoids::createKernels()
     return false;
 
   cl_int err;
+
+  ////
+  auto cl_program = m_clContext->cl_program;
 
   cl_colorKernel = clCreateKernel(cl_program, KERNEL_COLOR, &err);
   if (err != CL_SUCCESS)
@@ -328,6 +210,7 @@ bool OCLBoids::createKernels()
 
   clSetKernelArg(cl_updatePosCyclicWallsKernel, 0, sizeof(cl_mem), &cl_posBuff);
   clSetKernelArg(cl_updatePosCyclicWallsKernel, 1, sizeof(cl_mem), &cl_velBuff);
+  ///
 
   return true;
 }
@@ -336,6 +219,8 @@ bool OCLBoids::acquireGLBuffers(const std::vector<cl_mem>& GLBuffers)
 {
   if (!m_init)
     return false;
+
+  auto cl_queue = m_clContext->cl_queue;
 
   for (const auto& GLBuffer : GLBuffers)
   {
@@ -351,6 +236,8 @@ bool OCLBoids::releaseGLBuffers(const std::vector<cl_mem>& GLBuffers)
 {
   if (!m_init)
     return false;
+
+  auto cl_queue = m_clContext->cl_queue;
 
   for (const auto& GLBuffer : GLBuffers)
   {
@@ -369,12 +256,14 @@ void OCLBoids::runKernel(cl_kernel kernel, double* profilingTimeMs)
   if (!m_init)
     return;
 
+  auto cl_queue = m_clContext->cl_queue;
+
   cl_event event;
 
   size_t numWorkItems = (m_numEntities > 10) ? m_numEntities - (m_numEntities % 10) : m_numEntities;
   clEnqueueNDRangeKernel(cl_queue, kernel, 1, NULL, &numWorkItems, NULL, 0, NULL, &event);
 
-  if (m_kernelProfilingEnabled)
+  //if (m_kernelProfilingEnabled)
   {
     cl_int err;
 
@@ -392,39 +281,4 @@ void OCLBoids::runKernel(cl_kernel kernel, double* profilingTimeMs)
     //the resolution of the events is 1e-09 sec
     *profilingTimeMs = (double)((cl_double)(end - start) * (1e-06));
   }
-}
-
-static bool isOCLExtensionSupported(cl_device_id device, const char* extension)
-{
-  if (extension == NULL || extension[0] == '\0')
-    return false;
-
-  char* where = (char*)strchr(extension, ' ');
-  if (where != NULL)
-    return false;
-
-  size_t extensionSize;
-  clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, NULL, &extensionSize);
-
-  char* extensions = new char[extensionSize];
-  clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, extensionSize, extensions, NULL);
-
-  bool foundExtension = false;
-  for (char* start = extensions;;)
-  {
-    where = (char*)strstr((const char*)start, extension);
-    char* terminator = where + strlen(extension);
-
-    if (*terminator == ' ' || *terminator == '\0' || *terminator == '\r' || *terminator == '\n')
-    {
-      foundExtension = true;
-      break;
-    }
-
-    start = terminator;
-  }
-
-  delete[] extensions;
-
-  return foundExtension;
 }

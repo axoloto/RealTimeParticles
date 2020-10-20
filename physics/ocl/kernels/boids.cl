@@ -58,7 +58,7 @@ inline float4 steerForce(float4 desiredVel, float4 vel)
   return steerForce;
 }
 
-__kernel void applyBoidsRules(__global __read_only float4* position, __global __read_only float4* velocity, __global __write_only float4* acc, __global boidsParams* params)
+__kernel void applyBoidsRules(__global float4* position, __global float4* velocity, __global float4* acc, __global boidsParams* params)
 {
   unsigned int i = get_global_id(0);
   unsigned int numEnt = get_global_size(0);
@@ -108,7 +108,7 @@ __kernel void applyBoidsRules(__global __read_only float4* position, __global __
       + clamp(target, 0.0, normalize(target) * BOIDS_MAX_STEERING) * params->activeTarget;
 }
 
-__kernel void updateVelVerts(__global float4* vel, __global __read_only float4* acc, __global boidsParams* params)
+__kernel void updateVelVerts(__global float4* vel, __global float4* acc, __global boidsParams* params)
 {
   unsigned int i = get_global_id(0);
 
@@ -130,7 +130,7 @@ __kernel void updatePosVertsWithBouncingWalls(__global float4* pos, __global flo
   pos[i] = clampedNewPos;
 }
 
-__kernel void updatePosVertsWithCyclicWalls(__global float4* pos, __global __read_only float4* vel)
+__kernel void updatePosVertsWithCyclicWalls(__global float4* pos, __global float4* vel)
 {
   unsigned int i = get_global_id(0);
 
