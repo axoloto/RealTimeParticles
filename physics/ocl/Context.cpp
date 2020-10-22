@@ -1,15 +1,19 @@
 #pragma once
 
-#include "CL/cl_gl.h" // WIP
+//#include "CL/cl2.hpp" // WIP
 #include "windows.h" // WIP
 
-#include "CL/cl.h"
+//#include "CL/cl.h"
 #include "Context.hpp"
 #include <array>
 #include <spdlog/spdlog.h>
 #include <vector>
 
 #define PROGRAM_FILE "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\boids.cl"
+
+Core::CL::Context::Context()
+    : m_preferredPlatformName("NVIDIA")
+    , m_preferredDeviceType(CL_DEVICE_TYPE_GPU) {};
 
 Core::CL::Context::~Context()
 {
@@ -97,6 +101,15 @@ bool Core::CL::Context::init()
   cl_context = clCreateContext(props, 1, &cl_device, NULL, NULL, &err);
   if (err != CL_SUCCESS)
   {
+    cl_platform = platforms[0];
+    err = clGetDeviceIDs(cl_platform, CL_DEVICE_TYPE_ALL, 1, &cl_device, nullptr);
+    if (err != CL_SUCCESS || cl_device < 0)
+    {
+      printf("Couldn't find device");
+      return false;
+    }
+    cl_context = clCreateContext(props, 1, &cl_device, NULL, NULL, &err);
+
     printf("error when creating context");
     return false;
   }

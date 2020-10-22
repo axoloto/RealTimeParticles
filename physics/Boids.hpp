@@ -1,24 +1,29 @@
 #pragma once
 
-#include "CL/cl.h"
+//#include "CL/cl.h"
 #include <array>
 #include <vector>
 
-#include "Context.hpp"
 #include "Physics.hpp"
+#include "ocl/Context.hpp"
 
 namespace Core
 {
-class OCLBoids : public Physics
+class Boids : public Physics
 {
   public:
-  OCLBoids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
-  ~OCLBoids();
+  Boids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
+  ~Boids();
 
   void update() override;
   void reset() override;
 
   //
+  void setVelocity(float velocity) override
+  {
+    m_velocity = velocity;
+    updateBoidsParamsInKernel();
+  }
 
   void setScaleAlignment(float alignment)
   {

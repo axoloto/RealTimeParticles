@@ -1,5 +1,4 @@
-#include "CL/cl_gl.h" // WIP
-#include "OCLBoids.hpp"
+#include "Boids.hpp"
 #include "windows.h" // WIP
 #include <ctime>
 #include <iostream>
@@ -16,9 +15,8 @@ using namespace Core;
 #define KERNEL_UPDATE_VEL "updateVelVerts"
 #define KERNEL_COLOR "colorVerts"
 
-OCLBoids::OCLBoids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
+Boids::Boids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
     : Physics(numEntities)
-    // , m_kernelProfilingEnabled(true)
     , m_scaleAlignment(2.0f)
     , m_scaleCohesion(0.7f)
     , m_scaleSeparation(1.2f)
@@ -42,7 +40,7 @@ OCLBoids::OCLBoids(int numEntities, unsigned int pointCloudCoordVBO, unsigned in
   }
 }
 
-OCLBoids::~OCLBoids()
+Boids::~Boids()
 {
   clReleaseKernel(cl_colorKernel);
   //clReleaseMemObject(cl_colorBuff);
@@ -55,7 +53,7 @@ OCLBoids::~OCLBoids()
   clReleaseMemObject(cl_velBuff);
 }
 
-void OCLBoids::reset()
+void Boids::reset()
 {
   double timeMs = 0.0;
 
@@ -71,9 +69,9 @@ void OCLBoids::reset()
   releaseGLBuffers({ cl_colorBuff, cl_posBuff });
 }
 
-void OCLBoids::update()
+void Boids::update()
 {
-  if (m_pause)
+  if (!m_init || m_pause)
     return;
 
   double timeMs = 0.0;
@@ -97,7 +95,7 @@ void OCLBoids::update()
   releaseGLBuffers({ cl_posBuff });
 }
 
-void OCLBoids::updateBoidsParamsInKernel()
+void Boids::updateBoidsParamsInKernel()
 {
   m_boidsParams.velocity = m_velocity;
 
@@ -126,7 +124,7 @@ void OCLBoids::updateBoidsParamsInKernel()
   ////
 }
 
-bool OCLBoids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
+bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
 {
   cl_int err;
 
@@ -157,7 +155,7 @@ bool OCLBoids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int point
   return true;
 }
 
-bool OCLBoids::createKernels()
+bool Boids::createKernels()
 {
   if (cl_colorBuff < 0 || cl_posBuff < 0 || cl_accBuff < 0 || cl_velBuff < 0 || cl_boidsParamsBuff < 0)
     return false;
@@ -215,7 +213,7 @@ bool OCLBoids::createKernels()
   return true;
 }
 
-bool OCLBoids::acquireGLBuffers(const std::vector<cl_mem>& GLBuffers)
+bool Boids::acquireGLBuffers(const std::vector<cl_mem>& GLBuffers)
 {
   if (!m_init)
     return false;
@@ -232,7 +230,7 @@ bool OCLBoids::acquireGLBuffers(const std::vector<cl_mem>& GLBuffers)
   return true;
 }
 
-bool OCLBoids::releaseGLBuffers(const std::vector<cl_mem>& GLBuffers)
+bool Boids::releaseGLBuffers(const std::vector<cl_mem>& GLBuffers)
 {
   if (!m_init)
     return false;
@@ -251,7 +249,7 @@ bool OCLBoids::releaseGLBuffers(const std::vector<cl_mem>& GLBuffers)
   return true;
 }
 
-void OCLBoids::runKernel(cl_kernel kernel, double* profilingTimeMs)
+void Boids::runKernel(cl_kernel kernel, double* profilingTimeMs)
 {
   if (!m_init)
     return;

@@ -1,8 +1,16 @@
 #pragma once
 
 #include "CL/cl.h"
+#include "CL/cl_gl.h" // WIP
+
+//#include "CL/opencl.hpp"
+//#include <CL/opencl.hpp>
 #include <array>
+//#include <khronos-opencl-clhpp/opencl.hpp>
+#include <string>
 #include <vector>
+
+#define CL_TARGET_OPENCL_VERSION 120
 
 namespace Core
 {
@@ -11,10 +19,9 @@ namespace CL
 class Context
 {
   public:
-  Context() {};
+  Context();
   ~Context();
 
-  //private:
   bool init();
   bool isExtensionSupported(cl_device_id device, const char* extension);
 
@@ -33,8 +40,9 @@ class Context
 
   bool m_kernelProfilingEnabled;
 
-  std::string m_preferredPlatformName { "NVIDIA" };
-  cl_device_type m_preferredDeviceType { CL_DEVICE_TYPE_GPU };
+  private:
+  std::string m_preferredPlatformName;
+  cl_device_type m_preferredDeviceType;
 };
 } //CL
 } //Core

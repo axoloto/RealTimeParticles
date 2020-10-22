@@ -1,4 +1,5 @@
 
+#include "ParticleSystemApp.hpp"
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_opengl3.h"
 #include "imgui/imgui_impl_sdl.h"
@@ -6,26 +7,7 @@
 #include <glad/glad.h>
 #include <spdlog/spdlog.h>
 
-#include "ParticleSystemApp.hpp"
-
-#if OPENCL_ACTIVATED
-#include "ocl/OCLBoids.hpp"
-#else
-namespace Core
-{
-class OCLBoids : public Physics
-{
-  public:
-  OCLBoids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
-      : Physics(numEntities) {};
-  ~OCLBoids() {};
-
-  void update() {};
-  void reset() {};
-  bool isInit() const { return false; }
-};
-}
-#endif
+#include "Boids.hpp"
 
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
@@ -188,12 +170,12 @@ ParticleSystemApp::ParticleSystemApp()
   if (!m_graphicsEngine)
     return;
 
-  m_physicsEngine = std::make_unique<Core::OCLBoids>(m_numEntities, (unsigned int)m_graphicsEngine->pointCloudCoordVBO(), (unsigned int)m_graphicsEngine->pointCloudColorVBO());
+  m_physicsEngine = std::make_unique<Core::Boids>(m_numEntities, (unsigned int)m_graphicsEngine->pointCloudCoordVBO(), (unsigned int)m_graphicsEngine->pointCloudColorVBO());
 
   if (!m_physicsEngine)
     return;
 
-  m_physicsWidget = std::make_unique<UI::OCLBoidsWidget>(*m_physicsEngine);
+  m_physicsWidget = std::make_unique<UI::BoidsWidget>(*m_physicsEngine);
 
   if (!m_physicsWidget)
     return;

@@ -44,7 +44,7 @@ class Physics
   void pause(bool pause) { m_pause = pause; }
   bool onPause() const { return m_pause; }
 
-  void setVelocity(float velocity) { m_velocity = velocity; }
+  virtual void setVelocity(float velocity) { m_velocity = velocity; }
   float velocity() { return m_velocity; }
 
   void setBouncingWall(bool bouncingwall) { m_activateBouncingWall = bouncingwall; }

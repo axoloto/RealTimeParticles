@@ -15,6 +15,6 @@ target_include_directories(ParticleSystemApp PRIVATE ${OPENGL_INCLUDE_DIRS}
 
 
 conan_target_link_libraries(ParticleSystemApp)
-target_link_libraries(ParticleSystemApp ocl render ui imgui ${OPENGL_LIBRARIES})
+target_link_libraries(ParticleSystemApp physics render ui imgui ${OPENGL_LIBRARIES})
 
 install(TARGETS ParticleSystemApp RUNTIME DESTINATION bin)

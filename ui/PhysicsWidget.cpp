@@ -1,15 +1,11 @@
 
+#include "Boids.hpp"
 #include "PhysicsWidget.hpp"
 #include "imgui/imgui.h"
 
-#ifndef OPENCL_ACTIVATED
-void UI::OCLBoidsWidget::display() {}
-#else
-#include "ocl/OCLBoids.hpp"
-
-void UI::OCLBoidsWidget::display()
+void UI::BoidsWidget::display()
 {
-  auto& boidsEngine = dynamic_cast<Core::OCLBoids&>(m_physicsEngine);
+  auto& boidsEngine = dynamic_cast<Core::Boids&>(m_physicsEngine);
 
   ImGui::Begin("OCL Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);
@@ -103,5 +99,3 @@ void UI::OCLBoidsWidget::display()
 
   ImGui::End();
 }
-
-#endif
