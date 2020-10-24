@@ -7,10 +7,16 @@ namespace Core
 {
 static constexpr int NUM_MAX_ENTITIES = 30000;
 
-enum Dimension
+enum class Dimension
 {
   dim2D,
   dim3D
+};
+
+enum class Boundary
+{
+  BouncingWall,
+  CyclicWall
 };
 
 class Physics
@@ -21,9 +27,9 @@ class Physics
       , m_init(false)
       , m_velocity(4.0f)
       , m_dimension(dimension)
-      , m_activateBouncingWall(false)
-      , m_activateCyclicWall(true)
+      , m_boundary(Boundary::BouncingWall)
       , m_pause(false) {};
+
   virtual ~Physics() = default;
 
   void setNumEntities(int numEntities) { m_numEntities = numEntities; }
@@ -36,6 +42,12 @@ class Physics
   }
   Dimension dimension() const { return m_dimension; }
 
+  void setBoundary(Boundary boundary)
+  {
+    m_boundary = boundary;
+  }
+  Boundary boundary() const { return m_boundary; }
+
   virtual void update() = 0;
   virtual void reset() = 0;
 
@@ -47,19 +59,12 @@ class Physics
   virtual void setVelocity(float velocity) { m_velocity = velocity; }
   float velocity() { return m_velocity; }
 
-  void setBouncingWall(bool bouncingwall) { m_activateBouncingWall = bouncingwall; }
-  bool isBouncingWallEnabled() const { return m_activateBouncingWall; }
-
-  void setCyclicWall(bool Cyclicwall) { m_activateCyclicWall = Cyclicwall; }
-  bool isCyclicWallEnabled() const { return m_activateCyclicWall; }
-
   protected:
   bool m_init;
   int m_numEntities;
   float m_velocity;
   Dimension m_dimension;
-  bool m_activateBouncingWall;
-  bool m_activateCyclicWall;
+  Boundary m_boundary;
   bool m_pause;
 };
 }

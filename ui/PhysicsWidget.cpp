@@ -7,7 +7,7 @@ void UI::BoidsWidget::display()
 {
   auto& boidsEngine = dynamic_cast<Core::Boids&>(m_physicsEngine);
 
-  ImGui::Begin("OCL Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+  ImGui::Begin("Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);
 
   ImGui::Spacing();
@@ -80,21 +80,25 @@ void UI::BoidsWidget::display()
   ImGui::Separator();
   ImGui::Spacing();
 
-  ImGui::Text(" Wall Behavior");
-  bool isBouncingWall = boidsEngine.isBouncingWallEnabled();
+  ImGui::Text(" Boundary ");
+  bool isBouncingWall = (boidsEngine.boundary() == Core::Boundary::BouncingWall);
   if (ImGui::Checkbox("Bouncing Wall", &isBouncingWall))
   {
-    boidsEngine.setBouncingWall(isBouncingWall);
-    boidsEngine.setCyclicWall(!isBouncingWall);
+    if (isBouncingWall)
+      boidsEngine.setBoundary(Core::Boundary::BouncingWall);
+    else
+      boidsEngine.setBoundary(Core::Boundary::CyclicWall);
   }
 
   ImGui::SameLine();
 
-  bool isCyclicWall = boidsEngine.isCyclicWallEnabled();
+  bool isCyclicWall = (boidsEngine.boundary() == Core::Boundary::CyclicWall);
   if (ImGui::Checkbox("Cyclic Wall", &isCyclicWall))
   {
-    boidsEngine.setBouncingWall(!isCyclicWall);
-    boidsEngine.setCyclicWall(isCyclicWall);
+    if (isCyclicWall)
+      boidsEngine.setBoundary(Core::Boundary::CyclicWall);
+    else
+      boidsEngine.setBoundary(Core::Boundary::BouncingWall);
   }
 
   ImGui::End();

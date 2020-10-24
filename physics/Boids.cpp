@@ -81,15 +81,19 @@ void Boids::update()
   runKernel(cl_updateVelKernel, &timeMs);
   printf("cl_updateVelKernel %f ms \n", timeMs);
 
-  if (m_activateCyclicWall)
+  if (m_boundary == Boundary::CyclicWall)
   {
     runKernel(cl_updatePosCyclicWallsKernel, &timeMs);
     printf("cl_updatePosCyclicWallsKernel %f ms \n", timeMs);
   }
-  else
+  else if (m_boundary == Boundary::BouncingWall)
   {
     runKernel(cl_updatePosBouncingWallsKernel, &timeMs);
     printf("cl_updatePosBouncingWallsKernel %f ms \n", timeMs);
+  }
+  else
+  {
+    printf("Something is wrong", timeMs);
   }
 
   releaseGLBuffers({ cl_posBuff });
