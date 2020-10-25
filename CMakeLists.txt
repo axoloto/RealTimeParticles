@@ -22,7 +22,7 @@ include_directories("render")
 include_directories("ui")
 include_directories("app")
 
-add_subdirectory("third_parties")
+add_subdirectory("utils")
 add_subdirectory("physics")
 add_subdirectory("render")
 add_subdirectory("ui")

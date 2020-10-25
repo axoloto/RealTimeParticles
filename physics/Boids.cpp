@@ -25,7 +25,9 @@ Boids::Boids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int poin
     , m_activeSeparation(true)
     , m_activeCohesion(true)
     , m_target({ 0.0f, 0.0f, 0.0f })
-    , m_clContext(std::make_unique<CL::Context>())
+    , m_clContext(std::make_unique<CL::Context>(
+          "physics\\ocl\\kernels\\boids.cl",
+          "-DBOIDS_EFFECT_RADIUS_SQUARED=1000 -DBOIDS_MAX_STEERING=0.5f -DBOIDS_MAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f"))
 {
   if (m_clContext->init())
   {

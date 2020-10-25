@@ -1,7 +1,12 @@
 #pragma once
 
-#include "CL/cl.h"
-#include "CL/cl_gl.h" // WIP
+#define CL_HPP_MINIMUM_OPENCL_VERSION 120
+#define CL_HPP_TARGET_OPENCL_VERSION 120
+
+//#include "CL/cl.h"
+//#include "CL/cl_gl.h" // WIP
+
+#include "CL/cl2.hpp"
 
 //#include "CL/opencl.hpp"
 //#include <CL/opencl.hpp>
@@ -10,8 +15,6 @@
 #include <string>
 #include <vector>
 
-#define CL_TARGET_OPENCL_VERSION 120
-
 namespace Core
 {
 namespace CL
@@ -19,11 +22,10 @@ namespace CL
 class Context
 {
   public:
-  Context();
-  ~Context();
+  Context(std::string sourcePath, std::string specificBuildOptions);
+  ~Context() = default;
 
   bool init();
-  bool isExtensionSupported(cl_device_id device, const char* extension);
 
   // bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
   // bool acquireGLBuffers(const std::vector<cl_mem>& GLBuffers);
@@ -31,6 +33,12 @@ class Context
   // bool createKernels();
   // void runKernel(cl_kernel kernel, double* profilingTimeMs = nullptr);
   // void updateBoidsParamsInKernel();
+
+  cl::Platform cl_Platform;
+  cl::Device cl_Device;
+  cl::Context cl_Context;
+  cl::Program cl_Program;
+  cl::CommandQueue cl_Queue;
 
   cl_platform_id cl_platform;
   cl_device_id cl_device;
@@ -41,8 +49,15 @@ class Context
   bool m_kernelProfilingEnabled;
 
   private:
+  bool findPlatform();
+  bool findDevice();
+  bool createContext();
+  bool createAndBuildProgram();
+  bool createCommandQueue();
+
   std::string m_preferredPlatformName;
-  cl_device_type m_preferredDeviceType;
+  std::string m_sourceFilePath;
+  std::string m_specificBuildOptions;
 };
 } //CL
 } //Core
