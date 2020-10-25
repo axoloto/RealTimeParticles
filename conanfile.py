@@ -7,7 +7,8 @@ class Conanfile(ConanFile):
     requires = ["sdl2/2.0.12@bincrafters/stable",
                 "glad/0.1.29@bincrafters/stable",
                 "khronos-opencl-clhpp/20191105@bincrafters/stable",
-                "spdlog/[>=1.4.1]"
+                "spdlog/[>=1.4.1]",
+                "imgui/1.79"
                 ]
     settings = "os", "compiler", "arch", "build_type"
     exports = "*"
@@ -18,6 +19,3 @@ class Conanfile(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-
-
-#

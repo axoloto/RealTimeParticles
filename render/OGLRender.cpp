@@ -1,7 +1,7 @@
 #include "GLSL.hpp"
+#include "Math.hpp"
 #include "OGLRender.hpp"
-#include "diligentGraphics/Math.hpp"
-#include "imgui/imgui.h"
+
 
 using namespace Render;
 

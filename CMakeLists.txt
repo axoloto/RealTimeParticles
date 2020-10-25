@@ -16,7 +16,7 @@ conan_basic_setup()
 
 find_package(OpenGL REQUIRED)
 
-include_directories("third_parties")
+include_directories("utils")
 include_directories("physics")
 include_directories("render")
 include_directories("ui")

@@ -1,12 +1,12 @@
 
 #pragma once
 
+#include "Math.hpp"
 #include "OGLRender.hpp"
 #include "Physics.hpp"
 #include "PhysicsWidget.hpp"
-#include "diligentGraphics/Math.hpp"
-#include "imgui/imgui.h"
 #include <SDL.h>
+#include <imgui.h>
 
 class ParticleSystemApp
 {

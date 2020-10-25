@@ -1,7 +1,7 @@
 
 #include "Boids.hpp"
 #include "PhysicsWidget.hpp"
-#include "imgui/imgui.h"
+#include <imgui.h>
 
 void UI::BoidsWidget::display()
 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "diligentGraphics/Math.hpp"
+#include "Math.hpp"
 #include <array>
 
 namespace Core
