@@ -25,7 +25,7 @@ class Physics
   Physics(int numEntities, Dimension dimension = Dimension::dim2D)
       : m_numEntities(numEntities)
       , m_init(false)
-      , m_velocity(4.0f)
+      , m_velocity(3.0f)
       , m_dimension(dimension)
       , m_boundary(Boundary::BouncingWall)
       , m_pause(false) {};
@@ -57,7 +57,7 @@ class Physics
   bool onPause() const { return m_pause; }
 
   virtual void setVelocity(float velocity) { m_velocity = velocity; }
-  float velocity() { return m_velocity; }
+  float velocity() const { return m_velocity; }
 
   protected:
   bool m_init;

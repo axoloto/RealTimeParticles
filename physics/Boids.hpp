@@ -13,7 +13,7 @@ class Boids : public Physics
 {
   public:
   Boids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
-  ~Boids();
+  ~Boids() = default;
 
   void update() override;
   void reset() override;
@@ -78,15 +78,11 @@ class Boids : public Physics
     m_activeTargets = targets;
     updateBoidsParamsInKernel();
   }
-  bool isTargetActivated() { return m_activeTargets; }
+  bool isTargetActivated() const { return m_activeTargets; }
 
   private:
-  bool initOpenCL();
   bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
-  bool acquireGLBuffers(const std::vector<cl_mem>& GLBuffers);
-  bool releaseGLBuffers(const std::vector<cl_mem>& GLBuffers);
   bool createKernels();
-  void runKernel(cl_kernel kernel, double* profilingTimeMs = nullptr);
   void updateBoidsParamsInKernel();
 
   bool m_activeAlignment;
@@ -100,19 +96,6 @@ class Boids : public Physics
   bool m_activeTargets;
 
   Math::float3 m_target;
-
-  cl_mem cl_colorBuff;
-  cl_mem cl_posBuff;
-  cl_mem cl_accBuff;
-  cl_mem cl_velBuff;
-
-  cl_kernel cl_colorKernel;
-  cl_kernel cl_initPosKernel;
-  cl_kernel cl_boidsRulesKernel;
-  cl_kernel cl_updateVelKernel;
-  cl_kernel cl_updatePosCyclicWallsKernel;
-  cl_kernel cl_updatePosBouncingWallsKernel;
-
   struct boidsParams
   {
     cl_float velocity;
@@ -125,6 +108,6 @@ class Boids : public Physics
   boidsParams m_boidsParams;
   cl_mem cl_boidsParamsBuff;
 
-  std::unique_ptr<CL::Context> m_clContext;
+  CL::Context m_clContext;
 };
 }

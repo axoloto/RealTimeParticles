@@ -3,15 +3,9 @@
 #define CL_HPP_MINIMUM_OPENCL_VERSION 120
 #define CL_HPP_TARGET_OPENCL_VERSION 120
 
-//#include "CL/cl.h"
-//#include "CL/cl_gl.h" // WIP
-
 #include "CL/cl2.hpp"
 
-//#include "CL/opencl.hpp"
-//#include <CL/opencl.hpp>
-#include <array>
-//#include <khronos-opencl-clhpp/opencl.hpp>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -22,31 +16,22 @@ namespace CL
 class Context
 {
   public:
-  Context(std::string sourcePath, std::string specificBuildOptions);
+  Context(std::string sourcePath, std::string specificBuildOptions, bool profilingEnabled = true);
   ~Context() = default;
 
   bool init();
 
-  // bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
-  // bool acquireGLBuffers(const std::vector<cl_mem>& GLBuffers);
-  // bool releaseGLBuffers(const std::vector<cl_mem>& GLBuffers);
-  // bool createKernels();
-  // void runKernel(cl_kernel kernel, double* profilingTimeMs = nullptr);
-  // void updateBoidsParamsInKernel();
+  bool createGLBuffer(std::string GLBufferName, unsigned int VBOIndex, cl_mem_flags memoryFlags);
+  bool createBuffer(std::string bufferName, size_t bufferSize, cl_mem_flags memoryFlags);
 
-  cl::Platform cl_Platform;
-  cl::Device cl_Device;
-  cl::Context cl_Context;
-  cl::Program cl_Program;
-  cl::CommandQueue cl_Queue;
+  bool createKernel(std::string kernelName, std::vector<std::string> argNames);
+  bool setKernelArg(std::string kernelName, cl_uint argIndex, size_t argSize, const void* value);
+  bool runKernel(std::string kernelName, size_t numWorkItems);
 
-  cl_platform_id cl_platform;
-  cl_device_id cl_device;
-  cl_context cl_context;
-  cl_program cl_program;
-  cl_command_queue cl_queue;
+  bool acquireGLBuffers(const std::vector<std::string>& GLBufferNames) { return interactWithGLBuffers(GLBufferNames, interOpCLGL::ACQUIRE); }
+  bool releaseGLBuffers(const std::vector<std::string>& GLBufferNames) { return interactWithGLBuffers(GLBufferNames, interOpCLGL::RELEASE); }
 
-  bool m_kernelProfilingEnabled;
+  bool mapAndSendBufferToDevice(std::string bufferName, const void* bufferPtr, size_t bufferSize);
 
   private:
   bool findPlatform();
@@ -54,6 +39,27 @@ class Context
   bool createContext();
   bool createAndBuildProgram();
   bool createCommandQueue();
+
+  enum class interOpCLGL
+  {
+    ACQUIRE,
+    RELEASE
+  };
+  bool interactWithGLBuffers(const std::vector<std::string>& GLBufferNames, interOpCLGL interaction);
+
+  cl::Platform cl_platform;
+  cl::Device cl_device;
+  cl::Context cl_context;
+  cl::Program cl_program;
+  cl::CommandQueue cl_queue;
+
+  std::map<std::string, cl::Kernel> m_kernelsMap;
+  std::map<std::string, cl::Buffer> m_buffersMap;
+  std::map<std::string, cl::BufferGL> m_GLBuffersMap;
+
+  bool m_isKernelProfilingEnabled;
+
+  bool m_init;
 
   std::string m_preferredPlatformName;
   std::string m_sourceFilePath;

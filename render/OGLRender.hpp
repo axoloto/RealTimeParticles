@@ -45,7 +45,6 @@ class OGLRender
   void connectVBOsToVAO();
   void generateBox();
 
-  void updatePointCloud();
   void drawPointCloud();
 
   void drawBox();

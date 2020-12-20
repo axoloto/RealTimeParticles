@@ -10,36 +10,39 @@
 
 #include "Context.hpp"
 #include <fstream>
+#include <iostream>
 #include <spdlog/spdlog.h>
 #include <vector>
 
-Core::CL::Context::Context(std::string sourcePath, std::string specificBuildOptions)
+Core::CL::Context::Context(std::string sourcePath, std::string specificBuildOptions, bool profilingEnabled)
     : m_preferredPlatformName("NVIDIA")
     , m_sourceFilePath(sourcePath)
-    , m_specificBuildOptions(specificBuildOptions) {};
+    , m_specificBuildOptions(specificBuildOptions)
+    , m_isKernelProfilingEnabled(profilingEnabled)
+    , m_init(false) {};
 
 bool Core::CL::Context::init()
 {
-  bool nextStep = false;
+  if (m_init)
+    return true;
 
-  nextStep = findPlatform();
-  if (!nextStep)
+  if (!findPlatform())
     return false;
 
-  nextStep = findDevice();
-  if (!nextStep)
+  if (!findDevice())
     return false;
 
-  nextStep = createContext();
-  if (!nextStep)
+  if (!createContext())
     return false;
 
-  nextStep = createAndBuildProgram();
-  if (!nextStep)
+  if (!createAndBuildProgram())
     return false;
 
-  nextStep = createCommandQueue();
-  return nextStep;
+  if (!createCommandQueue())
+    return false;
+
+  m_init = true;
+  return m_init;
 }
 
 bool Core::CL::Context::findPlatform()
@@ -49,42 +52,41 @@ bool Core::CL::Context::findPlatform()
 
   if (allPlatforms.empty())
   {
-    printf("No OpenCL platform found.");
+    spdlog::error("No OpenCL platform found");
     return false;
   }
 
-  for (const auto& platform : allPlatforms)
+  size_t desiredPlatformIndex = 0;
+  std::vector<std::string> platformNames(allPlatforms.size());
+  for (size_t i = 0; i < allPlatforms.size(); ++i)
   {
-    std::string namePlatform;
-    platform.getInfo(CL_PLATFORM_NAME, &namePlatform);
-    if (namePlatform.find(m_preferredPlatformName) != std::string::npos)
+    std::string platformName;
+    allPlatforms.at(i).getInfo(CL_PLATFORM_NAME, &platformName);
+    spdlog::info("Found OpenCL platform : {}", platformName);
+    platformNames.at(i) = platformName;
+    if (platformName.find(m_preferredPlatformName) != std::string::npos)
     {
-      printf("Found desired platform.");
-      cl_Platform = platform;
-      break;
+      spdlog::info("This is the desired platform, selecting it");
+      desiredPlatformIndex = i;
     }
   }
 
-  if (cl_Platform() == 0)
-  {
-    printf("Desired platform not found.");
-    return false;
-  }
-
+  spdlog::info("Selecting OpenCL platform : {}", platformNames.at(desiredPlatformIndex));
+  cl_platform = allPlatforms.at(desiredPlatformIndex);
   return true;
 }
 
 bool Core::CL::Context::findDevice()
 {
-  if (cl_Platform() == 0)
+  if (cl_platform() == 0)
     return false;
 
   // Looking only for GPUs to ensure OpenGL-CL interop
   std::vector<cl::Device> allGPUsOnPlatform;
-  cl_Platform.getDevices(CL_DEVICE_TYPE_GPU, &allGPUsOnPlatform);
+  cl_platform.getDevices(CL_DEVICE_TYPE_GPU, &allGPUsOnPlatform);
   if (allGPUsOnPlatform.empty())
   {
-    printf("No GPUs found on selected platform.");
+    spdlog::error("No GPUs supporting OpenCL 1.2 found on selected platform");
     return false;
   }
 
@@ -92,16 +94,17 @@ bool Core::CL::Context::findDevice()
   {
     std::string extensions;
     GPU.getInfo(CL_DEVICE_EXTENSIONS, &extensions);
-
+    std::string deviceName;
+    GPU.getInfo(CL_DEVICE_NAME, &deviceName);
     if (extensions.find("cl_khr_gl_sharing") != std::string::npos)
     {
-      cl_Device = GPU;
-      printf("Found GPU with GL extension on selected platform.");
+      cl_device = GPU;
+      spdlog::info("Found GPU {} with Interop OpenCL-OpenGL extension", deviceName);
       return true;
     }
   }
 
-  printf("No GPUs found with GL extension on selected platform.");
+  spdlog::error("No GPUs found with Interop OpenCL-OpenGL extension");
   return false;
 }
 
@@ -111,10 +114,10 @@ bool Core::CL::Context::createContext()
   cl_context_properties props[] = {
     CL_GL_CONTEXT_KHR, (cl_context_properties)wglGetCurrentContext(),
     CL_WGL_HDC_KHR, (cl_context_properties)wglGetCurrentDC(),
-    CL_CONTEXT_PLATFORM, (cl_context_properties)cl_Platform(),
+    CL_CONTEXT_PLATFORM, (cl_context_properties)cl_platform(),
     0
   };
-#else
+#endif
 #ifdef UNIX
   cl_context_properties props[] = {
     CL_GL_CONTEXT_KHR,
@@ -122,16 +125,15 @@ bool Core::CL::Context::createContext()
     CL_GLX_DISPLAY_KHR,
     (cl_context_properties)glXGetCurrentDisplay(),
     CL_CONTEXT_PLATFORM,
-    (cl_context_properties)cl_Platform(), 0
+    (cl_context_properties)cl_platform(), 0
   };
 #endif
-#endif
+
   cl_int err;
-  cl_Context = cl::Context(cl_Device, nullptr, nullptr, nullptr, &err);
-  // cl_Context = cl::Context(cl_Device, props, nullptr, nullptr, &err); //WIP
+  cl_context = cl::Context(cl_device, props, nullptr, nullptr, &err);
   if (err != CL_SUCCESS)
   {
-    printf("error while creating context");
+    spdlog::error("Error while creating OpenCL context");
     return false;
   }
 
@@ -140,17 +142,20 @@ bool Core::CL::Context::createContext()
 
 bool Core::CL::Context::createAndBuildProgram()
 {
+  if (cl_context() == 0)
+    return false;
+
   std::ifstream sourceFile(m_sourceFilePath);
   std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
   cl::Program::Sources source({ sourceCode });
 
-  cl_Program = cl::Program(cl_Context, source);
+  cl_program = cl::Program(cl_context, source);
 
-  std::string options = m_specificBuildOptions + std::string("-cl-denorms-are-zero -cl-fast-relaxed-math");
-  cl_int err = cl_Program.build({ cl_Device }, options.c_str());
+  std::string options = m_specificBuildOptions + std::string(" -cl-denorms-are-zero -cl-fast-relaxed-math");
+  cl_int err = cl_program.build({ cl_device }, options.c_str());
   if (err != CL_SUCCESS)
   {
-    printf("%s\n", cl_Program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_Device));
+    spdlog::error("Error while building OpenCL program : {}", cl_program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
     return false;
   }
 
@@ -159,26 +164,239 @@ bool Core::CL::Context::createAndBuildProgram()
 
 bool Core::CL::Context::createCommandQueue()
 {
+  if (cl_context() == 0 || cl_device() == 0)
+    return false;
+
   cl_command_queue_properties properties = 0;
-  if (m_kernelProfilingEnabled)
+  if (m_isKernelProfilingEnabled)
   {
     properties |= CL_QUEUE_PROFILING_ENABLE;
   }
 
   cl_int err;
-  cl_Queue = cl::CommandQueue(cl_Context, cl_Device, properties, &err);
+  cl_queue = cl::CommandQueue(cl_context, cl_device, properties, &err);
   if (err != CL_SUCCESS)
   {
-    printf("error when creating queue");
+    spdlog::error("Error when creating OpenCL queue");
     return false;
   }
 
   return true;
 }
 
-// bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
-// bool acquireGLBuffers(const std::vector<cl_mem>& GLBuffers);
-// bool releaseGLBuffers(const std::vector<cl_mem>& GLBuffers);
-// bool createKernels();
-// void runKernel(cl_kernel kernel, double* profilingTimeMs = nullptr);
-// void updateBoidsParamsInKernel();
+bool Core::CL::Context::createBuffer(std::string bufferName, size_t bufferSize, cl_mem_flags memoryFlags)
+{
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  if (m_buffersMap.find(bufferName) != m_buffersMap.end())
+  {
+    printf("error buffer already existing");
+    return false;
+  }
+
+  auto buffer = cl::Buffer(cl_context, memoryFlags, bufferSize, nullptr, &err); //WIP device-only buffer for now
+
+  if (err != CL_SUCCESS)
+  {
+    printf("error when creating buffer");
+    return false;
+  }
+
+  m_buffersMap.insert(std::make_pair(bufferName, buffer));
+
+  return true;
+}
+
+bool Core::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int VBOIndex, cl_mem_flags memoryFlags)
+{
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  if (m_GLBuffersMap.find(GLBufferName) != m_GLBuffersMap.end())
+  {
+    printf("error GL buffer already existing");
+    return false;
+  }
+
+  auto GLBuffer = cl::BufferGL(cl_context, memoryFlags, (cl_GLuint)VBOIndex, &err);
+
+  if (err != CL_SUCCESS)
+  {
+    printf("error when creating GL buffer");
+    return false;
+  }
+
+  m_GLBuffersMap.insert(std::make_pair(GLBufferName, GLBuffer));
+
+  return true;
+}
+
+bool Core::CL::Context::createKernel(std::string kernelName, std::vector<std::string> bufferNames)
+{
+  // WIP Only taking buffer as args for now
+
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  if (m_kernelsMap.find(kernelName) != m_kernelsMap.end())
+  {
+    printf("error kernel already existing");
+    return false;
+  }
+
+  auto kernel = cl::Kernel(cl_program, kernelName.c_str(), &err);
+
+  if (err != CL_SUCCESS)
+  {
+    printf("error when creating kernel");
+    return false;
+  }
+
+  for (cl_uint i = 0; i < bufferNames.size(); ++i)
+  {
+    auto it = m_buffersMap.find(bufferNames[i]);
+    auto itGL = m_GLBuffersMap.find(bufferNames[i]);
+    if (it != m_buffersMap.end())
+    {
+      kernel.setArg(i, it->second);
+    }
+    else if (itGL != m_GLBuffersMap.end())
+    {
+      kernel.setArg(i, itGL->second);
+    }
+    else
+    {
+      printf("error kernel buffer arg not existing");
+      return false;
+    }
+  }
+
+  m_kernelsMap.insert(std::make_pair(kernelName, kernel));
+
+  return true;
+}
+
+bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, size_t argSize, const void* value)
+{
+  if (!m_init)
+    return false;
+
+  auto it = m_kernelsMap.find(kernelName);
+  if (it == m_kernelsMap.end())
+  {
+    printf("error kernel not existing");
+    return false;
+  }
+
+  auto kernel = it->second;
+  kernel.setArg(argIndex, argSize, value);
+
+  return true;
+}
+
+bool Core::CL::Context::runKernel(std::string kernelName, size_t numWorkItems) //WIP 1D Global
+{
+  if (!m_init)
+    return false;
+
+  auto it = m_kernelsMap.find(kernelName);
+  if (it == m_kernelsMap.end())
+  {
+    printf("error kernel not existing");
+    return false;
+  }
+
+  cl::Event event;
+  size_t global1D = (numWorkItems > 10) ? numWorkItems - (numWorkItems % 10) : numWorkItems; //WIP
+  cl::NDRange global(global1D);
+  cl_queue.enqueueNDRangeKernel(it->second, cl::NullRange, global, cl::NullRange, nullptr, &event);
+
+  if (m_isKernelProfilingEnabled)
+  {
+    cl_int err;
+
+    err = cl_queue.flush();
+    if (err != CL_SUCCESS)
+      printf("error when flushing opencl run");
+
+    err = cl_queue.finish();
+    if (err != CL_SUCCESS)
+      printf("error when finishing opencl run");
+
+    cl_ulong start = 0, end = 0;
+    event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
+    event.getProfilingInfo(CL_PROFILING_COMMAND_END, &end);
+    //the resolution of the events is 1e-09 sec
+    double profilingTimeMs = (double)((cl_double)(end - start) * (1e-06));
+
+    printf("%s %f ms \n", kernelName.c_str(), profilingTimeMs);
+  }
+}
+
+bool Core::CL::Context::interactWithGLBuffers(const std::vector<std::string>& GLBufferNames, interOpCLGL interaction)
+{
+  if (!m_init)
+    return false;
+
+  std::vector<cl::Memory> GLBuffers;
+
+  for (const auto& GLBufferName : GLBufferNames)
+  {
+    auto it = m_GLBuffersMap.find(GLBufferName);
+    if (it == m_GLBuffersMap.end())
+    {
+      printf("error GL buffer not existing");
+      return false;
+    }
+    else
+    {
+      GLBuffers.push_back(it->second);
+    }
+  }
+
+  cl_int err = (interaction == interOpCLGL::ACQUIRE) ? cl_queue.enqueueAcquireGLObjects(&GLBuffers) : cl_queue.enqueueReleaseGLObjects(&GLBuffers);
+  if (err != CL_SUCCESS)
+  {
+    printf("error when interacting with GL buffers");
+    return false;
+  }
+
+  return true;
+}
+
+bool Core::CL::Context::mapAndSendBufferToDevice(std::string bufferName, const void* bufferPtr, size_t bufferSize)
+{
+  if (!m_init || bufferPtr == nullptr)
+    return false;
+
+  auto it = m_buffersMap.find(bufferName);
+  if (it == m_buffersMap.end())
+  {
+    printf("error buffer not existing");
+    return false;
+  }
+
+  cl_int err;
+  void* mappedMemory = cl_queue.enqueueMapBuffer(it->second, CL_TRUE, CL_MAP_WRITE, 0, bufferSize, nullptr, nullptr, &err);
+  if (err < 0)
+  {
+    printf("Couldn't map the buffer to host memory");
+    return false;
+  }
+  memcpy(mappedMemory, bufferPtr, bufferSize);
+  err = cl_queue.enqueueUnmapMemObject(it->second, mappedMemory);
+  if (err < 0)
+  {
+    printf("Couldn't unmap the buffer");
+    return false;
+  }
+
+  return true;
+}

@@ -2,7 +2,7 @@
 CLEAN=0
 DEV_BUILD_DIR="$DEV_DIR/CMakeBuild"
 DEV_INSTALL_DIR="$DEV_DIR/install"
-DEV_BUILD_TYPE=Debug
+DEV_BUILD_TYPE=Release
 TP_DIR="$DEV_DIR/third_parties"
 
 export CLEAN

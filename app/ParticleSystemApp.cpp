@@ -271,7 +271,7 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Spacing();
 
   float velocity = m_physicsEngine->velocity();
-  if (ImGui::SliderFloat("Speed", &velocity, 0.01f, 20.0f))
+  if (ImGui::SliderFloat("Speed", &velocity, 0.01f, 10.0f))
   {
     m_physicsEngine->setVelocity(velocity);
   }
