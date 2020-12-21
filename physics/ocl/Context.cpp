@@ -15,8 +15,7 @@
 #include <vector>
 
 Core::CL::Context::Context(std::string sourcePath, std::string specificBuildOptions, bool profilingEnabled)
-    : m_preferredPlatformName("NVIDIA")
-    , m_sourceFilePath(sourcePath)
+    : m_sourceFilePath(sourcePath)
     , m_specificBuildOptions(specificBuildOptions)
     , m_isKernelProfilingEnabled(profilingEnabled)
     , m_init(false) {};
@@ -26,10 +25,10 @@ bool Core::CL::Context::init()
   if (m_init)
     return true;
 
-  if (!findPlatform())
+  if (!findPlatforms())
     return false;
 
-  if (!findDevice())
+  if (!findGPUDevices())
     return false;
 
   if (!createContext())
@@ -45,99 +44,127 @@ bool Core::CL::Context::init()
   return m_init;
 }
 
-bool Core::CL::Context::findPlatform()
+bool Core::CL::Context::findPlatforms()
 {
-  std::vector<cl::Platform> allPlatforms;
-  cl::Platform::get(&allPlatforms);
+  spdlog::info("Searching for OpenCL platforms");
 
-  if (allPlatforms.empty())
+  cl::Platform::get(&m_allPlatforms);
+
+  if (m_allPlatforms.empty())
   {
     spdlog::error("No OpenCL platform found");
     return false;
   }
 
-  size_t desiredPlatformIndex = 0;
-  std::vector<std::string> platformNames(allPlatforms.size());
-  for (size_t i = 0; i < allPlatforms.size(); ++i)
+  for (const auto& platform : m_allPlatforms)
   {
     std::string platformName;
-    allPlatforms.at(i).getInfo(CL_PLATFORM_NAME, &platformName);
+    platform.getInfo(CL_PLATFORM_NAME, &platformName);
     spdlog::info("Found OpenCL platform : {}", platformName);
-    platformNames.at(i) = platformName;
-    if (platformName.find(m_preferredPlatformName) != std::string::npos)
-    {
-      spdlog::info("This is the desired platform, selecting it");
-      desiredPlatformIndex = i;
-    }
   }
 
-  spdlog::info("Selecting OpenCL platform : {}", platformNames.at(desiredPlatformIndex));
-  cl_platform = allPlatforms.at(desiredPlatformIndex);
   return true;
 }
 
-bool Core::CL::Context::findDevice()
+bool Core::CL::Context::findGPUDevices()
 {
-  if (cl_platform() == 0)
-    return false;
+  spdlog::info("Searching for GPUs able to Interop OpenGL-OpenCL");
 
-  // Looking only for GPUs to ensure OpenGL-CL interop
-  std::vector<cl::Device> allGPUsOnPlatform;
-  cl_platform.getDevices(CL_DEVICE_TYPE_GPU, &allGPUsOnPlatform);
-  if (allGPUsOnPlatform.empty())
+  for (const auto& platform : m_allPlatforms)
   {
-    spdlog::error("No GPUs supporting OpenCL 1.2 found on selected platform");
-    return false;
-  }
+    std::vector<cl::Device> GPUsOnPlatform;
+    platform.getDevices(CL_DEVICE_TYPE_GPU, &GPUsOnPlatform);
 
-  for (const auto& GPU : allGPUsOnPlatform)
-  {
-    std::string extensions;
-    GPU.getInfo(CL_DEVICE_EXTENSIONS, &extensions);
-    std::string deviceName;
-    GPU.getInfo(CL_DEVICE_NAME, &deviceName);
-    if (extensions.find("cl_khr_gl_sharing") != std::string::npos)
+    if (GPUsOnPlatform.empty())
+      continue;
+
+    std::string platformName;
+    platform.getInfo(CL_PLATFORM_NAME, &platformName);
+
+    std::vector<cl::Device> GPUsOnPlatformWithInteropCLGL;
+
+    for (const auto& GPU : GPUsOnPlatform)
     {
-      cl_device = GPU;
-      spdlog::info("Found GPU {} with Interop OpenCL-OpenGL extension", deviceName);
-      return true;
+      std::string deviceName;
+      GPU.getInfo(CL_DEVICE_NAME, &deviceName);
+
+      std::string extensions;
+      GPU.getInfo(CL_DEVICE_EXTENSIONS, &extensions);
+
+      if (extensions.find("cl_khr_gl_sharing") != std::string::npos)
+      {
+        spdlog::info("Found GPU {} on platform {}", deviceName, platformName);
+        GPUsOnPlatformWithInteropCLGL.push_back(GPU);
+      }
     }
+
+    if (!GPUsOnPlatformWithInteropCLGL.empty())
+      m_allGPUsWithInteropCLGL.push_back(std::make_pair(platform, GPUsOnPlatformWithInteropCLGL));
   }
 
-  spdlog::error("No GPUs found with Interop OpenCL-OpenGL extension");
-  return false;
+  if (m_allGPUsWithInteropCLGL.empty())
+  {
+    spdlog::error("No GPU found with Interop OpenCL-OpenGL extension");
+    return false;
+  }
+
+  return true;
 }
 
 bool Core::CL::Context::createContext()
 {
+  // Looping to find the platform and the device used to display the application
+  // We need to create our OpenCL context on those ones in order to
+  // have InterOp OpenGL-OpenCL and share GPU memory buffers without transfers
+
+  spdlog::info("Trying to create an OpenCL context");
+
+  for (const auto& platformGPU : m_allGPUsWithInteropCLGL)
+  {
+    const auto platform = platformGPU.first;
+    const auto GPUs = platformGPU.second;
+
 #ifdef WIN32
-  cl_context_properties props[] = {
-    CL_GL_CONTEXT_KHR, (cl_context_properties)wglGetCurrentContext(),
-    CL_WGL_HDC_KHR, (cl_context_properties)wglGetCurrentDC(),
-    CL_CONTEXT_PLATFORM, (cl_context_properties)cl_platform(),
-    0
-  };
+    cl_context_properties props[] = {
+      CL_GL_CONTEXT_KHR, (cl_context_properties)wglGetCurrentContext(),
+      CL_WGL_HDC_KHR, (cl_context_properties)wglGetCurrentDC(),
+      CL_CONTEXT_PLATFORM, (cl_context_properties)platform(),
+      0
+    };
 #endif
 #ifdef UNIX
-  cl_context_properties props[] = {
-    CL_GL_CONTEXT_KHR,
-    (cl_context_properties)glXGetCurrentContext(),
-    CL_GLX_DISPLAY_KHR,
-    (cl_context_properties)glXGetCurrentDisplay(),
-    CL_CONTEXT_PLATFORM,
-    (cl_context_properties)cl_platform(), 0
-  };
+    cl_context_properties props[] = {
+      CL_GL_CONTEXT_KHR,
+      (cl_context_properties)glXGetCurrentContext(),
+      CL_GLX_DISPLAY_KHR,
+      (cl_context_properties)glXGetCurrentDisplay(),
+      CL_CONTEXT_PLATFORM,
+      (cl_context_properties)platform(), 0
+    };
 #endif
 
-  cl_int err;
-  cl_context = cl::Context(cl_device, props, nullptr, nullptr, &err);
-  if (err != CL_SUCCESS)
-  {
-    spdlog::error("Error while creating OpenCL context");
-    return false;
+    for (const auto& GPU : GPUs)
+    {
+      cl_int err;
+      cl_context = cl::Context(GPU, props, nullptr, nullptr, &err);
+      if (err == CL_SUCCESS)
+      {
+        std::string platformName;
+        platform.getInfo(CL_PLATFORM_NAME, &platformName);
+        cl_platform = platform;
+
+        std::string deviceName;
+        GPU.getInfo(CL_DEVICE_NAME, &deviceName);
+        cl_device = GPU;
+
+        spdlog::info("Success! Created an OpenCL context with platform {} and GPU {}", platformName, deviceName);
+        return true;
+      }
+    }
   }
 
-  return true;
+  spdlog::error("Error while creating OpenCL context");
+  return false;
 }
 
 bool Core::CL::Context::createAndBuildProgram()
@@ -338,6 +365,8 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numWorkItems) /
 
     printf("%s %f ms \n", kernelName.c_str(), profilingTimeMs);
   }
+
+  return true;
 }
 
 bool Core::CL::Context::interactWithGLBuffers(const std::vector<std::string>& GLBufferNames, interOpCLGL interaction)

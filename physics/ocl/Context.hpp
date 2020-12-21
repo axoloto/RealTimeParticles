@@ -34,8 +34,8 @@ class Context
   bool mapAndSendBufferToDevice(std::string bufferName, const void* bufferPtr, size_t bufferSize);
 
   private:
-  bool findPlatform();
-  bool findDevice();
+  bool findPlatforms();
+  bool findGPUDevices();
   bool createContext();
   bool createAndBuildProgram();
   bool createCommandQueue();
@@ -61,7 +61,9 @@ class Context
 
   bool m_init;
 
-  std::string m_preferredPlatformName;
+  std::vector<cl::Platform> m_allPlatforms;
+  std::vector<std::pair<cl::Platform, std::vector<cl::Device>>> m_allGPUsWithInteropCLGL;
+
   std::string m_sourceFilePath;
   std::string m_specificBuildOptions;
 };
