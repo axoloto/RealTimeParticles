@@ -1,12 +1,12 @@
 
 #pragma once
 
+#include "Math.hpp"
 #include "OGLRender.hpp"
 #include "Physics.hpp"
 #include "PhysicsWidget.hpp"
-#include "diligentGraphics/Math.hpp"
-#include "imgui/imgui.h"
 #include <SDL.h>
+#include <imgui.h>
 
 class ParticleSystemApp
 {
@@ -22,6 +22,7 @@ class ParticleSystemApp
   bool checkSDLStatus();
   void checkMouseState();
   void displayMainWidget();
+  bool popUpErrorMessage(std::string errorMessage);
 
   std::shared_ptr<Core::Physics> m_physicsEngine;
   std::unique_ptr<Render::OGLRender> m_graphicsEngine;

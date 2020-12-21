@@ -11,6 +11,15 @@ unsigned int parallelRNG(unsigned int i)
   return value;
 }
 
+typedef struct
+{
+  float velocity;
+  float scaleCohesion;
+  float scaleAlignment;
+  float scaleSeparation;
+  int activeTarget;
+} boidsParams;
+
 __kernel void colorVerts(__global float4* color)
 {
   int i = get_global_id(0);
@@ -39,26 +48,17 @@ __kernel void randPosVerts(__global float4* pos, __global float4* vel, float dim
   vel[i].w = 1.0;
 }
 
-typedef struct
-{
-  float velocity;
-  float scaleCohesion;
-  float scaleAlignment;
-  float scaleSeparation;
-  int activeTarget;
-} boidsParams;
-
 inline float4 steerForce(float4 desiredVel, float4 vel)
 {
   float4 steerForce = desiredVel - vel;
-  if (length(steerForce) > BOIDS_MAX_STEERING)
+  if (length(steerForce) > MAX_STEERING)
   {
-    steerForce = normalize(steerForce) * BOIDS_MAX_STEERING;
+    steerForce = normalize(steerForce) * MAX_STEERING;
   }
   return steerForce;
 }
 
-__kernel void applyBoidsRules(__global __read_only float4* position, __global __read_only float4* velocity, __global __write_only float4* acc, __global boidsParams* params)
+__kernel void applyBoidsRules(__global float4* position, __global float4* velocity, __global float4* acc, __global boidsParams* params)
 {
   unsigned int i = get_global_id(0);
   unsigned int numEnt = get_global_size(0);
@@ -79,7 +79,7 @@ __kernel void applyBoidsRules(__global __read_only float4* position, __global __
     vec = pos - position[e];
     squaredDist = dot(vec, vec);
 
-    if (squaredDist < BOIDS_EFFECT_RADIUS_SQUARED && i != e)
+    if (squaredDist < EFFECT_RADIUS_SQUARED && i != e)
     {
       averageBoidsPos += position[e];
       averageBoidsVel += velocity[e];
@@ -105,10 +105,10 @@ __kernel void applyBoidsRules(__global __read_only float4* position, __global __
   acc[i] = steerForce(averageBoidsPos, vel) * params->scaleCohesion
       + steerForce(averageBoidsVel, vel) * params->scaleAlignment
       + steerForce(repulseHeading, vel) * params->scaleSeparation
-      + clamp(target, 0.0, normalize(target) * BOIDS_MAX_STEERING) * params->activeTarget;
+      + clamp(target, 0.0, normalize(target) * MAX_STEERING) * params->activeTarget;
 }
 
-__kernel void updateVelVerts(__global float4* vel, __global __read_only float4* acc, __global boidsParams* params)
+__kernel void updateVelVerts(__global float4* vel, __global float4* acc, __global boidsParams* params)
 {
   unsigned int i = get_global_id(0);
 
@@ -130,7 +130,7 @@ __kernel void updatePosVertsWithBouncingWalls(__global float4* pos, __global flo
   pos[i] = clampedNewPos;
 }
 
-__kernel void updatePosVertsWithCyclicWalls(__global float4* pos, __global __read_only float4* vel)
+__kernel void updatePosVertsWithCyclicWalls(__global float4* pos, __global float4* vel)
 {
   unsigned int i = get_global_id(0);
 

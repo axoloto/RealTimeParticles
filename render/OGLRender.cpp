@@ -1,7 +1,6 @@
 #include "GLSL.hpp"
+#include "Math.hpp"
 #include "OGLRender.hpp"
-#include "diligentGraphics/Math.hpp"
-#include "imgui/imgui.h"
 
 using namespace Render;
 
@@ -82,25 +81,8 @@ void OGLRender::setPointCloudBuffers(void* coordsBufferStart, void* colorsBuffer
   m_pointCloudColorsBufferStart = colorsBufferStart;
 }
 
-void OGLRender::updatePointCloud()
-{
-  if (m_numDisplayedEntities > 0)
-  {
-    size_t vertBufferSize = 4 * sizeof(float) * m_numDisplayedEntities;
-    glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudCoordVBO);
-    glBufferData(GL_ARRAY_BUFFER, vertBufferSize, m_pointCloudCoordsBufferStart, GL_DYNAMIC_DRAW);
-
-    size_t colBufferSize = 4 * sizeof(float) * m_numDisplayedEntities;
-    glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudColorVBO);
-    glBufferData(GL_ARRAY_BUFFER, colBufferSize, m_pointCloudColorsBufferStart, GL_DYNAMIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-  }
-}
-
 void OGLRender::drawPointCloud()
 {
-  //updatePointCloud();
-
   m_pointCloudShader->activate();
 
   Math::float4x4 projViewMat = m_camera->getProjViewMat();

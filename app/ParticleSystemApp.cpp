@@ -1,31 +1,14 @@
 
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_opengl3.h"
-#include "imgui/imgui_impl_sdl.h"
-#include <SDL.h>
+#include "ParticleSystemApp.hpp"
+#include <imgui.h>
+#include <imgui_impl_opengl3.h>
+#include <imgui_impl_sdl.h>
+
 #include <glad/glad.h>
+#include <sdl2/SDL.h>
 #include <spdlog/spdlog.h>
 
-#include "ParticleSystemApp.hpp"
-
-#if OPENCL_ACTIVATED
-#include "ocl/OCLBoids.hpp"
-#else
-namespace Core
-{
-class OCLBoids : public Physics
-{
-  public:
-  OCLBoids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
-      : Physics(numEntities) {};
-  ~OCLBoids() {};
-
-  void update() {};
-  void reset() {};
-  bool isInit() const { return false; }
-};
-}
-#endif
+#include "Boids.hpp"
 
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
@@ -188,12 +171,12 @@ ParticleSystemApp::ParticleSystemApp()
   if (!m_graphicsEngine)
     return;
 
-  m_physicsEngine = std::make_unique<Core::OCLBoids>(m_numEntities, (unsigned int)m_graphicsEngine->pointCloudCoordVBO(), (unsigned int)m_graphicsEngine->pointCloudColorVBO());
+  m_physicsEngine = std::make_unique<Core::Boids>(m_numEntities, (unsigned int)m_graphicsEngine->pointCloudCoordVBO(), (unsigned int)m_graphicsEngine->pointCloudColorVBO());
 
   if (!m_physicsEngine)
     return;
 
-  m_physicsWidget = std::make_unique<UI::OCLBoidsWidget>(*m_physicsEngine);
+  m_physicsWidget = std::make_unique<UI::BoidsWidget>(*m_physicsEngine);
 
   if (!m_physicsWidget)
     return;
@@ -206,7 +189,6 @@ void ParticleSystemApp::run()
   ImGuiIO& io = ImGui::GetIO();
   (void)io;
 
-  std::string errorMessage;
   bool stopRendering = false;
   while (!stopRendering)
   {
@@ -218,30 +200,9 @@ void ParticleSystemApp::run()
     ImGui_ImplSDL2_NewFrame(m_window);
     ImGui::NewFrame();
 
-    if (!m_graphicsEngine)
-    {
-      errorMessage = std::string("The application needs OpenGL to run.");
-    }
-
     if (!m_physicsEngine->isInit())
     {
-      errorMessage = std::string("The application needs OpenCL 1.2 or more recent to run.");
-    }
-
-    if (!errorMessage.empty())
-    {
-      ImGui::OpenPopup("Error");
-      bool open = true;
-      if (ImGui::BeginPopupModal("Error", &open))
-      {
-        ImGui::Text(errorMessage.c_str());
-        if (ImGui::Button((std::string("Close ") + m_nameApp).c_str()))
-        {
-          ImGui::CloseCurrentPopup();
-          break;
-        }
-        ImGui::EndPopup();
-      }
+      stopRendering = popUpErrorMessage("The application needs OpenCL 1.2 or more recent to run.");
     }
 
     displayMainWidget();
@@ -310,7 +271,7 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Spacing();
 
   float velocity = m_physicsEngine->velocity();
-  if (ImGui::SliderFloat("Speed", &velocity, 0.01f, 20.0f))
+  if (ImGui::SliderFloat("Speed", &velocity, 0.01f, 10.0f))
   {
     m_physicsEngine->setVelocity(velocity);
   }
@@ -335,6 +296,26 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Spacing();
   ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
   ImGui::End();
+}
+
+bool ParticleSystemApp::popUpErrorMessage(std::string errorMessage)
+{
+  bool closePopUp = false;
+
+  bool open = true;
+  ImGui::OpenPopup("Error");
+  if (ImGui::BeginPopupModal("Error", &open))
+  {
+    ImGui::Text(errorMessage.c_str());
+    if (ImGui::Button((std::string("Close ") + m_nameApp).c_str()))
+    {
+      ImGui::CloseCurrentPopup();
+      closePopUp = true;
+    }
+    ImGui::EndPopup();
+  }
+
+  return closePopUp;
 }
 
 auto initializeLogger()

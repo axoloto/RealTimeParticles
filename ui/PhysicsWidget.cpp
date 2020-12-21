@@ -1,41 +1,37 @@
 
+#include "Boids.hpp"
 #include "PhysicsWidget.hpp"
-#include "imgui/imgui.h"
+#include <imgui.h>
 
-#ifndef OPENCL_ACTIVATED
-void UI::OCLBoidsWidget::display() {}
-#else
-#include "ocl/OCLBoids.hpp"
-
-void UI::OCLBoidsWidget::display()
+void UI::BoidsWidget::display()
 {
-  auto& boidsEngine = dynamic_cast<Core::OCLBoids&>(m_physicsEngine);
+  auto& boidsEngine = dynamic_cast<Core::Boids&>(m_physicsEngine);
 
-  ImGui::Begin("OCL Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+  ImGui::Begin("Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);
 
   ImGui::Spacing();
 
-  bool isTarget = boidsEngine.getActivateTargets();
+  bool isTarget = boidsEngine.isTargetActivated();
   if (ImGui::Checkbox("Center Target", &isTarget))
   {
-    boidsEngine.setActivateTargets(isTarget);
+    boidsEngine.activateTarget(isTarget);
   }
 
   ImGui::Spacing();
   ImGui::Separator();
   ImGui::Spacing();
 
-  bool isAlignment = boidsEngine.getActivateAlignment();
+  bool isAlignment = boidsEngine.isAlignmentActivated();
   if (ImGui::Checkbox("Alignment", &isAlignment))
   {
-    boidsEngine.setActivateAlignment(isAlignment);
+    boidsEngine.activateAlignment(isAlignment);
   }
   if (isAlignment)
   {
     ImGui::PushItemWidth(75);
 
-    float scaleAlignment = boidsEngine.getScaleAlignment();
+    float scaleAlignment = boidsEngine.scaleAlignment();
     if (ImGui::SliderFloat("##scaleAlign", &scaleAlignment, 0.0, 5.0f))
     {
       boidsEngine.setScaleAlignment(scaleAlignment);
@@ -44,16 +40,16 @@ void UI::OCLBoidsWidget::display()
     ImGui::PushItemWidth(150);
   }
 
-  bool isCohesion = boidsEngine.getActivateCohesion();
+  bool isCohesion = boidsEngine.isCohesionActivated();
   if (ImGui::Checkbox("Cohesion", &isCohesion))
   {
-    boidsEngine.setActivateCohesion(isCohesion);
+    boidsEngine.activateCohesion(isCohesion);
   }
   if (isCohesion)
   {
     ImGui::PushItemWidth(75);
 
-    float scaleCohesion = boidsEngine.getScaleCohesion();
+    float scaleCohesion = boidsEngine.scaleCohesion();
     if (ImGui::SliderFloat("##scaleCoh", &scaleCohesion, 0.0f, 5.0f))
     {
       boidsEngine.setScaleCohesion(scaleCohesion);
@@ -62,16 +58,16 @@ void UI::OCLBoidsWidget::display()
     ImGui::PushItemWidth(150);
   }
 
-  bool isSeparation = boidsEngine.getActivateSeparation();
+  bool isSeparation = boidsEngine.isSeparationActivated();
   if (ImGui::Checkbox("Separation", &isSeparation))
   {
-    boidsEngine.setActivateSeparation(isSeparation);
+    boidsEngine.activateSeparation(isSeparation);
   }
   if (isSeparation)
   {
     ImGui::PushItemWidth(75);
 
-    float scaleSeparation = boidsEngine.getScaleSeparation();
+    float scaleSeparation = boidsEngine.scaleSeparation();
     if (ImGui::SliderFloat("##scaleSep", &scaleSeparation, 0.0f, 5.0f))
     {
       boidsEngine.setScaleSeparation(scaleSeparation);
@@ -84,24 +80,26 @@ void UI::OCLBoidsWidget::display()
   ImGui::Separator();
   ImGui::Spacing();
 
-  ImGui::Text(" Wall Behavior");
-  bool isBouncingWall = boidsEngine.isBouncingWallEnabled();
+  ImGui::Text(" Boundary ");
+  bool isBouncingWall = (boidsEngine.boundary() == Core::Boundary::BouncingWall);
   if (ImGui::Checkbox("Bouncing Wall", &isBouncingWall))
   {
-    boidsEngine.setBouncingWall(isBouncingWall);
-    boidsEngine.setCyclicWall(!isBouncingWall);
+    if (isBouncingWall)
+      boidsEngine.setBoundary(Core::Boundary::BouncingWall);
+    else
+      boidsEngine.setBoundary(Core::Boundary::CyclicWall);
   }
 
   ImGui::SameLine();
 
-  bool isCyclicWall = boidsEngine.isCyclicWallEnabled();
+  bool isCyclicWall = (boidsEngine.boundary() == Core::Boundary::CyclicWall);
   if (ImGui::Checkbox("Cyclic Wall", &isCyclicWall))
   {
-    boidsEngine.setBouncingWall(!isCyclicWall);
-    boidsEngine.setCyclicWall(isCyclicWall);
+    if (isCyclicWall)
+      boidsEngine.setBoundary(Core::Boundary::CyclicWall);
+    else
+      boidsEngine.setBoundary(Core::Boundary::BouncingWall);
   }
 
   ImGui::End();
 }
-
-#endif

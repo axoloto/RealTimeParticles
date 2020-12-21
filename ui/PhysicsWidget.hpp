@@ -29,15 +29,4 @@ class BoidsWidget : public PhysicsWidget
 
   private:
 };
-
-class OCLBoidsWidget : public PhysicsWidget
-{
-  public:
-  explicit OCLBoidsWidget(Core::Physics& physicsEngine)
-      : PhysicsWidget(physicsEngine) {};
-  ~OCLBoidsWidget() override = default;
-  void display() override;
-
-  private:
-};
 }
