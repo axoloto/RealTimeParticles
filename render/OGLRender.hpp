@@ -36,30 +36,50 @@ class OGLRender
   }
   inline void setNumDisplayedEntities(int numDisplayedEntities) { m_numDisplayedEntities = numDisplayedEntities; }
 
-  void setPointCloudBuffers(void* coordsBufferStart, void* colorsBufferStart);
-  GLuint pointCloudCoordVBO() { return m_pointCloudCoordVBO; }
-  GLuint pointCloudColorVBO() { return m_pointCloudColorVBO; }
+  bool isBoxVisible() const { return m_isBoxVisible; }
+  void setBoxVisibility(bool isVisible) { m_isBoxVisible = isVisible; }
+
+  bool isGridVisible() const { return m_isGridVisible; }
+  void setGridVisibility(bool isVisible) { m_isGridVisible = isVisible; }
+
+  GLuint pointCloudCoordVBO() const { return m_pointCloudCoordVBO; }
+  GLuint pointCloudColorVBO() const { return m_pointCloudColorVBO; }
 
   private:
   void buildShaders();
   void connectVBOsToVAO();
-  void generateBox();
 
   void drawPointCloud();
 
+  void generateBox();
   void drawBox();
+
+  void generateGrid();
+  void drawGrid();
 
   void initCamera(float sceneAspectRatio);
 
-  const GLuint m_pointCloudPosAttribIndex { 0 }, m_pointCloudColAttribIndex { 1 }, m_boxPosAttribIndex { 2 }, m_boxColAttribIndex { 3 };
-  GLuint m_pointCloudCoordVBO, m_pointCloudColorVBO, m_boxVBO, m_boxEBO, m_VAO;
+  const GLuint
+      m_pointCloudPosAttribIndex { 0 },
+      m_pointCloudColAttribIndex { 1 },
+      m_boxPosAttribIndex { 2 }, m_boxColAttribIndex { 3 },
+      m_gridPosAttribIndex { 4 }, m_gridColAttribIndex { 5 };
+
+  GLuint m_VAO;
+  GLuint m_pointCloudCoordVBO, m_pointCloudColorVBO;
+  GLuint m_boxVBO, m_boxEBO;
+  GLuint m_gridVBO, m_gridEBO;
 
   std::unique_ptr<OGLShader> m_pointCloudShader;
   std::unique_ptr<OGLShader> m_boxShader;
+  std::unique_ptr<OGLShader> m_gridShader;
 
   int m_boxSize;
   int m_numDisplayedEntities;
   int m_numMaxEntities;
+
+  bool m_isBoxVisible;
+  bool m_isGridVisible;
 
   std::unique_ptr<Camera> m_camera;
 

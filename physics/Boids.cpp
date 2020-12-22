@@ -15,9 +15,9 @@ using namespace Core;
 
 Boids::Boids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO)
     : Physics(numEntities)
-    , m_scaleAlignment(2.0f)
+    , m_scaleAlignment(1.6f)
     , m_scaleCohesion(0.7f)
-    , m_scaleSeparation(1.2f)
+    , m_scaleSeparation(1.6f)
     , m_activeTargets(false)
     , m_activeAlignment(true)
     , m_activeSeparation(true)

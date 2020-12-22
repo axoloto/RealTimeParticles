@@ -8,9 +8,13 @@ OGLRender::OGLRender(int boxSize, int numDisplayedEntities, int numMaxEntities, 
     : m_boxSize(boxSize)
     , m_numDisplayedEntities(numDisplayedEntities)
     , m_numMaxEntities(numMaxEntities)
+    , m_isBoxVisible(true)
+    , m_isGridVisible(true)
 {
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_PROGRAM_POINT_SIZE);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glEnable(GL_BLEND);
 
   initCamera(sceneAspectRatio);
 
@@ -19,6 +23,8 @@ OGLRender::OGLRender(int boxSize, int numDisplayedEntities, int numMaxEntities, 
   connectVBOsToVAO();
 
   generateBox();
+
+  generateGrid();
 }
 
 OGLRender::~OGLRender()
@@ -37,6 +43,7 @@ void OGLRender::buildShaders()
 {
   m_pointCloudShader = std::make_unique<OGLShader>(Render::PointCloudVertShader, Render::FragShader);
   m_boxShader = std::make_unique<OGLShader>(Render::BoxVertShader, Render::FragShader);
+  m_gridShader = std::make_unique<OGLShader>(Render::GridVertShader, Render::FragShader);
 }
 
 void OGLRender::connectVBOsToVAO()
@@ -67,18 +74,27 @@ void OGLRender::connectVBOsToVAO()
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   glGenBuffers(1, &m_boxEBO);
+
+  glGenBuffers(1, &m_gridVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, m_gridVBO);
+  glVertexAttribPointer(m_gridPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), NULL);
+  glEnableVertexAttribArray(m_gridPosAttribIndex);
+  glVertexAttribPointer(m_gridColAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+  glEnableVertexAttribArray(m_gridColAttribIndex);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  glGenBuffers(1, &m_gridEBO);
 }
 
 void OGLRender::draw()
 {
   drawPointCloud();
-  drawBox();
-}
 
-void OGLRender::setPointCloudBuffers(void* coordsBufferStart, void* colorsBufferStart)
-{
-  m_pointCloudCoordsBufferStart = coordsBufferStart;
-  m_pointCloudColorsBufferStart = colorsBufferStart;
+  if (m_isBoxVisible)
+    drawBox();
+
+  if (m_isGridVisible)
+    drawGrid();
 }
 
 void OGLRender::drawPointCloud()
@@ -93,6 +109,34 @@ void OGLRender::drawPointCloud()
   m_pointCloudShader->deactivate();
 }
 
+void OGLRender::drawBox()
+{
+  m_boxShader->activate();
+
+  Math::float4x4 projViewMat = m_camera->getProjViewMat();
+  m_boxShader->setUniform("u_projView", projViewMat);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boxEBO);
+  glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+  m_boxShader->deactivate();
+}
+
+void OGLRender::drawGrid()
+{
+  m_gridShader->activate();
+
+  Math::float4x4 projViewMat = m_camera->getProjViewMat();
+  m_gridShader->setUniform("u_projView", projViewMat);
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_gridEBO);
+  glDrawElements(GL_LINES, 24000, GL_UNSIGNED_INT, 0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+  m_gridShader->deactivate();
+}
+
 void OGLRender::generateBox()
 {
   struct Vertex
@@ -102,7 +146,6 @@ void OGLRender::generateBox()
   };
 
   // VBO
-  int index = 0;
   std::array<Vertex, 8> boxVertices;
   boxVertices[0].xyz = { 1.f, -1.f, -1.f };
   boxVertices[1].xyz = { 1.f, 1.f, -1.f };
@@ -149,18 +192,100 @@ void OGLRender::generateBox()
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-void OGLRender::drawBox()
+void OGLRender::generateGrid()
 {
-  m_boxShader->activate();
+  struct Vertex
+  {
+    std::array<float, 3> xyz;
+    std::array<float, 3> rgb;
+  };
 
-  Math::float4x4 projViewMat = m_camera->getProjViewMat();
-  m_boxShader->setUniform("u_projView", projViewMat);
+  // VBO
+  std::array<Vertex, 8> localCellCoords;
+  localCellCoords[0].xyz = { 1.f, -1.f, -1.f };
+  localCellCoords[1].xyz = { 1.f, 1.f, -1.f };
+  localCellCoords[2].xyz = { -1.f, 1.f, -1.f };
+  localCellCoords[3].xyz = { -1.f, -1.f, -1.f };
+  localCellCoords[4].xyz = { 1.f, -1.f, 1.f };
+  localCellCoords[5].xyz = { 1.f, 1.f, 1.f };
+  localCellCoords[6].xyz = { -1.f, 1.f, 1.f };
+  localCellCoords[7].xyz = { -1.f, -1.f, 1.f };
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boxEBO);
-  glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+  float res = m_boxSize / 10.0f;
+  for (auto& vertex : localCellCoords)
+  {
+    float x = vertex.xyz[0] * res * 0.5f;
+    float y = vertex.xyz[1] * res * 0.5f;
+    float z = vertex.xyz[2] * res * 0.5f;
+    vertex.xyz = { x, y, z };
+    vertex.rgb = { 1.f, 1.f, 1.f };
+  }
+
+  size_t centerIndex = 0;
+  std::array<Vertex, 1000> globalCellCenterCoords;
+  for (int x = 0; x < 10; ++x)
+  {
+    float xCoord = -m_boxSize / 2.0f + (x + 0.5f) * res;
+    for (int y = 0; y < 10; ++y)
+    {
+      float yCoord = -m_boxSize / 2.0f + (y + 0.5f) * res;
+      for (int z = 0; z < 10; ++z)
+      {
+        float zCoord = -m_boxSize / 2.0f + (z + 0.5f) * res;
+        globalCellCenterCoords.at(centerIndex++).xyz = { xCoord, yCoord, zCoord };
+      }
+    }
+  }
+
+  size_t cornerIndex = 0;
+  std::array<Vertex, 8000> globalCellCoords;
+  for (const auto& centerCoords : globalCellCenterCoords)
+  {
+    for (const auto& cornerCoords : localCellCoords)
+    {
+      globalCellCoords.at(cornerIndex).xyz[0] = cornerCoords.xyz[0] + centerCoords.xyz[0];
+      globalCellCoords.at(cornerIndex).xyz[1] = cornerCoords.xyz[1] + centerCoords.xyz[1];
+      globalCellCoords.at(cornerIndex).xyz[2] = cornerCoords.xyz[2] + centerCoords.xyz[2];
+      ++cornerIndex;
+    }
+  }
+
+  size_t gridBufferSize = sizeof(globalCellCoords[0]) * globalCellCoords.size();
+  glBindBuffer(GL_ARRAY_BUFFER, m_gridVBO);
+  glBufferData(GL_ARRAY_BUFFER, gridBufferSize, &globalCellCoords[0], GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  // EBO
+  GLuint localCellIndices[] = {
+    0, 1,
+    1, 2,
+    2, 3,
+    3, 0,
+    4, 5,
+    5, 6,
+    6, 7,
+    7, 4,
+    0, 4,
+    1, 5,
+    2, 6,
+    3, 7
+  };
+
+  size_t index = 0;
+  size_t globalOffset = 0;
+  std::array<GLuint, 24000> globalCellIndices;
+  for (const auto& centerCoords : globalCellCenterCoords)
+  {
+    globalOffset += 8;
+    for (const auto& localIndex : localCellIndices)
+    {
+      globalCellIndices.at(index++) = localIndex + globalOffset;
+    }
+  }
+
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_gridEBO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(globalCellIndices), &globalCellIndices[0], GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-  m_boxShader->deactivate();
 }
 
 void OGLRender::checkMouseEvents(UserAction action, Math::float2 delta)

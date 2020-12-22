@@ -266,6 +266,22 @@ void ParticleSystemApp::displayMainWidget()
     m_physicsEngine->setDimension(isSystemDim3D ? Core::Dimension::dim3D : Core::Dimension::dim2D);
   }
 
+  ImGui::SameLine();
+
+  bool isBoxVisible = m_graphicsEngine->isBoxVisible();
+  if (ImGui::Checkbox("Box", &isBoxVisible))
+  {
+    m_graphicsEngine->setBoxVisibility(isBoxVisible);
+  }
+
+  ImGui::SameLine();
+
+  bool isGridVisible = m_graphicsEngine->isGridVisible();
+  if (ImGui::Checkbox("Grid", &isGridVisible))
+  {
+    m_graphicsEngine->setGridVisibility(isGridVisible);
+  }
+
   ImGui::Spacing();
   ImGui::Separator();
   ImGui::Spacing();
