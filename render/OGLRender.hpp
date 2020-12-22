@@ -19,7 +19,7 @@ enum class UserAction
 class OGLRender
 {
   public:
-  OGLRender(int halfBoxSize, int numDisplayedEntities, int numMaxEntities, float aspectRatio);
+  OGLRender(size_t boxSize, size_t numDisplayedEntities, size_t numMaxEntities, float aspectRatio);
   ~OGLRender();
 
   void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);
@@ -47,7 +47,7 @@ class OGLRender
 
   private:
   void buildShaders();
-  void connectVBOsToVAO();
+  void connectPointCloudVBOsToVAO();
 
   void drawPointCloud();
 
@@ -62,8 +62,8 @@ class OGLRender
   const GLuint
       m_pointCloudPosAttribIndex { 0 },
       m_pointCloudColAttribIndex { 1 },
-      m_boxPosAttribIndex { 2 }, m_boxColAttribIndex { 3 },
-      m_gridPosAttribIndex { 4 }, m_gridColAttribIndex { 5 };
+      m_boxPosAttribIndex { 2 },
+      m_gridPosAttribIndex { 3 };
 
   GLuint m_VAO;
   GLuint m_pointCloudCoordVBO, m_pointCloudColorVBO;
@@ -74,9 +74,10 @@ class OGLRender
   std::unique_ptr<OGLShader> m_boxShader;
   std::unique_ptr<OGLShader> m_gridShader;
 
-  int m_boxSize;
-  int m_numDisplayedEntities;
-  int m_numMaxEntities;
+  size_t m_boxSize;
+  size_t m_boxNumDivs;
+  size_t m_numDisplayedEntities;
+  size_t m_numMaxEntities;
 
   bool m_isBoxVisible;
   bool m_isGridVisible;
@@ -85,5 +86,32 @@ class OGLRender
 
   void* m_pointCloudCoordsBufferStart;
   void* m_pointCloudColorsBufferStart;
+
+  typedef std::array<float, 3> Vertex;
+  const std::array<Vertex, 8> m_refCubeVertices {
+    Vertex({ 1.f, -1.f, -1.f }),
+    Vertex({ 1.f, 1.f, -1.f }),
+    Vertex({ -1.f, 1.f, -1.f }),
+    Vertex({ -1.f, -1.f, -1.f }),
+    Vertex({ 1.f, -1.f, 1.f }),
+    Vertex({ 1.f, 1.f, 1.f }),
+    Vertex({ -1.f, 1.f, 1.f }),
+    Vertex({ -1.f, -1.f, 1.f })
+  };
+
+  const std::array<GLuint, 24> m_refCubeIndices {
+    0, 1,
+    1, 2,
+    2, 3,
+    3, 0,
+    4, 5,
+    5, 6,
+    6, 7,
+    7, 4,
+    0, 4,
+    1, 5,
+    2, 6,
+    3, 7
+  };
 };
 }

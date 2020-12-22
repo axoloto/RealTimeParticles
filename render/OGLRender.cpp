@@ -4,8 +4,9 @@
 
 using namespace Render;
 
-OGLRender::OGLRender(int boxSize, int numDisplayedEntities, int numMaxEntities, float sceneAspectRatio)
+OGLRender::OGLRender(size_t boxSize, size_t numDisplayedEntities, size_t numMaxEntities, float sceneAspectRatio)
     : m_boxSize(boxSize)
+    , m_boxNumDivs(10)
     , m_numDisplayedEntities(numDisplayedEntities)
     , m_numMaxEntities(numMaxEntities)
     , m_isBoxVisible(true)
@@ -20,7 +21,7 @@ OGLRender::OGLRender(int boxSize, int numDisplayedEntities, int numMaxEntities, 
 
   buildShaders();
 
-  connectVBOsToVAO();
+  connectPointCloudVBOsToVAO();
 
   generateBox();
 
@@ -46,7 +47,7 @@ void OGLRender::buildShaders()
   m_gridShader = std::make_unique<OGLShader>(Render::GridVertShader, Render::FragShader);
 }
 
-void OGLRender::connectVBOsToVAO()
+void OGLRender::connectPointCloudVBOsToVAO()
 {
   glGenVertexArrays(1, &m_VAO);
   glBindVertexArray(m_VAO);
@@ -64,26 +65,6 @@ void OGLRender::connectVBOsToVAO()
   glVertexAttribPointer(m_pointCloudColAttribIndex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), NULL);
   glEnableVertexAttribArray(m_pointCloudColAttribIndex);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  glGenBuffers(1, &m_boxVBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_boxVBO);
-  glVertexAttribPointer(m_boxPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), NULL);
-  glEnableVertexAttribArray(m_boxPosAttribIndex);
-  glVertexAttribPointer(m_boxColAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-  glEnableVertexAttribArray(m_boxColAttribIndex);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  glGenBuffers(1, &m_boxEBO);
-
-  glGenBuffers(1, &m_gridVBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_gridVBO);
-  glVertexAttribPointer(m_gridPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), NULL);
-  glEnableVertexAttribArray(m_gridPosAttribIndex);
-  glVertexAttribPointer(m_gridColAttribIndex, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-  glEnableVertexAttribArray(m_gridColAttribIndex);
-  glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-  glGenBuffers(1, &m_gridEBO);
 }
 
 void OGLRender::draw()
@@ -139,100 +120,53 @@ void OGLRender::drawGrid()
 
 void OGLRender::generateBox()
 {
-  struct Vertex
-  {
-    std::array<float, 3> xyz;
-    std::array<float, 3> rgb;
-  };
-
-  // VBO
-  std::array<Vertex, 8> boxVertices;
-  boxVertices[0].xyz = { 1.f, -1.f, -1.f };
-  boxVertices[1].xyz = { 1.f, 1.f, -1.f };
-  boxVertices[2].xyz = { -1.f, 1.f, -1.f };
-  boxVertices[3].xyz = { -1.f, -1.f, -1.f };
-  boxVertices[4].xyz = { 1.f, -1.f, 1.f };
-  boxVertices[5].xyz = { 1.f, 1.f, 1.f };
-  boxVertices[6].xyz = { -1.f, 1.f, 1.f };
-  boxVertices[7].xyz = { -1.f, -1.f, 1.f };
-
-  int boxHalfSize = m_boxSize / 2;
+  std::array<Vertex, 8> boxVertices = m_refCubeVertices;
   for (auto& vertex : boxVertices)
   {
-    float x = vertex.xyz[0] * boxHalfSize;
-    float y = vertex.xyz[1] * boxHalfSize;
-    float z = vertex.xyz[2] * boxHalfSize;
-    vertex.xyz = { x, y, z };
-    vertex.rgb = { 1.f, 1.f, 1.f };
+    float x = vertex[0] * m_boxSize / 2.0f;
+    float y = vertex[1] * m_boxSize / 2.0f;
+    float z = vertex[2] * m_boxSize / 2.0f;
+    vertex = { x, y, z };
   }
 
   size_t boxBufferSize = sizeof(boxVertices[0]) * boxVertices.size();
+  glGenBuffers(1, &m_boxVBO);
   glBindBuffer(GL_ARRAY_BUFFER, m_boxVBO);
-  glBufferData(GL_ARRAY_BUFFER, boxBufferSize, &boxVertices[0], GL_STATIC_DRAW);
+  glVertexAttribPointer(m_boxPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), NULL);
+  glEnableVertexAttribArray(m_boxPosAttribIndex);
+  glBufferData(GL_ARRAY_BUFFER, boxBufferSize, boxVertices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  // EBO
-  GLuint boxIndices[] = {
-    0, 1,
-    1, 2,
-    2, 3,
-    3, 0,
-    4, 5,
-    5, 6,
-    6, 7,
-    7, 4,
-    0, 4,
-    1, 5,
-    2, 6,
-    3, 7
-  };
-
+  glGenBuffers(1, &m_boxEBO);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boxEBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(boxIndices), boxIndices, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(m_refCubeIndices), m_refCubeIndices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 void OGLRender::generateGrid()
 {
-  struct Vertex
-  {
-    std::array<float, 3> xyz;
-    std::array<float, 3> rgb;
-  };
-
-  // VBO
-  std::array<Vertex, 8> localCellCoords;
-  localCellCoords[0].xyz = { 1.f, -1.f, -1.f };
-  localCellCoords[1].xyz = { 1.f, 1.f, -1.f };
-  localCellCoords[2].xyz = { -1.f, 1.f, -1.f };
-  localCellCoords[3].xyz = { -1.f, -1.f, -1.f };
-  localCellCoords[4].xyz = { 1.f, -1.f, 1.f };
-  localCellCoords[5].xyz = { 1.f, 1.f, 1.f };
-  localCellCoords[6].xyz = { -1.f, 1.f, 1.f };
-  localCellCoords[7].xyz = { -1.f, -1.f, 1.f };
-
-  float res = m_boxSize / 10.0f;
+  float res = 1.0f * m_boxSize / m_boxNumDivs;
+  std::array<Vertex, 8> localCellCoords = m_refCubeVertices;
   for (auto& vertex : localCellCoords)
   {
-    float x = vertex.xyz[0] * res * 0.5f;
-    float y = vertex.xyz[1] * res * 0.5f;
-    float z = vertex.xyz[2] * res * 0.5f;
-    vertex.xyz = { x, y, z };
-    vertex.rgb = { 1.f, 1.f, 1.f };
+    float x = vertex[0] * res * 0.5f;
+    float y = vertex[1] * res * 0.5f;
+    float z = vertex[2] * res * 0.5f;
+    vertex = { x, y, z };
   }
 
   size_t centerIndex = 0;
   std::array<Vertex, 1000> globalCellCenterCoords;
   for (int x = 0; x < 10; ++x)
   {
-    float xCoord = -m_boxSize / 2.0f + (x + 0.5f) * res;
+    float xCoord = -(float)m_boxSize / 2.0f + (x + 0.5f) * res;
     for (int y = 0; y < 10; ++y)
     {
-      float yCoord = -m_boxSize / 2.0f + (y + 0.5f) * res;
+      float yCoord = -(float)m_boxSize / 2.0f + (y + 0.5f) * res;
       for (int z = 0; z < 10; ++z)
       {
-        float zCoord = -m_boxSize / 2.0f + (z + 0.5f) * res;
-        globalCellCenterCoords.at(centerIndex++).xyz = { xCoord, yCoord, zCoord };
+        float zCoord = -(float)m_boxSize / 2.0f + (z + 0.5f) * res;
+        globalCellCenterCoords.at(centerIndex++) = { xCoord, yCoord, zCoord };
       }
     }
   }
@@ -243,46 +177,34 @@ void OGLRender::generateGrid()
   {
     for (const auto& cornerCoords : localCellCoords)
     {
-      globalCellCoords.at(cornerIndex).xyz[0] = cornerCoords.xyz[0] + centerCoords.xyz[0];
-      globalCellCoords.at(cornerIndex).xyz[1] = cornerCoords.xyz[1] + centerCoords.xyz[1];
-      globalCellCoords.at(cornerIndex).xyz[2] = cornerCoords.xyz[2] + centerCoords.xyz[2];
+      globalCellCoords.at(cornerIndex)[0] = cornerCoords[0] + centerCoords[0];
+      globalCellCoords.at(cornerIndex)[1] = cornerCoords[1] + centerCoords[1];
+      globalCellCoords.at(cornerIndex)[2] = cornerCoords[2] + centerCoords[2];
       ++cornerIndex;
     }
   }
 
   size_t gridBufferSize = sizeof(globalCellCoords[0]) * globalCellCoords.size();
+  glGenBuffers(1, &m_gridVBO);
   glBindBuffer(GL_ARRAY_BUFFER, m_gridVBO);
+  glVertexAttribPointer(m_gridPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), NULL);
+  glEnableVertexAttribArray(m_gridPosAttribIndex);
   glBufferData(GL_ARRAY_BUFFER, gridBufferSize, &globalCellCoords[0], GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  // EBO
-  GLuint localCellIndices[] = {
-    0, 1,
-    1, 2,
-    2, 3,
-    3, 0,
-    4, 5,
-    5, 6,
-    6, 7,
-    7, 4,
-    0, 4,
-    1, 5,
-    2, 6,
-    3, 7
-  };
-
   size_t index = 0;
-  size_t globalOffset = 0;
+  GLuint globalOffset = 0;
   std::array<GLuint, 24000> globalCellIndices;
   for (const auto& centerCoords : globalCellCenterCoords)
   {
-    globalOffset += 8;
-    for (const auto& localIndex : localCellIndices)
+    for (const auto& localIndex : m_refCubeIndices)
     {
       globalCellIndices.at(index++) = localIndex + globalOffset;
     }
+    globalOffset += 8;
   }
 
+  glGenBuffers(1, &m_gridEBO);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_gridEBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(globalCellIndices), &globalCellIndices[0], GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
