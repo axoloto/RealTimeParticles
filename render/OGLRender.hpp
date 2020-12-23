@@ -75,7 +75,7 @@ class OGLRender
   std::unique_ptr<OGLShader> m_gridShader;
 
   size_t m_boxSize;
-  size_t m_boxNumDivs;
+  size_t m_gridRes;
   size_t m_numDisplayedEntities;
   size_t m_numMaxEntities;
 
