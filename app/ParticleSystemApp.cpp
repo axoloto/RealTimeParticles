@@ -162,16 +162,20 @@ ParticleSystemApp::ParticleSystemApp()
     , m_windowSize(1280, 720)
     , m_init(false)
     , m_boxSize(500)
+    , m_gridRes(10)
     , m_numEntities(Core::NUM_MAX_ENTITIES)
 {
   initWindow();
 
-  m_graphicsEngine = std::make_unique<Render::OGLRender>(m_boxSize, m_numEntities, Core::NUM_MAX_ENTITIES, (float)m_windowSize.x / m_windowSize.y);
+  m_graphicsEngine = std::make_unique<Render::OGLRender>(m_boxSize, m_gridRes, m_numEntities, Core::NUM_MAX_ENTITIES, (float)m_windowSize.x / m_windowSize.y);
 
   if (!m_graphicsEngine)
     return;
 
-  m_physicsEngine = std::make_unique<Core::Boids>(m_numEntities, (unsigned int)m_graphicsEngine->pointCloudCoordVBO(), (unsigned int)m_graphicsEngine->pointCloudColorVBO());
+  m_physicsEngine = std::make_unique<Core::Boids>(m_numEntities, m_gridRes,
+      (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
+      (unsigned int)m_graphicsEngine->pointCloudColorVBO(),
+      (unsigned int)m_graphicsEngine->gridColorVBO());
 
   if (!m_physicsEngine)
     return;

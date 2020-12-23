@@ -34,13 +34,14 @@ constexpr char BoxVertShader[] = R"(#version 330 core
 
 constexpr char GridVertShader[] = R"(#version 330 core
     layout(location = 3) in vec3 aPos;
+    layout(location = 4) in float aCol;
 
     uniform mat4 u_projView;
     out vec4 vertexColor;
 
     void main()
     {
-        vertexColor = vec4(0.8, 0.1, 0.2, 0.3);
+        vertexColor = vec4(0.6, 0.6, 0.2, aCol);
         gl_Position = u_projView * vec4(aPos, 1.0);
         gl_PointSize = 1.0;
     }

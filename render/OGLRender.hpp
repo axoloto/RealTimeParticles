@@ -19,7 +19,7 @@ enum class UserAction
 class OGLRender
 {
   public:
-  OGLRender(size_t boxSize, size_t numDisplayedEntities, size_t numMaxEntities, float aspectRatio);
+  OGLRender(size_t boxSize, size_t gridRes, size_t numDisplayedEntities, size_t numMaxEntities, float aspectRatio);
   ~OGLRender();
 
   void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);
@@ -44,6 +44,7 @@ class OGLRender
 
   GLuint pointCloudCoordVBO() const { return m_pointCloudCoordVBO; }
   GLuint pointCloudColorVBO() const { return m_pointCloudColorVBO; }
+  GLuint gridColorVBO() const { return m_gridColVBO; }
 
   private:
   void buildShaders();
@@ -63,12 +64,13 @@ class OGLRender
       m_pointCloudPosAttribIndex { 0 },
       m_pointCloudColAttribIndex { 1 },
       m_boxPosAttribIndex { 2 },
-      m_gridPosAttribIndex { 3 };
+      m_gridPosAttribIndex { 3 },
+      m_gridColAttribIndex { 4 };
 
   GLuint m_VAO;
   GLuint m_pointCloudCoordVBO, m_pointCloudColorVBO;
   GLuint m_boxVBO, m_boxEBO;
-  GLuint m_gridVBO, m_gridEBO;
+  GLuint m_gridPosVBO, m_gridColVBO, m_gridEBO;
 
   std::unique_ptr<OGLShader> m_pointCloudShader;
   std::unique_ptr<OGLShader> m_boxShader;

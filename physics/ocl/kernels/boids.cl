@@ -20,6 +20,12 @@ typedef struct
   int activeTarget;
 } boidsParams;
 
+typedef struct
+{
+  uint resolution;
+  uint numCells;
+} gridParams;
+
 __kernel void colorVerts(__global float4* color)
 {
   int i = get_global_id(0);
@@ -149,4 +155,30 @@ __kernel void updatePosVertsWithCyclicWalls(__global float4* pos, __global float
     clampedNewPos.z *= -1;
   }
   pos[i] = clampedNewPos;
+}
+
+__kernel void flushGridCells(__global float8* gridColor)
+{
+  unsigned int i = get_global_id(0);
+  gridColor[i] = 0.1f;
+}
+
+__kernel void fillGridCells(__global float4* vertPos, __global float8* gridColor, __global gridParams* gridParams)
+{
+  unsigned int i = get_global_id(0);
+
+  float4 pos = vertPos[i];
+
+  int cellSize = 2 * ABS_WALL_POS / gridParams->resolution;
+  float3 posXYZ = pos.xyz + ABS_WALL_POS;
+  int3 cellIndex = convert_int3(posXYZ / cellSize);
+
+  int gridColorIndex = cellIndex.x * gridParams->resolution * gridParams->resolution
+      + cellIndex.y * gridParams->resolution
+      + cellIndex.z;
+
+  if (gridColorIndex < 1000)
+  {
+    gridColor[gridColorIndex] = 1.0f;
+  }
 }

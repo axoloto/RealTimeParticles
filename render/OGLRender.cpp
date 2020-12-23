@@ -4,9 +4,9 @@
 
 using namespace Render;
 
-OGLRender::OGLRender(size_t boxSize, size_t numDisplayedEntities, size_t numMaxEntities, float sceneAspectRatio)
+OGLRender::OGLRender(size_t boxSize, size_t gridRes, size_t numDisplayedEntities, size_t numMaxEntities, float sceneAspectRatio)
     : m_boxSize(boxSize)
-    , m_gridRes(10)
+    , m_gridRes(gridRes)
     , m_numDisplayedEntities(numDisplayedEntities)
     , m_numMaxEntities(numMaxEntities)
     , m_isBoxVisible(true)
@@ -52,17 +52,19 @@ void OGLRender::connectPointCloudVBOsToVAO()
   glGenVertexArrays(1, &m_VAO);
   glBindVertexArray(m_VAO);
 
+  // Filled by OpenCL
   glGenBuffers(1, &m_pointCloudCoordVBO);
   glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudCoordVBO);
-  glBufferData(GL_ARRAY_BUFFER, 4 * m_numMaxEntities * sizeof(float), NULL, GL_DYNAMIC_DRAW); // WIP
-  glVertexAttribPointer(m_pointCloudPosAttribIndex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), NULL);
+  glBufferData(GL_ARRAY_BUFFER, 4 * m_numMaxEntities * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+  glVertexAttribPointer(m_pointCloudPosAttribIndex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
   glEnableVertexAttribArray(m_pointCloudPosAttribIndex);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+  // Filled by OpenCL
   glGenBuffers(1, &m_pointCloudColorVBO);
   glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudColorVBO);
-  glBufferData(GL_ARRAY_BUFFER, 4 * m_numMaxEntities * sizeof(float), NULL, GL_DYNAMIC_DRAW); // WIP
-  glVertexAttribPointer(m_pointCloudColAttribIndex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), NULL);
+  glBufferData(GL_ARRAY_BUFFER, 4 * m_numMaxEntities * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+  glVertexAttribPointer(m_pointCloudColAttribIndex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
   glEnableVertexAttribArray(m_pointCloudColAttribIndex);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -186,11 +188,19 @@ void OGLRender::generateGrid()
     }
   }
 
-  glGenBuffers(1, &m_gridVBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_gridVBO);
+  glGenBuffers(1, &m_gridPosVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, m_gridPosVBO);
   glVertexAttribPointer(m_gridPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
   glEnableVertexAttribArray(m_gridPosAttribIndex);
   glBufferData(GL_ARRAY_BUFFER, sizeof(globalCellCoords.front()) * globalCellCoords.size(), globalCellCoords.data(), GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  // Filled by OpenCL
+  glGenBuffers(1, &m_gridColVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, m_gridColVBO);
+  glVertexAttribPointer(m_gridColAttribIndex, 1, GL_FLOAT, GL_FALSE, sizeof(float), nullptr);
+  glEnableVertexAttribArray(m_gridColAttribIndex);
+  glBufferData(GL_ARRAY_BUFFER, 8 * numCells * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   size_t index = 0;

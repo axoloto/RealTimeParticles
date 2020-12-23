@@ -12,7 +12,10 @@ namespace Core
 class Boids : public Physics
 {
   public:
-  Boids(int numEntities, unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
+  Boids(size_t numEntities, size_t gridRes,
+      unsigned int pointCloudCoordVBO,
+      unsigned int pointCloudColorVBO,
+      unsigned int gridColorVBO);
   ~Boids() = default;
 
   void update() override;
@@ -81,9 +84,10 @@ class Boids : public Physics
   bool isTargetActivated() const { return m_activeTargets; }
 
   private:
-  bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO);
+  bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridColorVBO);
   bool createKernels();
   void updateBoidsParamsInKernel();
+  void updateGridParamsInKernel();
 
   bool m_activeAlignment;
   bool m_activeCohesion;
@@ -107,6 +111,15 @@ class Boids : public Physics
 
   boidsParams m_boidsParams;
   cl_mem cl_boidsParamsBuff;
+
+  struct gridParams
+  {
+    cl_uint gridRes;
+    cl_uint numCells;
+  };
+
+  gridParams m_gridParams;
+  cl_mem cl_gridParamsBuff;
 
   CL::Context m_clContext;
 };
