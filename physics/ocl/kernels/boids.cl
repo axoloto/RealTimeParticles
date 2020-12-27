@@ -157,13 +157,13 @@ __kernel void updatePosVertsWithCyclicWalls(__global float4* pos, __global float
   pos[i] = clampedNewPos;
 }
 
-__kernel void flushGridCells(__global float8* gridColor)
+__kernel void flushGridCells(__global float8* gridDetector)
 {
   unsigned int i = get_global_id(0);
-  gridColor[i] = 0.1f;
+  gridDetector[i] = 0.0f;
 }
 
-__kernel void fillGridCells(__global float4* vertPos, __global float8* gridColor, __global gridParams* gridParams)
+__kernel void fillGridCells(__global float4* vertPos, __global float8* gridDetector, __global gridParams* gridParams)
 {
   unsigned int i = get_global_id(0);
 
@@ -173,12 +173,12 @@ __kernel void fillGridCells(__global float4* vertPos, __global float8* gridColor
   float3 posXYZ = pos.xyz + ABS_WALL_POS;
   int3 cellIndex = convert_int3(posXYZ / cellSize);
 
-  int gridColorIndex = cellIndex.x * gridParams->resolution * gridParams->resolution
+  int gridDetectorIndex = cellIndex.x * gridParams->resolution * gridParams->resolution
       + cellIndex.y * gridParams->resolution
       + cellIndex.z;
 
-  if (gridColorIndex < 1000)
+  if (gridDetectorIndex < 1000)
   {
-    gridColor[gridColorIndex] = 1.0f;
+    gridDetector[gridDetectorIndex] = 1.0f;
   }
 }

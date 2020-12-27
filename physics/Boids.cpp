@@ -18,7 +18,7 @@ using namespace Core;
 Boids::Boids(size_t numEntities, size_t gridRes,
     unsigned int pointCloudCoordVBO,
     unsigned int pointCloudColorVBO,
-    unsigned int gridColorVBO)
+    unsigned int gridDetectorVBO)
     : Physics(numEntities, gridRes)
     , m_scaleAlignment(1.6f)
     , m_scaleCohesion(0.7f)
@@ -33,7 +33,7 @@ Boids::Boids(size_t numEntities, size_t gridRes,
 {
   if (m_clContext.init())
   {
-    createBuffers(pointCloudCoordVBO, pointCloudColorVBO, gridColorVBO);
+    createBuffers(pointCloudCoordVBO, pointCloudColorVBO, gridDetectorVBO);
 
     createKernels();
 
@@ -47,11 +47,11 @@ Boids::Boids(size_t numEntities, size_t gridRes,
   }
 }
 
-bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridColorVBO)
+bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridDetectorVBO)
 {
   m_clContext.createGLBuffer("boidsColor", pointCloudColorVBO, CL_MEM_WRITE_ONLY);
   m_clContext.createGLBuffer("boidsPos", pointCloudCoordVBO, CL_MEM_READ_WRITE);
-  m_clContext.createGLBuffer("gridColor", gridColorVBO, CL_MEM_READ_WRITE);
+  m_clContext.createGLBuffer("gridDetector", gridDetectorVBO, CL_MEM_READ_WRITE);
 
   size_t boidsBufferSize = 4 * NUM_MAX_ENTITIES * sizeof(float);
 
@@ -71,8 +71,8 @@ bool Boids::createKernels()
   m_clContext.createKernel(KERNEL_UPDATE_VEL, { "boidsVel", "boidsAcc", "boidsParams" });
   m_clContext.createKernel(KERNEL_UPDATE_POS_BOUNCING, { "boidsPos", "boidsVel" });
   m_clContext.createKernel(KERNEL_UPDATE_POS_CYCLIC, { "boidsPos", "boidsVel" });
-  m_clContext.createKernel(KERNEL_FLUSH_GRID_CELLS, { "gridColor" });
-  m_clContext.createKernel(KERNEL_FILL_GRID_CELLS, { "boidsPos", "gridColor", "gridParams" });
+  m_clContext.createKernel(KERNEL_FLUSH_GRID_CELLS, { "gridDetector" });
+  m_clContext.createKernel(KERNEL_FILL_GRID_CELLS, { "boidsPos", "gridDetector", "gridParams" });
 
   return true;
 }
@@ -101,7 +101,7 @@ void Boids::reset()
   if (!m_init)
     return;
 
-  m_clContext.acquireGLBuffers({ "boidsColor", "boidsPos", "gridColor" });
+  m_clContext.acquireGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
   m_clContext.runKernel(KERNEL_COLOR, m_numEntities);
 
   cl_float dim = (m_dimension == Dimension::dim2D) ? 2.0f : 3.0f;
@@ -112,7 +112,7 @@ void Boids::reset()
 
   m_clContext.runKernel(KERNEL_FILL_GRID_CELLS, m_numEntities);
 
-  m_clContext.releaseGLBuffers({ "boidsColor", "boidsPos", "gridColor" });
+  m_clContext.releaseGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
 }
 
 void Boids::update()
@@ -120,7 +120,7 @@ void Boids::update()
   if (!m_init || m_pause)
     return;
 
-  m_clContext.acquireGLBuffers({ "boidsPos", "gridColor" });
+  m_clContext.acquireGLBuffers({ "boidsPos", "gridDetector" });
   m_clContext.runKernel(KERNEL_BOIDS_RULES, m_numEntities);
   m_clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
 
@@ -131,5 +131,5 @@ void Boids::update()
 
   m_clContext.runKernel(KERNEL_FLUSH_GRID_CELLS, m_gridParams.numCells);
   m_clContext.runKernel(KERNEL_FILL_GRID_CELLS, m_numEntities);
-  m_clContext.releaseGLBuffers({ "boidsPos", "gridColor" });
+  m_clContext.releaseGLBuffers({ "boidsPos", "gridDetector" });
 }

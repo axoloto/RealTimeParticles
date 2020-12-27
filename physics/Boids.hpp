@@ -15,7 +15,7 @@ class Boids : public Physics
   Boids(size_t numEntities, size_t gridRes,
       unsigned int pointCloudCoordVBO,
       unsigned int pointCloudColorVBO,
-      unsigned int gridColorVBO);
+      unsigned int gridDetectorVBO);
   ~Boids() = default;
 
   void update() override;
@@ -84,7 +84,7 @@ class Boids : public Physics
   bool isTargetActivated() const { return m_activeTargets; }
 
   private:
-  bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridColorVBO);
+  bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridDetectorVBO);
   bool createKernels();
   void updateBoidsParamsInKernel();
   void updateGridParamsInKernel();

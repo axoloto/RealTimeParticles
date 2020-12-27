@@ -196,10 +196,10 @@ void OGLRender::generateGrid()
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   // Filled by OpenCL
-  glGenBuffers(1, &m_gridColVBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_gridColVBO);
-  glVertexAttribPointer(m_gridColAttribIndex, 1, GL_FLOAT, GL_FALSE, sizeof(float), nullptr);
-  glEnableVertexAttribArray(m_gridColAttribIndex);
+  glGenBuffers(1, &m_gridDetectorVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, m_gridDetectorVBO);
+  glVertexAttribPointer(m_gridDetectorAttribIndex, 1, GL_FLOAT, GL_FALSE, sizeof(float), nullptr);
+  glEnableVertexAttribArray(m_gridDetectorAttribIndex);
   glBufferData(GL_ARRAY_BUFFER, 8 * numCells * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 

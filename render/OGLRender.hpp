@@ -44,7 +44,7 @@ class OGLRender
 
   GLuint pointCloudCoordVBO() const { return m_pointCloudCoordVBO; }
   GLuint pointCloudColorVBO() const { return m_pointCloudColorVBO; }
-  GLuint gridColorVBO() const { return m_gridColVBO; }
+  GLuint gridDetectorVBO() const { return m_gridDetectorVBO; }
 
   private:
   void buildShaders();
@@ -65,12 +65,12 @@ class OGLRender
       m_pointCloudColAttribIndex { 1 },
       m_boxPosAttribIndex { 2 },
       m_gridPosAttribIndex { 3 },
-      m_gridColAttribIndex { 4 };
+      m_gridDetectorAttribIndex { 4 };
 
   GLuint m_VAO;
   GLuint m_pointCloudCoordVBO, m_pointCloudColorVBO;
   GLuint m_boxVBO, m_boxEBO;
-  GLuint m_gridPosVBO, m_gridColVBO, m_gridEBO;
+  GLuint m_gridPosVBO, m_gridDetectorVBO, m_gridEBO;
 
   std::unique_ptr<OGLShader> m_pointCloudShader;
   std::unique_ptr<OGLShader> m_boxShader;

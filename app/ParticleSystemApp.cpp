@@ -175,7 +175,7 @@ ParticleSystemApp::ParticleSystemApp()
   m_physicsEngine = std::make_unique<Core::Boids>(m_numEntities, m_gridRes,
       (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
       (unsigned int)m_graphicsEngine->pointCloudColorVBO(),
-      (unsigned int)m_graphicsEngine->gridColorVBO());
+      (unsigned int)m_graphicsEngine->gridDetectorVBO());
 
   if (!m_physicsEngine)
     return;
