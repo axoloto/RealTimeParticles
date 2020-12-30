@@ -29,7 +29,7 @@ Boids::Boids(size_t numEntities, size_t gridRes,
     , m_activeCohesion(true)
     , m_target({ 0.0f, 0.0f, 0.0f })
     , m_clContext("C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\boids.cl",
-          "-DEFFECT_RADIUS_SQUARED=1000 -DMAX_STEERING=0.5f -DMAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f")
+          "-DEFFECT_RADIUS_SQUARED=1000 -DMAX_STEERING=0.5f -DMAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f -DFLOAT_EPSILON=0.0001f")
 {
   if (m_clContext.init())
   {
