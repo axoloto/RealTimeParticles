@@ -37,10 +37,6 @@ Boids::Boids(size_t numEntities, size_t gridRes,
 
     createKernels();
 
-    updateGridParamsInKernel();
-
-    updateBoidsParamsInKernel();
-
     m_init = true;
 
     reset();
@@ -66,7 +62,7 @@ bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointClo
 bool Boids::createKernels()
 {
   m_clContext.createKernel(KERNEL_COLOR, { "boidsColor" });
-  m_clContext.createKernel(KERNEL_RANDOM_POS, { "boidsPos", "boidsVel" });
+  m_clContext.createKernel(KERNEL_RANDOM_POS, { "boidsPos", "boidsVel", "boidsParams" });
   m_clContext.createKernel(KERNEL_BOIDS_RULES, { "boidsPos", "boidsVel", "boidsAcc", "boidsParams" });
   m_clContext.createKernel(KERNEL_UPDATE_VEL, { "boidsVel", "boidsAcc", "boidsParams" });
   m_clContext.createKernel(KERNEL_UPDATE_POS_BOUNCING, { "boidsPos", "boidsVel" });
@@ -79,14 +75,15 @@ bool Boids::createKernels()
 
 void Boids::updateGridParamsInKernel()
 {
-  m_gridParams.gridRes = m_gridRes;
-  m_gridParams.numCells = m_gridRes * m_gridRes * m_gridRes;
+  m_gridParams.gridRes = (cl_uint)m_gridRes;
+  m_gridParams.numCells = (cl_uint)(m_gridRes * m_gridRes * m_gridRes);
 
   m_clContext.mapAndSendBufferToDevice("gridParams", &m_gridParams, sizeof(m_gridParams));
 }
 
 void Boids::updateBoidsParamsInKernel()
 {
+  m_boidsParams.dims = (m_dimension == Dimension::dim2D) ? 2.0f : 3.0f;
   m_boidsParams.velocity = m_velocity;
   m_boidsParams.scaleCohesion = m_activeCohesion ? m_scaleCohesion : 0.0f;
   m_boidsParams.scaleAlignment = m_activeAlignment ? m_scaleAlignment : 0.0f;
@@ -101,11 +98,13 @@ void Boids::reset()
   if (!m_init)
     return;
 
+  updateGridParamsInKernel();
+
+  updateBoidsParamsInKernel();
+
   m_clContext.acquireGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
   m_clContext.runKernel(KERNEL_COLOR, m_numEntities);
 
-  cl_float dim = (m_dimension == Dimension::dim2D) ? 2.0f : 3.0f;
-  m_clContext.setKernelArg(KERNEL_RANDOM_POS, 2, sizeof(cl_float), &dim);
   m_clContext.runKernel(KERNEL_RANDOM_POS, m_numEntities);
 
   m_clContext.runKernel(KERNEL_FLUSH_GRID_CELLS, m_gridParams.numCells);

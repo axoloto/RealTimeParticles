@@ -102,6 +102,7 @@ class Boids : public Physics
   Math::float3 m_target;
   struct boidsParams
   {
+    cl_float dims;
     cl_float velocity;
     cl_float scaleCohesion;
     cl_float scaleAlignment;

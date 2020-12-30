@@ -13,6 +13,7 @@ unsigned int parallelRNG(unsigned int i)
 
 typedef struct
 {
+  float dims;
   float velocity;
   float scaleCohesion;
   float scaleAlignment;
@@ -33,7 +34,7 @@ __kernel void colorVerts(__global float4* color)
   color[i] = (float4)(col, col, col, 1.0);
 }
 
-__kernel void randPosVerts(__global float4* pos, __global float4* vel, float dim)
+__kernel void randPosVerts(__global float4* pos, __global float4* vel, __global boidsParams* params)
 {
   unsigned int i = get_global_id(0);
 
@@ -45,7 +46,7 @@ __kernel void randPosVerts(__global float4* pos, __global float4* vel, float dim
   float y = (float)(randomIntY & 0x0ff) * 2.0 - 250.0f;
   float z = (float)(randomIntZ & 0x0ff) * 2.0 - 250.0f;
 
-  float3 randomXYZ = (float3)(x * step(3.0f, dim), y, z);
+  float3 randomXYZ = (float3)(x * step(3.0f, params->dims), y, z);
 
   pos[i].xyz = clamp(randomXYZ, -250.0f, 250.0f);
   pos[i].w = 1.0;
@@ -113,6 +114,10 @@ __kernel void applyBoidsRules(__global float4* position, __global float4* veloci
       + steerForce(averageBoidsVel, vel) * params->scaleAlignment
       + steerForce(repulseHeading, vel) * params->scaleSeparation
       + clamp(target, 0.0, normalize(target) * MAX_STEERING) * params->activeTarget;
+
+  // Dealing with numerical error, forcing 2D
+  if (params->dims < 3.0f)
+    acc[i].x = 0.0f;
 }
 
 __kernel void updateVelVerts(__global float4* vel, __global float4* acc, __global boidsParams* params)
