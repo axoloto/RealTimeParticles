@@ -40,5 +40,6 @@ class ParticleSystemApp
   bool m_init;
 
   int m_numEntities;
-  int m_boxSize;
+  size_t m_boxSize;
+  size_t m_gridRes;
 };

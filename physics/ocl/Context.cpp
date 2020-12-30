@@ -363,7 +363,7 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numWorkItems) /
     //the resolution of the events is 1e-09 sec
     double profilingTimeMs = (double)((cl_double)(end - start) * (1e-06));
 
-    printf("%s %f ms \n", kernelName.c_str(), profilingTimeMs);
+    //printf("%s %f ms \n", kernelName.c_str(), profilingTimeMs);
   }
 
   return true;

@@ -22,8 +22,9 @@ enum class Boundary
 class Physics
 {
   public:
-  Physics(int numEntities, Dimension dimension = Dimension::dim2D)
+  Physics(size_t numEntities, size_t gridRes, Dimension dimension = Dimension::dim2D)
       : m_numEntities(numEntities)
+      , m_gridRes(gridRes)
       , m_init(false)
       , m_velocity(3.0f)
       , m_dimension(dimension)
@@ -32,8 +33,8 @@ class Physics
 
   virtual ~Physics() = default;
 
-  void setNumEntities(int numEntities) { m_numEntities = numEntities; }
-  int numEntities() const { return m_numEntities; }
+  void setNumEntities(size_t numEntities) { m_numEntities = numEntities; }
+  size_t numEntities() const { return m_numEntities; }
 
   void setDimension(Dimension dim)
   {
@@ -61,7 +62,8 @@ class Physics
 
   protected:
   bool m_init;
-  int m_numEntities;
+  size_t m_numEntities;
+  size_t m_gridRes;
   float m_velocity;
   Dimension m_dimension;
   Boundary m_boundary;
