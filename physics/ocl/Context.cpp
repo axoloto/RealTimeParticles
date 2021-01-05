@@ -14,10 +14,8 @@
 #include <spdlog/spdlog.h>
 #include <vector>
 
-Core::CL::Context::Context(std::string sourcePath, std::string specificBuildOptions, bool profilingEnabled)
-    : m_sourceFilePath(sourcePath)
-    , m_specificBuildOptions(specificBuildOptions)
-    , m_isKernelProfilingEnabled(profilingEnabled)
+Core::CL::Context::Context(bool profilingEnabled)
+    : m_isKernelProfilingEnabled(profilingEnabled)
     , m_init(false) {};
 
 bool Core::CL::Context::init()
@@ -32,9 +30,6 @@ bool Core::CL::Context::init()
     return false;
 
   if (!createContext())
-    return false;
-
-  if (!createAndBuildProgram())
     return false;
 
   if (!createCommandQueue())
@@ -167,28 +162,6 @@ bool Core::CL::Context::createContext()
   return false;
 }
 
-bool Core::CL::Context::createAndBuildProgram()
-{
-  if (cl_context() == 0)
-    return false;
-
-  std::ifstream sourceFile(m_sourceFilePath);
-  std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
-  cl::Program::Sources source({ sourceCode });
-
-  cl_program = cl::Program(cl_context, source);
-
-  std::string options = m_specificBuildOptions + std::string(" -cl-denorms-are-zero -cl-fast-relaxed-math");
-  cl_int err = cl_program.build({ cl_device }, options.c_str());
-  if (err != CL_SUCCESS)
-  {
-    spdlog::error("Error while building OpenCL program : {}", cl_program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
-    return false;
-  }
-
-  return true;
-}
-
 bool Core::CL::Context::createCommandQueue()
 {
   if (cl_context() == 0 || cl_device() == 0)
@@ -204,9 +177,33 @@ bool Core::CL::Context::createCommandQueue()
   cl_queue = cl::CommandQueue(cl_context, cl_device, properties, &err);
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Error when creating OpenCL queue");
+    spdlog::error("Cannot create OpenCL queue");
     return false;
   }
+
+  return true;
+}
+
+bool Core::CL::Context::createProgram(std::string programName, std::string sourcePath, std::string specificBuildOptions)
+{
+  if (cl_context() == 0)
+    return false;
+
+  std::ifstream sourceFile(sourcePath);
+  std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
+  cl::Program::Sources source({ sourceCode });
+
+  auto program = cl::Program(cl_context, source);
+
+  std::string options = specificBuildOptions + std::string(" -cl-denorms-are-zero -cl-fast-relaxed-math");
+  cl_int err = program.build({ cl_device }, options.c_str());
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Error while building OpenCL program : {}", program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
+    return false;
+  }
+
+  m_programsMap.insert(std::make_pair(programName, program));
 
   return true;
 }
@@ -263,7 +260,7 @@ bool Core::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int VB
   return true;
 }
 
-bool Core::CL::Context::createKernel(std::string kernelName, std::vector<std::string> bufferNames)
+bool Core::CL::Context::createKernel(std::string programName, std::string kernelName, std::vector<std::string> bufferNames)
 {
   // WIP Only taking buffer as args for now
 
@@ -272,17 +269,23 @@ bool Core::CL::Context::createKernel(std::string kernelName, std::vector<std::st
 
   cl_int err;
 
-  if (m_kernelsMap.find(kernelName) != m_kernelsMap.end())
+  if (m_programsMap.find(programName) == m_programsMap.end())
   {
-    printf("error kernel already existing");
+    spdlog::error("OpenCL program not existing {}", programName);
     return false;
   }
 
-  auto kernel = cl::Kernel(cl_program, kernelName.c_str(), &err);
+  if (m_kernelsMap.find(kernelName) != m_kernelsMap.end())
+  {
+    spdlog::error("OpenCL kernel already existing {}", kernelName);
+    return false;
+  }
+
+  auto kernel = cl::Kernel(m_programsMap.at(programName), kernelName.c_str(), &err);
 
   if (err != CL_SUCCESS)
   {
-    printf("error when creating kernel");
+    spdlog::error("Cannot create OpenCL kernel {} ", kernelName);
     return false;
   }
 
@@ -300,7 +303,7 @@ bool Core::CL::Context::createKernel(std::string kernelName, std::vector<std::st
     }
     else
     {
-      printf("error kernel buffer arg not existing");
+      spdlog::error("For kernel {} buffer arg not existing {}", kernelName, bufferNames[i]);
       return false;
     }
   }

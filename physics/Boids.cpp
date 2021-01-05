@@ -6,6 +6,8 @@
 
 using namespace Core;
 
+#define PROGRAM_BOIDS "boids"
+
 #define KERNEL_RANDOM_POS "randPosVerts"
 #define KERNEL_BOIDS_RULES "applyBoidsRules"
 #define KERNEL_UPDATE_POS_BOUNCING "updatePosVertsWithBouncingWalls"
@@ -28,11 +30,14 @@ Boids::Boids(size_t numEntities, size_t gridRes,
     , m_activeSeparation(true)
     , m_activeCohesion(true)
     , m_target({ 0.0f, 0.0f, 0.0f })
-    , m_clContext("C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\boids.cl",
-          "-DEFFECT_RADIUS_SQUARED=1000 -DMAX_STEERING=0.5f -DMAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f -DFLOAT_EPSILON=0.0001f")
 {
   if (m_clContext.init())
   {
+    // WIP, hardcoded Path
+    m_clContext.createProgram(PROGRAM_BOIDS,
+        "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\boids.cl",
+        "-DEFFECT_RADIUS_SQUARED=1000 -DMAX_STEERING=0.5f -DMAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f -DFLOAT_EPSILON=0.0001f");
+
     createBuffers(pointCloudCoordVBO, pointCloudColorVBO, gridDetectorVBO);
 
     createKernels();
@@ -61,14 +66,14 @@ bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointClo
 
 bool Boids::createKernels()
 {
-  m_clContext.createKernel(KERNEL_COLOR, { "boidsColor" });
-  m_clContext.createKernel(KERNEL_RANDOM_POS, { "boidsPos", "boidsVel", "boidsParams" });
-  m_clContext.createKernel(KERNEL_BOIDS_RULES, { "boidsPos", "boidsVel", "boidsAcc", "boidsParams" });
-  m_clContext.createKernel(KERNEL_UPDATE_VEL, { "boidsVel", "boidsAcc", "boidsParams" });
-  m_clContext.createKernel(KERNEL_UPDATE_POS_BOUNCING, { "boidsPos", "boidsVel" });
-  m_clContext.createKernel(KERNEL_UPDATE_POS_CYCLIC, { "boidsPos", "boidsVel" });
-  m_clContext.createKernel(KERNEL_FLUSH_GRID_CELLS, { "gridDetector" });
-  m_clContext.createKernel(KERNEL_FILL_GRID_CELLS, { "boidsPos", "gridDetector", "gridParams" });
+  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_COLOR, { "boidsColor" });
+  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_RANDOM_POS, { "boidsPos", "boidsVel", "boidsParams" });
+  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES, { "boidsPos", "boidsVel", "boidsAcc", "boidsParams" });
+  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_VEL, { "boidsVel", "boidsAcc", "boidsParams" });
+  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_BOUNCING, { "boidsPos", "boidsVel" });
+  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_CYCLIC, { "boidsPos", "boidsVel" });
+  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_GRID_CELLS, { "gridDetector" });
+  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_GRID_CELLS, { "boidsPos", "gridDetector", "gridParams" });
 
   return true;
 }
