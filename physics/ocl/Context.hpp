@@ -16,10 +16,9 @@ namespace CL
 class Context
 {
   public:
-  Context(bool profilingEnabled = true);
-  ~Context() = default;
+  static Context& Get();
 
-  bool init();
+  bool isInit() const { return m_init; }
 
   bool createProgram(std::string programName, std::string sourcePath, std::string specificBuildOptions);
   bool createGLBuffer(std::string GLBufferName, unsigned int VBOIndex, cl_mem_flags memoryFlags);
@@ -35,6 +34,13 @@ class Context
   bool mapAndSendBufferToDevice(std::string bufferName, const void* bufferPtr, size_t bufferSize);
 
   private:
+  Context(bool profilingEnabled = true);
+  ~Context() = default;
+  Context(const Context&) = delete;
+  Context& operator=(const Context&) = delete;
+  Context(Context&&) = delete;
+  Context& operator=(const Context&&) = delete;
+
   bool findPlatforms();
   bool findGPUDevices();
   bool createContext();

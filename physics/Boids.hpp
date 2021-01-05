@@ -84,8 +84,9 @@ class Boids : public Physics
   bool isTargetActivated() const { return m_activeTargets; }
 
   private:
-  bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridDetectorVBO);
-  bool createKernels();
+  bool createProgram() const;
+  bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridDetectorVBO) const;
+  bool createKernels() const;
   void updateBoidsParamsInKernel();
   void updateGridParamsInKernel();
 
@@ -121,7 +122,5 @@ class Boids : public Physics
 
   gridParams m_gridParams;
   cl_mem cl_gridParamsBuff;
-
-  CL::Context m_clContext;
 };
 }

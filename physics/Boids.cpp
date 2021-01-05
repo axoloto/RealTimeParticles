@@ -31,63 +31,77 @@ Boids::Boids(size_t numEntities, size_t gridRes,
     , m_activeCohesion(true)
     , m_target({ 0.0f, 0.0f, 0.0f })
 {
-  if (m_clContext.init())
-  {
-    // WIP, hardcoded Path
-    m_clContext.createProgram(PROGRAM_BOIDS,
-        "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\boids.cl",
-        "-DEFFECT_RADIUS_SQUARED=1000 -DMAX_STEERING=0.5f -DMAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f -DFLOAT_EPSILON=0.0001f");
+  createProgram();
 
-    createBuffers(pointCloudCoordVBO, pointCloudColorVBO, gridDetectorVBO);
+  createBuffers(pointCloudCoordVBO, pointCloudColorVBO, gridDetectorVBO);
 
-    createKernels();
+  createKernels();
 
-    m_init = true;
+  m_init = true;
 
-    reset();
-  }
+  reset();
 }
 
-bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridDetectorVBO)
+bool Boids::createProgram() const
 {
-  m_clContext.createGLBuffer("boidsColor", pointCloudColorVBO, CL_MEM_WRITE_ONLY);
-  m_clContext.createGLBuffer("boidsPos", pointCloudCoordVBO, CL_MEM_READ_WRITE);
-  m_clContext.createGLBuffer("gridDetector", gridDetectorVBO, CL_MEM_READ_WRITE);
+  CL::Context& clContext = CL::Context::Get();
 
-  size_t boidsBufferSize = 4 * NUM_MAX_ENTITIES * sizeof(float);
-
-  m_clContext.createBuffer("boidsVel", boidsBufferSize, CL_MEM_READ_WRITE);
-  m_clContext.createBuffer("boidsAcc", boidsBufferSize, CL_MEM_READ_WRITE);
-  m_clContext.createBuffer("boidsParams", sizeof(m_boidsParams), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR);
-  m_clContext.createBuffer("gridParams", sizeof(m_gridParams), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR);
+  // WIP, hardcoded Path
+  clContext.createProgram(PROGRAM_BOIDS,
+      "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\boids.cl",
+      "-DEFFECT_RADIUS_SQUARED=1000 -DMAX_STEERING=0.5f -DMAX_VELOCITY=5.0f -DABS_WALL_POS=250.0f -DFLOAT_EPSILON=0.0001f");
 
   return true;
 }
 
-bool Boids::createKernels()
+bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridDetectorVBO) const
 {
-  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_COLOR, { "boidsColor" });
-  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_RANDOM_POS, { "boidsPos", "boidsVel", "boidsParams" });
-  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES, { "boidsPos", "boidsVel", "boidsAcc", "boidsParams" });
-  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_VEL, { "boidsVel", "boidsAcc", "boidsParams" });
-  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_BOUNCING, { "boidsPos", "boidsVel" });
-  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_CYCLIC, { "boidsPos", "boidsVel" });
-  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_GRID_CELLS, { "gridDetector" });
-  m_clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_GRID_CELLS, { "boidsPos", "gridDetector", "gridParams" });
+  CL::Context& clContext = CL::Context::Get();
+
+  clContext.createGLBuffer("boidsColor", pointCloudColorVBO, CL_MEM_WRITE_ONLY);
+  clContext.createGLBuffer("boidsPos", pointCloudCoordVBO, CL_MEM_READ_WRITE);
+  clContext.createGLBuffer("gridDetector", gridDetectorVBO, CL_MEM_READ_WRITE);
+
+  size_t boidsBufferSize = 4 * NUM_MAX_ENTITIES * sizeof(float);
+
+  clContext.createBuffer("boidsVel", boidsBufferSize, CL_MEM_READ_WRITE);
+  clContext.createBuffer("boidsAcc", boidsBufferSize, CL_MEM_READ_WRITE);
+  clContext.createBuffer("boidsParams", sizeof(m_boidsParams), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR);
+  clContext.createBuffer("gridParams", sizeof(m_gridParams), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR);
+
+  return true;
+}
+
+bool Boids::createKernels() const
+{
+  CL::Context& clContext = CL::Context::Get();
+
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_COLOR, { "boidsColor" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_RANDOM_POS, { "boidsPos", "boidsVel", "boidsParams" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES, { "boidsPos", "boidsVel", "boidsAcc", "boidsParams" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_VEL, { "boidsVel", "boidsAcc", "boidsParams" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_BOUNCING, { "boidsPos", "boidsVel" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_CYCLIC, { "boidsPos", "boidsVel" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_GRID_CELLS, { "gridDetector" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_GRID_CELLS, { "boidsPos", "gridDetector", "gridParams" });
 
   return true;
 }
 
 void Boids::updateGridParamsInKernel()
 {
+  CL::Context& clContext = CL::Context::Get();
+
   m_gridParams.gridRes = (cl_uint)m_gridRes;
   m_gridParams.numCells = (cl_uint)(m_gridRes * m_gridRes * m_gridRes);
 
-  m_clContext.mapAndSendBufferToDevice("gridParams", &m_gridParams, sizeof(m_gridParams));
+  clContext.mapAndSendBufferToDevice("gridParams", &m_gridParams, sizeof(m_gridParams));
 }
 
 void Boids::updateBoidsParamsInKernel()
 {
+  CL::Context& clContext = CL::Context::Get();
+
   m_boidsParams.dims = (m_dimension == Dimension::dim2D) ? 2.0f : 3.0f;
   m_boidsParams.velocity = m_velocity;
   m_boidsParams.scaleCohesion = m_activeCohesion ? m_scaleCohesion : 0.0f;
@@ -95,7 +109,7 @@ void Boids::updateBoidsParamsInKernel()
   m_boidsParams.scaleSeparation = m_activeSeparation ? m_scaleSeparation : 0.0f;
   m_boidsParams.activeTarget = m_activeTargets ? 1 : 0;
 
-  m_clContext.mapAndSendBufferToDevice("boidsParams", &m_boidsParams, sizeof(m_boidsParams));
+  clContext.mapAndSendBufferToDevice("boidsParams", &m_boidsParams, sizeof(m_boidsParams));
 }
 
 void Boids::reset()
@@ -107,16 +121,18 @@ void Boids::reset()
 
   updateBoidsParamsInKernel();
 
-  m_clContext.acquireGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
-  m_clContext.runKernel(KERNEL_COLOR, m_numEntities);
+  CL::Context& clContext = CL::Context::Get();
 
-  m_clContext.runKernel(KERNEL_RANDOM_POS, m_numEntities);
+  clContext.acquireGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
+  clContext.runKernel(KERNEL_COLOR, m_numEntities);
 
-  m_clContext.runKernel(KERNEL_FLUSH_GRID_CELLS, m_gridParams.numCells);
+  clContext.runKernel(KERNEL_RANDOM_POS, m_numEntities);
 
-  m_clContext.runKernel(KERNEL_FILL_GRID_CELLS, m_numEntities);
+  clContext.runKernel(KERNEL_FLUSH_GRID_CELLS, m_gridParams.numCells);
 
-  m_clContext.releaseGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
+  clContext.runKernel(KERNEL_FILL_GRID_CELLS, m_numEntities);
+
+  clContext.releaseGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
 }
 
 void Boids::update()
@@ -124,16 +140,18 @@ void Boids::update()
   if (!m_init || m_pause)
     return;
 
-  m_clContext.acquireGLBuffers({ "boidsPos", "gridDetector" });
-  m_clContext.runKernel(KERNEL_BOIDS_RULES, m_numEntities);
-  m_clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
+  CL::Context& clContext = CL::Context::Get();
+
+  clContext.acquireGLBuffers({ "boidsPos", "gridDetector" });
+  clContext.runKernel(KERNEL_BOIDS_RULES, m_numEntities);
+  clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
 
   if (m_boundary == Boundary::CyclicWall)
-    m_clContext.runKernel(KERNEL_UPDATE_POS_CYCLIC, m_numEntities);
+    clContext.runKernel(KERNEL_UPDATE_POS_CYCLIC, m_numEntities);
   else if (m_boundary == Boundary::BouncingWall)
-    m_clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_numEntities);
+    clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_numEntities);
 
-  m_clContext.runKernel(KERNEL_FLUSH_GRID_CELLS, m_gridParams.numCells);
-  m_clContext.runKernel(KERNEL_FILL_GRID_CELLS, m_numEntities);
-  m_clContext.releaseGLBuffers({ "boidsPos", "gridDetector" });
+  clContext.runKernel(KERNEL_FLUSH_GRID_CELLS, m_gridParams.numCells);
+  clContext.runKernel(KERNEL_FILL_GRID_CELLS, m_numEntities);
+  clContext.releaseGLBuffers({ "boidsPos", "gridDetector" });
 }

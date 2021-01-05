@@ -14,29 +14,29 @@
 #include <spdlog/spdlog.h>
 #include <vector>
 
+Core::CL::Context& Core::CL::Context::Get()
+{
+  static Context context;
+  return context;
+}
+
 Core::CL::Context::Context(bool profilingEnabled)
     : m_isKernelProfilingEnabled(profilingEnabled)
-    , m_init(false) {};
-
-bool Core::CL::Context::init()
+    , m_init(false)
 {
-  if (m_init)
-    return true;
-
   if (!findPlatforms())
-    return false;
+    return;
 
   if (!findGPUDevices())
-    return false;
+    return;
 
   if (!createContext())
-    return false;
+    return;
 
   if (!createCommandQueue())
-    return false;
+    return;
 
   m_init = true;
-  return m_init;
 }
 
 bool Core::CL::Context::findPlatforms()
