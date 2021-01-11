@@ -6,6 +6,8 @@
 
 #include "Physics.hpp"
 #include "ocl/Context.hpp"
+#include "utils/RadixSort.hpp"
+
 
 namespace Core
 {
@@ -122,5 +124,7 @@ class Boids : public Physics
 
   gridParams m_gridParams;
   cl_mem cl_gridParamsBuff;
+
+  RadixSort m_radixSort;
 };
 }

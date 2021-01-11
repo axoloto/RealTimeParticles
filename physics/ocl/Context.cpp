@@ -186,7 +186,7 @@ bool Core::CL::Context::createCommandQueue()
 
 bool Core::CL::Context::createProgram(std::string programName, std::string sourcePath, std::string specificBuildOptions)
 {
-  if (cl_context() == 0)
+  if (!m_init)
     return false;
 
   std::ifstream sourceFile(sourcePath);

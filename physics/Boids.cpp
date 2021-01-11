@@ -1,5 +1,5 @@
 #include "Boids.hpp"
-#include "windows.h" // WIP
+
 #include <ctime>
 #include <iostream>
 #include <spdlog/spdlog.h>
@@ -30,6 +30,7 @@ Boids::Boids(size_t numEntities, size_t gridRes,
     , m_activeSeparation(true)
     , m_activeCohesion(true)
     , m_target({ 0.0f, 0.0f, 0.0f })
+    , m_radixSort(numEntities)
 {
   createProgram();
 
@@ -40,6 +41,8 @@ Boids::Boids(size_t numEntities, size_t gridRes,
   m_init = true;
 
   reset();
+
+  //m_radixSort.init();
 }
 
 bool Boids::createProgram() const
@@ -153,5 +156,7 @@ void Boids::update()
 
   clContext.runKernel(KERNEL_FLUSH_GRID_CELLS, m_gridParams.numCells);
   clContext.runKernel(KERNEL_FILL_GRID_CELLS, m_numEntities);
+
+  m_radixSort.sort(); // WIP To move around
   clContext.releaseGLBuffers({ "boidsPos", "gridDetector" });
 }

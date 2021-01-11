@@ -5,7 +5,7 @@
 #include <chrono>
 #include <random>
 
-#include "RadixSort.hpp"
+#include "tpRadixSort.hpp"
 
 // change this to select desired platform and device for all tests
 #define PLATFORM_DEFAULT_ID 0
