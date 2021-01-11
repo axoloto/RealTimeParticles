@@ -5,38 +5,24 @@
 #define SIZE ulong
 #endif
 
-inline SIZE index(SIZE i, SIZE n)
-{
-#ifdef TRANSPOSE
-  const SIZE k = i / (n / (_GROUPS * _ITEMS));
-  const SIZE l = i % (n / (_GROUPS * _ITEMS));
-  return l * (_GROUPS * _ITEMS) + k;
-#else
-  return i;
-#endif
-}
-
 // this kernel creates histograms from key vector
 // defines required: _RADIX (radix), _BITS (size of radix in bits)
 // it is possible to unroll 2 loops inside this kernel, take this into account
 // when providing options to CL C compiler
 __kernel void histogram(
     // in
-    const global unsigned int* keys,
+    const global uint* keys,
     const SIZE length,
     const int pass,
     // out
-    global unsigned int* global_histograms,
+    global uint* global_histograms,
     // local
-    local unsigned int* histograms)
+    local uint* histograms)
 {
   const uint group = get_group_id(0);
   const uint item = get_local_id(0);
   const uint i_g = get_global_id(0);
 
-#if (__OPENCL_VERSION__ >= 200)
-  __attribute__((opencl_unroll_hint(_RADIX)))
-#endif
   for (int i = 0; i < _RADIX; ++i)
   {
     histograms[i * _ITEMS + item] = 0;
@@ -48,15 +34,12 @@ __kernel void histogram(
 
   for (SIZE i = start; i < start + size; ++i)
   {
-    const unsigned int key = keys[index(i, length)];
-    const unsigned int shortKey = ((key >> (pass * _BITS)) & (_RADIX - 1));
+    const uint key = keys[i];
+    const uint shortKey = ((key >> (pass * _BITS)) & (_RADIX - 1));
     ++histograms[shortKey * _ITEMS + item];
   }
   barrier(CLK_LOCAL_MEM_FENCE);
 
-#if (__OPENCL_VERSION__ >= 200)
-  __attribute__((opencl_unroll_hint(_RADIX)))
-#endif
   for (int i = 0; i < _RADIX; ++i)
   {
     global_histograms[i * _GROUPS * _ITEMS + _ITEMS * group + item] = histograms[i * _ITEMS + item];
@@ -66,11 +49,11 @@ __kernel void histogram(
 // this kernel updates histograms with global sum after scan
 __kernel void merge(
     // in
-    const global unsigned int* sum,
+    const global uint* sum,
     // in-out
-    global unsigned int* histogram)
+    global uint* histogram)
 {
-  const unsigned int s = sum[get_group_id(0)];
+  const uint s = sum[get_group_id(0)];
   const uint gid2 = get_global_id(0) << 1;
 
   histogram[gid2] += s;
@@ -80,11 +63,11 @@ __kernel void merge(
 // see Blelloch 1990
 __kernel void scan(
     // in-out
-    global unsigned int* input,
+    global uint* input,
     // out
-    global unsigned int* sum,
+    global uint* sum,
     // local
-    local unsigned int* temp)
+    local uint* temp)
 {
   const int gid2 = get_global_id(0) << 1;
   const int group = get_group_id(0);
@@ -140,16 +123,16 @@ __kernel void scan(
 
 __kernel void reorder(
     // in
-    const global unsigned int* keysIn,
-    const global unsigned int* permutationIn,
+    const global uint* keysIn,
+    const global uint* permutationIn,
     const SIZE length,
-    const global unsigned int* histograms,
+    const global uint* histograms,
     const int pass,
     // out
-    global unsigned int* keysOut,
-    global unsigned int* permutationOut,
+    global uint* keysOut,
+    global uint* permutationOut,
     // local
-    local unsigned int* local_histograms)
+    local uint* local_histograms)
 {
   const int item = get_local_id(0);
   const int group = get_group_id(0);
@@ -157,9 +140,6 @@ __kernel void reorder(
   const SIZE size = length / (_GROUPS * _ITEMS);
   const SIZE start = get_global_id(0) * size;
 
-#if (__OPENCL_VERSION__ >= 200)
-  __attribute__((opencl_unroll_hint(_RADIX)))
-#endif
   for (int i = 0; i < _RADIX; ++i)
   {
     local_histograms[i * _ITEMS + item] = histograms[i * _GROUPS * _ITEMS + _ITEMS * group + item];
@@ -168,17 +148,15 @@ __kernel void reorder(
 
   for (SIZE i = start; i < start + size; ++i)
   {
-    const unsigned int key = keysIn[index(i, length)];
-    const unsigned int digit = ((key >> (pass * _BITS)) & (_RADIX - 1));
-    const unsigned int newPosition = local_histograms[digit * _ITEMS + item];
+    const uint key = keysIn[i];
+    const uint digit = ((key >> (pass * _BITS)) & (_RADIX - 1));
+    const uint newPosition = local_histograms[digit * _ITEMS + item];
 
     local_histograms[digit * _ITEMS + item] = newPosition + 1;
 
     // WRITE TO GLOBAL (slow)
-    keysOut[index(newPosition, length)] = key;
-#ifdef COMPUTE_PERMUTATION
-    permutationOut[index(newPosition, length)] = permutationIn[index(i, length)];
-#endif
+    keysOut[newPosition] = key;
+    permutationOut[newPosition] = permutationIn[i];
     //
   }
 }

@@ -68,7 +68,7 @@ bool ParticleSystemApp::initWindow()
   //
   //
   //
-
+  /*
   // create instance for device
   SimpleRadixSort64bit rs { getDevice() };
 
@@ -99,7 +99,7 @@ bool ParticleSystemApp::initWindow()
   std::cout << "Profiling: " << std::endl;
 
   std::cout << "total kernel execution time: " << pi.total() * 1e-6 << "ms" << std::endl;
-
+*/
   //
   //
   //

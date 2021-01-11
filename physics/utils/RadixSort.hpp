@@ -22,6 +22,18 @@ class RadixSort
   bool createBuffers() const;
   bool createKernels() const;
 
-  size_t m_numEntities;
+  unsigned int m_numEntities;
+
+  unsigned int m_numRadix;
+
+  unsigned int m_numRadixBits;
+  unsigned int m_numTotalBits;
+
+  unsigned int m_numGroups;
+  unsigned int m_numItems;
+
+  unsigned int m_numRadixPasses;
+
+  std::vector<unsigned int> m_indices;
 };
 }

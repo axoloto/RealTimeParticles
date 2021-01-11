@@ -128,13 +128,9 @@ void Boids::reset()
 
   clContext.acquireGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
   clContext.runKernel(KERNEL_COLOR, m_numEntities);
-
   clContext.runKernel(KERNEL_RANDOM_POS, m_numEntities);
-
   clContext.runKernel(KERNEL_FLUSH_GRID_CELLS, m_gridParams.numCells);
-
   clContext.runKernel(KERNEL_FILL_GRID_CELLS, m_numEntities);
-
   clContext.releaseGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
 }
 

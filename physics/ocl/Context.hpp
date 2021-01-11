@@ -23,6 +23,7 @@ class Context
   bool createProgram(std::string programName, std::string sourcePath, std::string specificBuildOptions);
   bool createGLBuffer(std::string GLBufferName, unsigned int VBOIndex, cl_mem_flags memoryFlags);
   bool createBuffer(std::string bufferName, size_t bufferSize, cl_mem_flags memoryFlags);
+  bool fillBuffer(std::string bufferName, size_t offset, size_t sizeToFill, const void* hostPtr);
 
   bool createKernel(std::string programName, std::string kernelName, std::vector<std::string> argNames);
   bool setKernelArg(std::string kernelName, cl_uint argIndex, size_t argSize, const void* value);

@@ -217,7 +217,7 @@ bool Core::CL::Context::createBuffer(std::string bufferName, size_t bufferSize, 
 
   if (m_buffersMap.find(bufferName) != m_buffersMap.end())
   {
-    printf("error buffer already existing");
+    spdlog::error("Buffer {} already existing", bufferName);
     return false;
   }
 
@@ -225,11 +225,36 @@ bool Core::CL::Context::createBuffer(std::string bufferName, size_t bufferSize, 
 
   if (err != CL_SUCCESS)
   {
-    printf("error when creating buffer");
+    spdlog::error("Cannot create buffer {}", bufferName);
     return false;
   }
 
   m_buffersMap.insert(std::make_pair(bufferName, buffer));
+
+  return true;
+}
+
+bool Core::CL::Context::fillBuffer(std::string bufferName, size_t offset, size_t sizeToFill, const void* hostPtr)
+{
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  auto it = m_buffersMap.find(bufferName);
+  if (it == m_buffersMap.end())
+  {
+    spdlog::error("Buffer {} not existing", bufferName);
+    return false;
+  }
+
+  err = cl_queue.enqueueWriteBuffer(it->second, CL_TRUE, offset, sizeToFill, hostPtr);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot fill buffer {}", bufferName);
+    return false;
+  }
 
   return true;
 }
