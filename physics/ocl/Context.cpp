@@ -234,7 +234,7 @@ bool Core::CL::Context::createBuffer(std::string bufferName, size_t bufferSize, 
   return true;
 }
 
-bool Core::CL::Context::fillBuffer(std::string bufferName, size_t offset, size_t sizeToFill, const void* hostPtr)
+bool Core::CL::Context::loadBufferFromHost(std::string bufferName, size_t offset, size_t sizeToFill, const void* hostPtr)
 {
   if (!m_init)
     return false;
@@ -252,7 +252,32 @@ bool Core::CL::Context::fillBuffer(std::string bufferName, size_t offset, size_t
 
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot fill buffer {}", bufferName);
+    spdlog::error("Cannot load buffer {}", bufferName);
+    return false;
+  }
+
+  return true;
+}
+
+bool Core::CL::Context::unloadBufferFromDevice(std::string bufferName, size_t offset, size_t sizeToFill, void* hostPtr)
+{
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  auto it = m_buffersMap.find(bufferName);
+  if (it == m_buffersMap.end())
+  {
+    spdlog::error("Buffer {} not existing", bufferName);
+    return false;
+  }
+
+  err = cl_queue.enqueueReadBuffer(it->second, CL_TRUE, offset, sizeToFill, hostPtr);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot unload buffer {}", bufferName);
     return false;
   }
 
@@ -316,6 +341,9 @@ bool Core::CL::Context::createKernel(std::string programName, std::string kernel
 
   for (cl_uint i = 0; i < bufferNames.size(); ++i)
   {
+    if (bufferNames[i].empty())
+      continue;
+
     auto it = m_buffersMap.find(bufferNames[i]);
     auto itGL = m_GLBuffersMap.find(bufferNames[i]);
     if (it != m_buffersMap.end())
@@ -351,12 +379,49 @@ bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, s
   }
 
   auto kernel = it->second;
-  kernel.setArg(argIndex, argSize, value);
+  cl_int err = kernel.setArg(argIndex, argSize, value);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot set arg {} for kernel {} ", argIndex, kernelName);
+    return false;
+  }
 
   return true;
 }
 
-bool Core::CL::Context::runKernel(std::string kernelName, size_t numWorkItems) //WIP 1D Global
+bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, const std::string& bufferName)
+{
+  if (!m_init)
+    return false;
+
+  auto itK = m_kernelsMap.find(kernelName);
+  if (itK == m_kernelsMap.end())
+  {
+    spdlog::error("Kernel {} not existing", kernelName);
+    return false;
+  }
+
+  auto itB = m_buffersMap.find(bufferName);
+  if (itB == m_buffersMap.end())
+  {
+    spdlog::error("Buffer {} not existing", bufferName);
+    return false;
+  }
+
+  auto kernel = itK->second;
+  cl_int err = kernel.setArg(argIndex, itB->second);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot set buffer {} as arg {} for kernel {} ", bufferName, argIndex, kernelName);
+    return false;
+  }
+
+  return true;
+}
+
+bool Core::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkItems, size_t numLocalWorkItems) //WIP 1D Global
 {
   if (!m_init)
     return false;
@@ -369,9 +434,14 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numWorkItems) /
   }
 
   cl::Event event;
-  size_t global1D = (numWorkItems > 10) ? numWorkItems - (numWorkItems % 10) : numWorkItems; //WIP
-  cl::NDRange global(global1D);
-  cl_queue.enqueueNDRangeKernel(it->second, cl::NullRange, global, cl::NullRange, nullptr, &event);
+  // size_t global1D = (numWorkItems > 10) ? numWorkItems - (numWorkItems % 10) : numWorkItems; //WIP
+  cl::NDRange global(numGlobalWorkItems);
+  // wip
+  cl::NDRange local = cl::NullRange;
+  if (numLocalWorkItems > 0)
+    local = cl::NDRange(numLocalWorkItems);
+
+  cl_queue.enqueueNDRangeKernel(it->second, cl::NullRange, global, local, nullptr, &event);
 
   if (m_isKernelProfilingEnabled)
   {

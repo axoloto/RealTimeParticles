@@ -68,11 +68,11 @@ bool ParticleSystemApp::initWindow()
   //
   //
   //
-  /*
+
   // create instance for device
   SimpleRadixSort64bit rs { getDevice() };
 
-  std::vector<SimpleRadixSort64bit::KeyType> v(1 << 26);
+  std::vector<SimpleRadixSort64bit::KeyType> v(1 << 9);
   std::cout << "generating " << v.size() << " keys...." << std::endl;
 
   auto rng = makeRng(rs.maxValue());
@@ -99,7 +99,7 @@ bool ParticleSystemApp::initWindow()
   std::cout << "Profiling: " << std::endl;
 
   std::cout << "total kernel execution time: " << pi.total() * 1e-6 << "ms" << std::endl;
-*/
+
   //
   //
   //
