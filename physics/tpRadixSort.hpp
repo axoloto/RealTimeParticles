@@ -13,8 +13,10 @@
 #include <algorithm>
 #include <numeric>
 
+#include <iostream>
 #include <sstream>
 #include <string_view>
+
 
 template <size_t v>
 struct is_power_of_2
@@ -464,6 +466,37 @@ class RadixSortBase
     const size_t rest = baseSize % (groups * items);
     const size_t size = rest == 0 ? baseSize : (baseSize - rest + (groups * items));
     const size_t sizeInBytes = sizeof(_DataType) * size;
+
+    std::cout << sizeof(_DataType) << "size data type";
+
+    auto radixt = radix;
+    auto maxInti = maxInt;
+
+    /*
+  std::cout<< "
+   int bits, int totalBits,
+
+    typename _DataType, typename _IndexType,
+
+    size_t groups, // TODO move this to runtime?
+    size_t items, // todo same^
+
+    bool computePermutation,
+
+    size_t histosplit,
+
+    bool transpose, // todo same^
+    size_t tileSize, // todo same^
+
+    bool enableProfiling,
+
+    typename ProfilingInfoType = double, int passes = totalBits / bits,
+
+    _DataType radix = 1 << bits,
+    _DataType maxInt = (static_cast<_DataType>(1) << (static_cast<_DataType>(totalBits) - 1)) - static_cast<_DataType>(1),
+
+
+*/
 
     keysIn = cl::Buffer { ctx, CL_MEM_READ_WRITE, sizeInBytes };
     toCL(queue, begin, end, keysIn);

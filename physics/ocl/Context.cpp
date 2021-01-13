@@ -284,6 +284,32 @@ bool Core::CL::Context::unloadBufferFromDevice(std::string bufferName, size_t of
   return true;
 }
 
+bool Core::CL::Context::swapBuffers(std::string bufferNameA, std::string bufferNameB)
+{
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  auto& itA = m_buffersMap.find(bufferNameA);
+  if (itA == m_buffersMap.end())
+  {
+    spdlog::error("Cannot swap buffers, buffer {} not existing", bufferNameA);
+    return false;
+  }
+
+  auto& itB = m_buffersMap.find(bufferNameB);
+  if (itB == m_buffersMap.end())
+  {
+    spdlog::error("Cannot swap buffers, buffer {} not existing", bufferNameB);
+    return false;
+  }
+
+  auto tempBuffer = itA->second;
+  itA->second = itB->second;
+  itB->second = tempBuffer;
+}
+
 bool Core::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int VBOIndex, cl_mem_flags memoryFlags)
 {
   if (!m_init)

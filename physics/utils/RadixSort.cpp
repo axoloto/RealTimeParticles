@@ -39,7 +39,7 @@ bool RadixSort::createProgram() const
 {
   CL::Context& clContext = CL::Context::Get();
 
-  std::string buildOptions = "-D_RADIX=256 -D_BITS=8 -D_GROUPS=128 -D_ITEMS=4 -D_TILESIZE=32";
+  std::string buildOptions = "-D_RADIX=256 -D_BITS=8 -D_GROUPS=128 -D_ITEMS=4";
   buildOptions += (sizeof(void*) < 8) ? " -DHOST_PTR_IS_32bit" : "";
 
   // WIP, hardcoded Path
@@ -60,8 +60,10 @@ bool RadixSort::createBuffers() const
   const size_t sizeInBytes = sizeof(unsigned int) * size;
 
   unsigned int maxInt = (static_cast<unsigned int>(1) << (static_cast<unsigned int>(m_numTotalBits) - 1)) - static_cast<unsigned int>(1);
-  //unsigned int maxInt = 20000;
+  //unsigned short maxInt = (static_cast<unsigned short>(1) << (static_cast<unsigned short>(m_numTotalBits) - 1)) - static_cast<unsigned short>(1);
+  //unsigned int maxInt = 9;
 
+  std::cout << "unsigned int" << sizeof(unsigned int) << std::endl;
   std::vector<unsigned int> keys(NUM_MAX_ENTITIES, 0);
   auto rng = Core::makeRng(maxInt);
   std::generate(keys.begin(), keys.end(), rng);
@@ -121,6 +123,7 @@ void RadixSort::sort()
 
   for (int radixPass = 0; radixPass < m_numRadixPasses; ++radixPass)
   {
+    clContext.setKernelArg(KERNEL_HISTOGRAM, 0, "RadixSortKeysIn");
     clContext.setKernelArg(KERNEL_HISTOGRAM, 2, sizeof(radixPass), &radixPass);
     clContext.runKernel(KERNEL_HISTOGRAM, m_numGroups * m_numItems, m_numItems);
 
@@ -134,9 +137,15 @@ void RadixSort::sort()
 
     clContext.runKernel(KERNEL_MERGE, totalScan, localScan);
 
+    clContext.setKernelArg(KERNEL_REORDER, 0, "RadixSortKeysIn");
+    clContext.setKernelArg(KERNEL_REORDER, 1, "RadixSortIndicesIn");
+    clContext.setKernelArg(KERNEL_REORDER, 5, "RadixSortKeysOut");
+    clContext.setKernelArg(KERNEL_REORDER, 6, "RadixSortIndicesOut");
     clContext.setKernelArg(KERNEL_REORDER, 4, sizeof(radixPass), &radixPass);
     clContext.runKernel(KERNEL_REORDER, m_numGroups * m_numItems, m_numItems);
-    //Swap in/out
+
+    clContext.swapBuffers("RadixSortKeysIn", "RadixSortKeysOut");
+    clContext.swapBuffers("RadixSortIndicesIn", "RadixSortIndicesOut");
   }
 
   std::vector<unsigned int> keysIn(NUM_MAX_ENTITIES, 0);
@@ -151,5 +160,5 @@ void RadixSort::sort()
   std::vector<unsigned int> indicesOut(NUM_MAX_ENTITIES, 0);
   clContext.unloadBufferFromDevice("RadixSortIndicesOut", 0, sizeof(unsigned int) * indicesOut.size(), indicesOut.data());
 
-  std::cout << "Sorted: " << std::boolalpha << std::is_sorted(keysOut.begin(), keysOut.end()) << std::endl;
+  std::cout << "Sorted: " << std::boolalpha << std::is_sorted(keysIn.begin(), keysIn.end()) << std::endl;
 }
