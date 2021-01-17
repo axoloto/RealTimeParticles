@@ -150,7 +150,7 @@ void RadixSort::sort()
 
   std::vector<unsigned int> keysIn(NUM_MAX_ENTITIES, 0);
   clContext.unloadBufferFromDevice("RadixSortKeysIn", 0, sizeof(unsigned int) * keysIn.size(), keysIn.data());
-
+  /*
   std::vector<unsigned int> indicesIn(NUM_MAX_ENTITIES, 0);
   clContext.unloadBufferFromDevice("RadixSortIndicesIn", 0, sizeof(unsigned int) * indicesIn.size(), indicesIn.data());
 
@@ -159,6 +159,6 @@ void RadixSort::sort()
 
   std::vector<unsigned int> indicesOut(NUM_MAX_ENTITIES, 0);
   clContext.unloadBufferFromDevice("RadixSortIndicesOut", 0, sizeof(unsigned int) * indicesOut.size(), indicesOut.data());
-
+*/
   std::cout << "Sorted: " << std::boolalpha << std::is_sorted(keysIn.begin(), keysIn.end()) << std::endl;
 }

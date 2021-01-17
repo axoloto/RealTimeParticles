@@ -142,6 +142,7 @@ void Boids::update()
   CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "boidsPos", "gridDetector" });
+  /*
   clContext.runKernel(KERNEL_BOIDS_RULES, m_numEntities);
   clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
 
@@ -152,7 +153,7 @@ void Boids::update()
 
   clContext.runKernel(KERNEL_FLUSH_GRID_CELLS, m_gridParams.numCells);
   clContext.runKernel(KERNEL_FILL_GRID_CELLS, m_numEntities);
-
+*/
   m_radixSort.sort(); // WIP To move around
   clContext.releaseGLBuffers({ "boidsPos", "gridDetector" });
 }
