@@ -222,3 +222,28 @@ __kernel void fillCellIDs(__global float4* vertPos, __global uint* boidsCellIDs,
 
   boidsCellIDs[i] = cell1DIndex;
 }
+
+__kernel void createNeighborCellMapping(__global int8* neighborBoidsCellIDs, __global gridParams* gridParams)
+{
+  unsigned int i = get_global_id(0);
+
+  int gR = gridParams->resolution;
+  int gR2 = gR * gR;
+  int gR3 = gR * gR * gR;
+
+  // For each cell, find its 6 neighbor IDs (Front, Back, Top, Bottom, Left, Right). -1 if Wall.
+  // Mapping done only once at each runtime, useful to generate startEndNeighborIDs
+
+  //Front
+  neighborBoidsCellIDs[i].s0 = (i >= (gR3 - gR2)) ? -1 : i + gR2;
+  // Back
+  neighborBoidsCellIDs[i].s1 = (i < gR2) ? -1 : i - gR2;
+  // Top
+  neighborBoidsCellIDs[i].s2 = ((i % gR2) >= (gR2 - gR)) ? -1 : i + gR;
+  // Bottom
+  neighborBoidsCellIDs[i].s3 = ((i % gR2) < gR) ? -1 : i - gR;
+  // Left
+  neighborBoidsCellIDs[i].s4 = ((i % gR) == 0) ? -1 : i - 1;
+  // Right
+  neighborBoidsCellIDs[i].s5 = (((i + 1) % gR) == 0) ? -1 : i + 1;
+}

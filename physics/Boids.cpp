@@ -20,6 +20,7 @@ using namespace Core;
 #define KERNEL_COLOR "colorVerts"
 #define KERNEL_FLUSH_CELL_ID "flushCellIDs"
 #define KERNEL_FILL_CELL_ID "fillCellIDs"
+#define KERNEL_CREATE_NEIGBOR_CELL_MAPPING "createNeighborCellMapping"
 
 Boids::Boids(size_t numEntities, size_t boxSize, size_t gridRes,
     unsigned int pointCloudCoordVBO,
@@ -78,6 +79,8 @@ bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointClo
   clContext.createBuffer("boidsAcc", 4 * NUM_MAX_ENTITIES * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("boidsCellIDs", NUM_MAX_ENTITIES * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
+  clContext.createBuffer("neighborCellIDs", 8 * m_gridRes * m_gridRes * m_gridRes * sizeof(int), CL_MEM_READ_WRITE);
+
   clContext.createBuffer("boidsParams", sizeof(m_boidsParams), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR);
   clContext.createBuffer("gridParams", sizeof(m_gridParams), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR);
 
@@ -105,6 +108,7 @@ bool Boids::createKernels() const
   // Radix Sort based on 3D grid
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_CELL_ID, { "boidsCellIDs", "gridParams" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_CELL_ID, { "boidsPos", "boidsCellIDs", "gridParams" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_CREATE_NEIGBOR_CELL_MAPPING, { "neighborCellIDs", "gridParams" });
   return true;
 }
 
@@ -148,6 +152,7 @@ void Boids::reset()
   clContext.runKernel(KERNEL_RANDOM_POS, m_numEntities);
   clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_gridParams.numCells);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
+  clContext.runKernel(KERNEL_CREATE_NEIGBOR_CELL_MAPPING, m_gridParams.numCells);
   clContext.releaseGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
 }
 

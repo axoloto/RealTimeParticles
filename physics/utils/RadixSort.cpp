@@ -4,6 +4,7 @@
 #include <iostream>
 #include <numeric>
 #include <spdlog/spdlog.h>
+#include <sstream>
 
 using namespace Core;
 
@@ -39,13 +40,20 @@ bool RadixSort::createProgram() const
 {
   CL::Context& clContext = CL::Context::Get();
 
-  std::string buildOptions = "-D_RADIX=256 -D_BITS=8 -D_GROUPS=128 -D_ITEMS=4";
-  buildOptions += (sizeof(void*) < 8) ? " -DHOST_PTR_IS_32bit" : "";
+  std::ostringstream clBuildOptions;
+  clBuildOptions << " -D_RADIX=" << m_numRadix;
+  clBuildOptions << " -D_BITS=" << m_numRadixBits;
+  clBuildOptions << " -D_GROUPS=" << m_numGroups;
+  clBuildOptions << " -D_ITEMS=" << m_numItems;
+  if (sizeof(void*) < 8)
+  {
+    clBuildOptions << " -DHOST_PTR_IS_32bit";
+  }
 
   // WIP, hardcoded Path
   clContext.createProgram(PROGRAM_RADIXSORT,
       "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\radixSort.cl",
-      buildOptions);
+      clBuildOptions.str());
 
   return true;
 }
@@ -62,12 +70,11 @@ bool RadixSort::createBuffers() const
   //unsigned short maxInt = (static_cast<unsigned short>(1) << (static_cast<unsigned short>(m_numTotalBits) - 1)) - static_cast<unsigned short>(1);
   //unsigned int maxInt = 9;
 
-  std::cout << "unsigned int" << sizeof(unsigned int) << std::endl;
   std::vector<unsigned int> keys(m_numEntities, 0);
   auto rng = Core::makeRng(maxInt);
   std::generate(keys.begin(), keys.end(), rng);
   //std::iota(keys.begin(), keys.end(), 0);
-  std::cout << "generating " << keys.size() << " keys...." << std::endl;
+  //std::cout << "generating " << keys.size() << " keys...." << std::endl;
 
   clContext.createBuffer("RadixSortKeysIn", sizeInBytes, CL_MEM_READ_WRITE);
   clContext.loadBufferFromHost("RadixSortKeysIn", 0, sizeInBytes, keys.data());
