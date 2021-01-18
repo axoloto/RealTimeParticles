@@ -6,7 +6,7 @@
 namespace Core
 {
 //static constexpr int NUM_MAX_ENTITIES = 30000;
-static constexpr int NUM_MAX_ENTITIES = 1 << 20;
+static constexpr int NUM_MAX_ENTITIES = 1 << 14;
 
 enum class Dimension
 {
@@ -23,8 +23,9 @@ enum class Boundary
 class Physics
 {
   public:
-  Physics(size_t numEntities, size_t gridRes, Dimension dimension = Dimension::dim2D)
+  Physics(size_t numEntities, size_t boxSize, size_t gridRes, Dimension dimension = Dimension::dim2D)
       : m_numEntities(numEntities)
+      , m_boxSize(boxSize)
       , m_gridRes(gridRes)
       , m_init(false)
       , m_velocity(3.0f)
@@ -64,6 +65,7 @@ class Physics
   protected:
   bool m_init;
   size_t m_numEntities;
+  size_t m_boxSize;
   size_t m_gridRes;
   float m_velocity;
   Dimension m_dimension;

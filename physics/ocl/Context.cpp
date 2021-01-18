@@ -200,6 +200,7 @@ bool Core::CL::Context::createProgram(std::string programName, std::string sourc
   if (err != CL_SUCCESS)
   {
     spdlog::error("Error while building OpenCL program : {}", program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
+    throw std::runtime_error(" Exiting Program ");
     return false;
   }
 
@@ -400,7 +401,7 @@ bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, s
   auto it = m_kernelsMap.find(kernelName);
   if (it == m_kernelsMap.end())
   {
-    printf("error kernel not existing");
+    spdlog::error("Cannot set arg {} for unexisting Kernel {}", argIndex, kernelName);
     return false;
   }
 
@@ -424,7 +425,7 @@ bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, c
   auto itK = m_kernelsMap.find(kernelName);
   if (itK == m_kernelsMap.end())
   {
-    spdlog::error("Kernel {} not existing", kernelName);
+    spdlog::error("Cannot set arg {} for unexisting Kernel {}", bufferName, kernelName);
     return false;
   }
 
@@ -455,7 +456,7 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkIt
   auto it = m_kernelsMap.find(kernelName);
   if (it == m_kernelsMap.end())
   {
-    printf("error kernel not existing");
+    spdlog::error("Cannot run unexisting Kernel {}", kernelName);
     return false;
   }
 

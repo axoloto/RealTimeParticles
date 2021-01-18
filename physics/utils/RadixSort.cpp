@@ -23,7 +23,7 @@ RadixSort::RadixSort(size_t numEntities)
     , m_numItems(4)
     , m_histoSplit(256)
 {
-  m_indices.resize(NUM_MAX_ENTITIES);
+  m_indices.resize(m_numEntities);
   std::iota(m_indices.begin(), m_indices.end(), 0);
 
   m_numRadixPasses = m_numTotalBits / m_numRadixBits;
@@ -54,9 +54,8 @@ bool RadixSort::createBuffers() const
 {
   CL::Context& clContext = CL::Context::Get();
 
-  //size_t NUM_MAX_ENTITIES = 1 << 20;
-  const size_t rest = NUM_MAX_ENTITIES % (m_numGroups * m_numItems);
-  const size_t size = (rest == 0) ? NUM_MAX_ENTITIES : (NUM_MAX_ENTITIES - rest + (m_numGroups * m_numItems));
+  const size_t rest = m_numEntities % (m_numGroups * m_numItems);
+  const size_t size = (rest == 0) ? m_numEntities : (m_numEntities - rest + (m_numGroups * m_numItems));
   const size_t sizeInBytes = sizeof(unsigned int) * size;
 
   unsigned int maxInt = (static_cast<unsigned int>(1) << (static_cast<unsigned int>(m_numTotalBits) - 1)) - static_cast<unsigned int>(1);
@@ -64,7 +63,7 @@ bool RadixSort::createBuffers() const
   //unsigned int maxInt = 9;
 
   std::cout << "unsigned int" << sizeof(unsigned int) << std::endl;
-  std::vector<unsigned int> keys(NUM_MAX_ENTITIES, 0);
+  std::vector<unsigned int> keys(m_numEntities, 0);
   auto rng = Core::makeRng(maxInt);
   std::generate(keys.begin(), keys.end(), rng);
   //std::iota(keys.begin(), keys.end(), 0);
@@ -95,8 +94,8 @@ bool RadixSort::createKernels() const
 {
   CL::Context& clContext = CL::Context::Get();
 
-  const size_t rest = NUM_MAX_ENTITIES % (m_numGroups * m_numItems);
-  const size_t size = (rest == 0) ? NUM_MAX_ENTITIES : (NUM_MAX_ENTITIES - rest + (m_numGroups * m_numItems));
+  const size_t rest = m_numEntities % (m_numGroups * m_numItems);
+  const size_t size = (rest == 0) ? m_numEntities : (m_numEntities - rest + (m_numGroups * m_numItems));
 
   clContext.createKernel(PROGRAM_RADIXSORT, KERNEL_HISTOGRAM, { "RadixSortKeysIn", "", "", "RadixSortHistogram" });
   clContext.setKernelArg(KERNEL_HISTOGRAM, 1, sizeof(size), &size);
@@ -148,16 +147,16 @@ void RadixSort::sort()
     clContext.swapBuffers("RadixSortIndicesIn", "RadixSortIndicesOut");
   }
 
-  std::vector<unsigned int> keysIn(NUM_MAX_ENTITIES, 0);
+  std::vector<unsigned int> keysIn(m_numEntities, 0);
   clContext.unloadBufferFromDevice("RadixSortKeysIn", 0, sizeof(unsigned int) * keysIn.size(), keysIn.data());
   /*
-  std::vector<unsigned int> indicesIn(NUM_MAX_ENTITIES, 0);
+  std::vector<unsigned int> indicesIn(m_numEntities, 0);
   clContext.unloadBufferFromDevice("RadixSortIndicesIn", 0, sizeof(unsigned int) * indicesIn.size(), indicesIn.data());
 
-  std::vector<unsigned int> keysOut(NUM_MAX_ENTITIES, 0);
+  std::vector<unsigned int> keysOut(m_numEntities, 0);
   clContext.unloadBufferFromDevice("RadixSortKeysOut", 0, sizeof(unsigned int) * keysOut.size(), keysOut.data());
 
-  std::vector<unsigned int> indicesOut(NUM_MAX_ENTITIES, 0);
+  std::vector<unsigned int> indicesOut(m_numEntities, 0);
   clContext.unloadBufferFromDevice("RadixSortIndicesOut", 0, sizeof(unsigned int) * indicesOut.size(), indicesOut.data());
 */
   std::cout << "Sorted: " << std::boolalpha << std::is_sorted(keysIn.begin(), keysIn.end()) << std::endl;

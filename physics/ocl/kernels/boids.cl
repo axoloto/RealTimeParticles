@@ -163,13 +163,15 @@ __kernel void updatePosVertsWithCyclicWalls(__global float4* pos, __global float
   pos[i] = clampedNewPos;
 }
 
-__kernel void flushGridCells(__global float8* gridDetector)
+// For rendering purpose only, checking for each grid cell if there is any particle
+// If so, grid cell will be displayed in OpenGl
+__kernel void flushGridDetector(__global float8* gridDetector)
 {
   unsigned int i = get_global_id(0);
   gridDetector[i] = 0.0f;
 }
 
-__kernel void fillGridCells(__global float4* vertPos, __global float8* gridDetector, __global gridParams* gridParams)
+__kernel void fillGridDetector(__global float4* vertPos, __global float8* gridDetector, __global gridParams* gridParams)
 {
   unsigned int i = get_global_id(0);
 
@@ -188,4 +190,35 @@ __kernel void fillGridCells(__global float4* vertPos, __global float8* gridDetec
       + cellIndex.z;
 
   gridDetector[gridDetectorIndex] = 1.0f;
+}
+
+// To use of Radix Sort accelerator, we need to find the cellID for each boids particle
+__kernel void flushCellIDs(__global uint* boidsCellIDs, __global gridParams* gridParams)
+{
+  unsigned int i = get_global_id(0);
+  // For all particles, giving cell ID above any available one
+  // the ones not filled later (i.e not processed because index > numEntites displayed)
+  // will be sorted at the end and not considered after sorting
+  boidsCellIDs[i] = gridParams->numCells + 1;
+}
+
+__kernel void fillCellIDs(__global float4* vertPos, __global uint* boidsCellIDs, __global gridParams* gridParams)
+{
+  unsigned int i = get_global_id(0);
+
+  float4 pos = vertPos[i];
+
+  int cellSize = 2 * ABS_WALL_POS / gridParams->resolution;
+
+  // Moving particles in [0 - 2 * ABS_WALL_POS] to have coords matching with cellIndices
+  // Adding epsilon to avoid wrong indices if particle exactly on the ABS_WALL_POS
+  float3 posXYZ = pos.xyz + ABS_WALL_POS - FLOAT_EPSILON;
+
+  int3 cell3DIndex = convert_int3(posXYZ / cellSize);
+
+  uint cell1DIndex = cell3DIndex.x * gridParams->resolution * gridParams->resolution
+      + cell3DIndex.y * gridParams->resolution
+      + cell3DIndex.z;
+
+  boidsCellIDs[i] = cell1DIndex;
 }

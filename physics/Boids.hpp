@@ -8,13 +8,12 @@
 #include "ocl/Context.hpp"
 #include "utils/RadixSort.hpp"
 
-
 namespace Core
 {
 class Boids : public Physics
 {
   public:
-  Boids(size_t numEntities, size_t gridRes,
+  Boids(size_t numEntities, size_t boxSize, size_t gridRes,
       unsigned int pointCloudCoordVBO,
       unsigned int pointCloudColorVBO,
       unsigned int gridDetectorVBO);
