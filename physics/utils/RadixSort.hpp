@@ -41,7 +41,7 @@ class RadixSort
   RadixSort(size_t numEntities);
   ~RadixSort() = default;
 
-  void sort();
+  void sort(const std::string& inputKeyBufferName, const std::vector<std::string>& optionalInputBufferNames = {});
 
   private:
   bool createProgram() const;

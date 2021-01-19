@@ -309,6 +309,65 @@ bool Core::CL::Context::swapBuffers(std::string bufferNameA, std::string bufferN
   auto tempBuffer = itA->second;
   itA->second = itB->second;
   itB->second = tempBuffer;
+
+  return true;
+}
+
+bool Core::CL::Context::copyBuffer(std::string srcBufferName, std::string dstBufferName)
+{
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  cl::Buffer srcBuffer;
+
+  auto& itSrc = m_buffersMap.find(srcBufferName);
+
+  if (itSrc == m_buffersMap.end())
+  {
+    auto itSrcGL = m_GLBuffersMap.find(srcBufferName);
+
+    if (itSrcGL == m_GLBuffersMap.end())
+    {
+      spdlog::error("Cannot copy buffers, source buffer {} not existing", srcBufferName);
+      return false;
+    }
+    else
+    {
+      srcBuffer = itSrcGL->second;
+    }
+  }
+  else
+  {
+    srcBuffer = itSrc->second;
+  }
+
+  auto& itDst = m_buffersMap.find(dstBufferName);
+  if (itDst == m_buffersMap.end())
+  {
+    spdlog::error("Cannot copy buffers, destination buffer {} not existing", dstBufferName);
+    return false;
+  }
+
+  size_t srcBufferSize;
+  err = srcBuffer.getInfo(CL_MEM_SIZE, &srcBufferSize);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot get size from buffer {}", srcBufferName);
+    return false;
+  }
+
+  err = cl_queue.enqueueCopyBuffer(srcBuffer, itDst->second, 0, 0, srcBufferSize);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot copy buffer {} to buffer {}", srcBufferName, dstBufferName);
+    return false;
+  }
+
+  return true;
 }
 
 bool Core::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int VBOIndex, cl_mem_flags memoryFlags)
@@ -429,15 +488,24 @@ bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, c
     return false;
   }
 
+  cl::Buffer buffer;
   auto itB = m_buffersMap.find(bufferName);
   if (itB == m_buffersMap.end())
   {
-    spdlog::error("Buffer {} not existing", bufferName);
-    return false;
+    auto itBGL = m_GLBuffersMap.find(bufferName);
+    if (itBGL == m_GLBuffersMap.end())
+    {
+      spdlog::error("Cannot set arg {}, buffer {} not existing", argIndex, bufferName);
+      return false;
+    }
+    else
+      buffer = itBGL->second;
   }
+  else
+    buffer = itB->second;
 
   auto kernel = itK->second;
-  cl_int err = kernel.setArg(argIndex, itB->second);
+  cl_int err = kernel.setArg(argIndex, buffer);
 
   if (err != CL_SUCCESS)
   {

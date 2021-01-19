@@ -160,3 +160,14 @@ __kernel void reorder(
     //
   }
 }
+
+__kernel void permutate(
+    global uint* permutatedIndices,
+    global float4* valToPermutate,
+    global float4* permutatedVal)
+{
+  const int i = get_global_id(0);
+
+  uint newIndex = permutatedIndices[i];
+  permutatedVal[i] = valToPermutate[newIndex];
+}

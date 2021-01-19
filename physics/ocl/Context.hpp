@@ -26,6 +26,7 @@ class Context
   bool loadBufferFromHost(std::string bufferName, size_t offset, size_t sizeToFill, const void* hostPtr);
   bool unloadBufferFromDevice(std::string bufferName, size_t offset, size_t sizeToFill, void* hostPtr);
   bool swapBuffers(std::string bufferNameA, std::string bufferNameB);
+  bool copyBuffer(std::string srcBufferName, std::string dstBufferName);
   bool createKernel(std::string programName, std::string kernelName, std::vector<std::string> argNames);
   bool setKernelArg(std::string kernelName, cl_uint argIndex, size_t argSize, const void* value);
   bool setKernelArg(std::string kernelName, cl_uint argIndex, const std::string& bufferName);

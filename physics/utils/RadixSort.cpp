@@ -14,6 +14,7 @@ using namespace Core;
 #define KERNEL_MERGE "merge"
 #define KERNEL_SCAN "scan"
 #define KERNEL_REORDER "reorder"
+#define KERNEL_PERMUTATE "permutate"
 
 RadixSort::RadixSort(size_t numEntities)
     : m_numEntities(numEntities)
@@ -66,34 +67,36 @@ bool RadixSort::createBuffers() const
   const size_t size = (rest == 0) ? m_numEntities : (m_numEntities - rest + (m_numGroups * m_numItems));
   const size_t sizeInBytes = sizeof(unsigned int) * size;
 
-  unsigned int maxInt = (static_cast<unsigned int>(1) << (static_cast<unsigned int>(m_numTotalBits) - 1)) - static_cast<unsigned int>(1);
-  //unsigned short maxInt = (static_cast<unsigned short>(1) << (static_cast<unsigned short>(m_numTotalBits) - 1)) - static_cast<unsigned short>(1);
-  //unsigned int maxInt = 9;
+  // WIP make it work for any size of buffer
 
-  std::vector<unsigned int> keys(m_numEntities, 0);
-  auto rng = Core::makeRng(maxInt);
-  std::generate(keys.begin(), keys.end(), rng);
-  //std::iota(keys.begin(), keys.end(), 0);
+  //unsigned int maxInt = (static_cast<unsigned int>(1) << (static_cast<unsigned int>(m_numTotalBits) - 1)) - static_cast<unsigned int>(1);
+  //std::vector<unsigned int> keys(m_numEntities, 0);
+  //auto rng = Core::makeRng(maxInt);
+  //std::generate(keys.begin(), keys.end(), rng);
   //std::cout << "generating " << keys.size() << " keys...." << std::endl;
 
-  clContext.createBuffer("RadixSortKeysIn", sizeInBytes, CL_MEM_READ_WRITE);
-  clContext.loadBufferFromHost("RadixSortKeysIn", 0, sizeInBytes, keys.data());
-  if (rest != 0)
-  {
-    std::vector<unsigned int> pad(m_numGroups * m_numItems - rest, 10000000);
-    clContext.loadBufferFromHost("RadixSortKeysIn", sizeof(unsigned int) * size, sizeof(unsigned int) * pad.size(), pad.data());
-  }
-  clContext.createBuffer("RadixSortKeysOut", sizeInBytes, CL_MEM_READ_WRITE);
+  //clContext.createBuffer("RadixSortKeysIn", sizeInBytes, CL_MEM_READ_WRITE);
+  //clContext.loadBufferFromHost("RadixSortKeysIn", 0, sizeInBytes, keys.data());
+  //if (rest != 0)
+  //{
+  //  std::vector<unsigned int> pad(m_numGroups * m_numItems - rest, 10000000);
+  //  clContext.loadBufferFromHost("RadixSortKeysIn", sizeof(unsigned int) * size, sizeof(unsigned int) * pad.size(), pad.data());
+  //}
+
+  clContext.createBuffer("RadixSortKeysTemp", sizeInBytes, CL_MEM_READ_WRITE);
 
   clContext.createBuffer("RadixSortHistogram", sizeof(unsigned int) * m_numRadix * m_numGroups * m_numItems, CL_MEM_READ_WRITE);
 
   clContext.createBuffer("RadixSortSum", sizeof(unsigned int) * m_histoSplit, CL_MEM_READ_WRITE);
   clContext.createBuffer("RadixSortTempSum", sizeof(unsigned int) * m_histoSplit, CL_MEM_READ_WRITE);
 
-  clContext.createBuffer("RadixSortIndicesIn", sizeof(unsigned int) * size, CL_MEM_READ_WRITE);
-  clContext.loadBufferFromHost("RadixSortIndicesIn", 0, sizeof(unsigned int) * m_indices.size(), m_indices.data());
+  clContext.createBuffer("RadixSortIndices", sizeof(unsigned int) * size, CL_MEM_READ_WRITE);
+  clContext.loadBufferFromHost("RadixSortIndices", 0, sizeof(unsigned int) * m_indices.size(), m_indices.data());
 
-  clContext.createBuffer("RadixSortIndicesOut", sizeof(unsigned int) * size, CL_MEM_READ_WRITE);
+  clContext.createBuffer("RadixSortIndicesTemp", sizeof(unsigned int) * size, CL_MEM_READ_WRITE);
+
+  clContext.createBuffer("RadixSortPermutateTemp", 4 * sizeof(float) * size, CL_MEM_READ_WRITE);
+
   return true;
 }
 
@@ -104,7 +107,7 @@ bool RadixSort::createKernels() const
   const size_t rest = m_numEntities % (m_numGroups * m_numItems);
   const size_t size = (rest == 0) ? m_numEntities : (m_numEntities - rest + (m_numGroups * m_numItems));
 
-  clContext.createKernel(PROGRAM_RADIXSORT, KERNEL_HISTOGRAM, { "RadixSortKeysIn", "", "", "RadixSortHistogram" });
+  clContext.createKernel(PROGRAM_RADIXSORT, KERNEL_HISTOGRAM, { "", "", "", "RadixSortHistogram" });
   clContext.setKernelArg(KERNEL_HISTOGRAM, 1, sizeof(size), &size);
   clContext.setKernelArg(KERNEL_HISTOGRAM, 4, sizeof(unsigned int) * m_numRadix * m_numItems, nullptr);
 
@@ -113,15 +116,21 @@ bool RadixSort::createKernels() const
 
   clContext.createKernel(PROGRAM_RADIXSORT, KERNEL_MERGE, { "RadixSortSum", "RadixSortHistogram" });
 
-  clContext.createKernel(PROGRAM_RADIXSORT, KERNEL_REORDER, { "RadixSortKeysIn", "RadixSortIndicesIn", "", "RadixSortHistogram", "", "RadixSortKeysOut", "RadixSortIndicesOut" });
+  clContext.createKernel(PROGRAM_RADIXSORT, KERNEL_REORDER, { "", "RadixSortIndices", "", "RadixSortHistogram", "", "RadixSortKeysTemp", "RadixSortIndicesTemp" });
   clContext.setKernelArg(KERNEL_REORDER, 2, sizeof(size), &size);
   clContext.setKernelArg(KERNEL_REORDER, 7, sizeof(unsigned int) * m_numRadix * m_numItems, nullptr);
+
+  clContext.createKernel(PROGRAM_RADIXSORT, KERNEL_PERMUTATE, { "RadixSortIndices" });
 
   return true;
 }
 
-void RadixSort::sort()
+void RadixSort::sort(const std::string& inputKeyBufferName, const std::vector<std::string>& optionalInputBufferNames)
 {
+  // First sorting main input key buffer
+  // Then sorting optional input buffers based on indices permutation of the main input key buffer
+  // TO DO add some check about its existence, size and cie
+
   CL::Context& clContext = CL::Context::Get();
 
   size_t totalScan = m_numRadix * m_numGroups * m_numItems / 2;
@@ -129,7 +138,7 @@ void RadixSort::sort()
 
   for (int radixPass = 0; radixPass < m_numRadixPasses; ++radixPass)
   {
-    clContext.setKernelArg(KERNEL_HISTOGRAM, 0, "RadixSortKeysIn");
+    clContext.setKernelArg(KERNEL_HISTOGRAM, 0, inputKeyBufferName);
     clContext.setKernelArg(KERNEL_HISTOGRAM, 2, sizeof(radixPass), &radixPass);
     clContext.runKernel(KERNEL_HISTOGRAM, m_numGroups * m_numItems, m_numItems);
 
@@ -143,28 +152,30 @@ void RadixSort::sort()
 
     clContext.runKernel(KERNEL_MERGE, totalScan, localScan);
 
-    clContext.setKernelArg(KERNEL_REORDER, 0, "RadixSortKeysIn");
-    clContext.setKernelArg(KERNEL_REORDER, 1, "RadixSortIndicesIn");
-    clContext.setKernelArg(KERNEL_REORDER, 5, "RadixSortKeysOut");
-    clContext.setKernelArg(KERNEL_REORDER, 6, "RadixSortIndicesOut");
+    clContext.setKernelArg(KERNEL_REORDER, 0, inputKeyBufferName);
+    clContext.setKernelArg(KERNEL_REORDER, 1, "RadixSortIndices");
+    clContext.setKernelArg(KERNEL_REORDER, 5, "RadixSortKeysTemp");
+    clContext.setKernelArg(KERNEL_REORDER, 6, "RadixSortIndicesTemp");
     clContext.setKernelArg(KERNEL_REORDER, 4, sizeof(radixPass), &radixPass);
     clContext.runKernel(KERNEL_REORDER, m_numGroups * m_numItems, m_numItems);
 
-    clContext.swapBuffers("RadixSortKeysIn", "RadixSortKeysOut");
-    clContext.swapBuffers("RadixSortIndicesIn", "RadixSortIndicesOut");
+    clContext.swapBuffers(inputKeyBufferName, "RadixSortKeysTemp");
+    clContext.swapBuffers("RadixSortIndices", "RadixSortIndicesTemp");
   }
 
   std::vector<unsigned int> keysIn(m_numEntities, 0);
-  clContext.unloadBufferFromDevice("RadixSortKeysIn", 0, sizeof(unsigned int) * keysIn.size(), keysIn.data());
-  /*
-  std::vector<unsigned int> indicesIn(m_numEntities, 0);
-  clContext.unloadBufferFromDevice("RadixSortIndicesIn", 0, sizeof(unsigned int) * indicesIn.size(), indicesIn.data());
+  clContext.unloadBufferFromDevice(inputKeyBufferName, 0, sizeof(unsigned int) * keysIn.size(), keysIn.data());
 
-  std::vector<unsigned int> keysOut(m_numEntities, 0);
-  clContext.unloadBufferFromDevice("RadixSortKeysOut", 0, sizeof(unsigned int) * keysOut.size(), keysOut.data());
+  if (!std::is_sorted(keysIn.begin(), keysIn.end()))
+  {
+    spdlog::error("Radix Sort has not correctly sorted input keys");
+  }
 
-  std::vector<unsigned int> indicesOut(m_numEntities, 0);
-  clContext.unloadBufferFromDevice("RadixSortIndicesOut", 0, sizeof(unsigned int) * indicesOut.size(), indicesOut.data());
-*/
-  std::cout << "Sorted: " << std::boolalpha << std::is_sorted(keysIn.begin(), keysIn.end()) << std::endl;
+  for (auto& bufferToPermutate : optionalInputBufferNames)
+  {
+    clContext.copyBuffer(bufferToPermutate, "RadixSortPermutateTemp");
+    clContext.setKernelArg(KERNEL_PERMUTATE, 1, "RadixSortPermutateTemp");
+    clContext.setKernelArg(KERNEL_PERMUTATE, 2, bufferToPermutate);
+    clContext.runKernel(KERNEL_PERMUTATE, m_numEntities);
+  }
 }

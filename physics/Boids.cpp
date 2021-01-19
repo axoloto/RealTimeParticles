@@ -167,7 +167,7 @@ void Boids::update()
   clContext.runKernel(KERNEL_FLUSH_CELL_ID, NUM_MAX_ENTITIES);
   clContext.runKernel(KERNEL_FILL_CELL_ID, m_numEntities);
 
-  m_radixSort.sort();
+  m_radixSort.sort("boidsCellIDs", { "boidsPos", "boidsVel", "boidsAcc" });
 
   clContext.runKernel(KERNEL_BOIDS_RULES, m_numEntities);
   clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
