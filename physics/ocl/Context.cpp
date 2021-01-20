@@ -544,11 +544,16 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkIt
 
     err = cl_queue.flush();
     if (err != CL_SUCCESS)
-      printf("error when flushing opencl run");
+    {
+      spdlog::error("Cannot flush Opencl run");
+    }
 
     err = cl_queue.finish();
     if (err != CL_SUCCESS)
-      printf("error when finishing opencl run");
+    {
+      spdlog::error("Cannot finish Opencl run");
+      throw 1;
+    }
 
     cl_ulong start = 0, end = 0;
     event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
@@ -556,7 +561,7 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkIt
     //the resolution of the events is 1e-09 sec
     double profilingTimeMs = (double)((cl_double)(end - start) * (1e-06));
 
-    //printf("%s %f ms \n", kernelName.c_str(), profilingTimeMs);
+    spdlog::info("Profiling kernel {} : {} ms", kernelName, profilingTimeMs);
   }
 
   return true;

@@ -21,6 +21,11 @@ using namespace Core;
 #define KERNEL_FLUSH_CELL_ID "flushCellIDs"
 #define KERNEL_FILL_CELL_ID "fillCellIDs"
 #define KERNEL_CREATE_NEIGBOR_CELL_MAPPING "createNeighborCellMapping"
+#define KERNEL_FLUSH_START_END_CELL "flushStartEndCell"
+#define KERNEL_FILL_START_END_CELL "fillStartEndCell"
+#define KERNEL_FILL_END_CELL "fillEndCell"
+#define KERNEL_FILL_START_END_ALL_CELLS "fillStartEndCellWithNeighbor"
+#define KERNEL_BOIDS_RULES_GRID "applyBoidsRulesWithGrid"
 
 Boids::Boids(size_t numEntities, size_t boxSize, size_t gridRes,
     unsigned int pointCloudCoordVBO,
@@ -84,6 +89,9 @@ bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointClo
   clContext.createBuffer("boidsParams", sizeof(m_boidsParams), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR);
   clContext.createBuffer("gridParams", sizeof(m_gridParams), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR);
 
+  clContext.createBuffer("startEndBoidsIndices", 2 * m_gridRes * m_gridRes * m_gridRes * sizeof(unsigned int), CL_MEM_READ_WRITE);
+  clContext.createBuffer("startEndBoidsIndicesWithNeighbors", 16 * m_gridRes * m_gridRes * m_gridRes * sizeof(unsigned int), CL_MEM_READ_WRITE);
+
   return true;
 }
 
@@ -109,6 +117,14 @@ bool Boids::createKernels() const
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_CELL_ID, { "boidsCellIDs", "gridParams" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_CELL_ID, { "boidsPos", "boidsCellIDs", "gridParams" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_CREATE_NEIGBOR_CELL_MAPPING, { "neighborCellIDs", "gridParams" });
+
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_START_END_CELL, { "startEndBoidsIndices" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_START_END_CELL, { "boidsCellIDs", "startEndBoidsIndices" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_END_CELL, { "boidsCellIDs", "startEndBoidsIndices" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_START_END_ALL_CELLS, { "startEndBoidsIndices", "neighborCellIDs", "startEndBoidsIndicesWithNeighbors" });
+
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID, { "boidsPos", "boidsVel", "boidsAcc", "startEndBoidsIndicesWithNeighbors", "boidsParams" });
+
   return true;
 }
 
@@ -169,7 +185,23 @@ void Boids::update()
 
   m_radixSort.sort("boidsCellIDs", { "boidsPos", "boidsVel", "boidsAcc" });
 
-  clContext.runKernel(KERNEL_BOIDS_RULES, m_numEntities);
+  clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_gridParams.numCells);
+  clContext.runKernel(KERNEL_FILL_START_END_CELL, m_numEntities);
+  clContext.runKernel(KERNEL_FILL_END_CELL, m_numEntities);
+  clContext.runKernel(KERNEL_FILL_START_END_ALL_CELLS, m_gridParams.numCells);
+
+  // std::vector<unsigned int> cellIDs(NUM_MAX_ENTITIES, 0);
+  // clContext.unloadBufferFromDevice("boidsCellIDs", 0, sizeof(unsigned int) * cellIDs.size(), cellIDs.data());
+
+  // std::vector<std::array<unsigned int, 2>> startEnd(m_gridParams.numCells, { 0, 0 });
+  //clContext.unloadBufferFromDevice("startEndBoidsIndices", 0, sizeof(unsigned int) * startEnd.size(), startEnd.data());
+
+  // std::vector<std::array<unsigned int, 16>> startEndN(m_gridParams.numCells);
+  // startEndN.resize(m_gridParams.numCells);
+  //clContext.unloadBufferFromDevice("startEndBoidsIndicesWithNeighbors", 0, sizeof(unsigned int) * startEndN.size(), startEndN.data());
+
+  //clContext.runKernel(KERNEL_BOIDS_RULES, m_numEntities);
+  clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_numEntities);
   clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
 
   if (m_boundary == Boundary::CyclicWall)

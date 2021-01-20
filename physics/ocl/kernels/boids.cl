@@ -247,3 +247,348 @@ __kernel void createNeighborCellMapping(__global int8* neighborBoidsCellIDs, __g
   // Right
   neighborBoidsCellIDs[i].s5 = (((i + 1) % gR) == 0) ? -1 : i + 1;
 }
+
+__kernel void flushStartEndCell(__global uint2* startEndCells)
+{
+  unsigned int i = get_global_id(0);
+
+  // Flushing buffer with 1 as starting index and 0 as ending index
+  // This little trick bypass any loop where
+  // we loop on the particles found in a cell
+  // if this cell has not been found, hence has no particle at all
+  //startEndCells[i].xy = (uint)(1, 0);
+  startEndCells[i].x = 1;
+  startEndCells[i].y = 0;
+}
+
+__kernel void fillStartEndCell(__global uint* boidsCellIDs, __global uint2* startEndCells)
+{
+  unsigned int i = get_global_id(0);
+
+  uint currentCellID = boidsCellIDs[i];
+
+  if (i > 0)
+  {
+    uint leftCellID = boidsCellIDs[i - 1];
+    if (currentCellID != leftCellID)
+    {
+      // Found start
+      startEndCells[currentCellID].x = i;
+    }
+  }
+
+  /*if (i != get_global_size(0))
+  {
+    uint rightCellID = boidsCellIDs[i + 1];
+    if (currentCellID != rightCellID)
+    {
+      // Found end
+      startEndCells[currentCellID].y = i;
+    }
+  }*/
+}
+
+__kernel void fillEndCell(__global uint* boidsCellIDs, __global uint2* startEndCells)
+{
+  unsigned int i = get_global_id(0);
+
+  uint currentCellID = boidsCellIDs[i];
+
+  /*if (i > 0)
+  {
+    uint leftCellID = boidsCellIDs[i - 1];
+    if (currentCellID != leftCellID)
+    {
+      // Found start
+      startEndCells[currentCellID].x = i;
+    }
+  }*/
+
+  if (i != get_global_size(0))
+  {
+    uint rightCellID = boidsCellIDs[i + 1];
+    if (currentCellID != rightCellID)
+    {
+      // Found end
+      startEndCells[currentCellID].y = i;
+    }
+  }
+}
+
+__kernel void fillStartEndCellWithNeighbor(
+    __global uint2* startEndCells,
+    __global int8* neighborBoidsCellIDs,
+    __global uint16* startEndCellsWithNeighbors)
+{
+  unsigned int i = get_global_id(0);
+
+  // current cell with index i
+  startEndCellsWithNeighbors[i].s0 = startEndCells[i].x;
+  startEndCellsWithNeighbors[i].s1 = startEndCells[i].y;
+
+  // Neighbors
+
+  // Front
+  int frontCellIndex = neighborBoidsCellIDs[i].s0;
+  if (frontCellIndex >= 0)
+  {
+    startEndCellsWithNeighbors[i].s2 = startEndCells[frontCellIndex].x;
+    startEndCellsWithNeighbors[i].s3 = startEndCells[frontCellIndex].y;
+  }
+  else
+  {
+    startEndCellsWithNeighbors[i].s2 = 1;
+    startEndCellsWithNeighbors[i].s3 = 0;
+  }
+  // Back
+  int backCellIndex = neighborBoidsCellIDs[i].s1;
+  if (backCellIndex >= 0)
+  {
+    startEndCellsWithNeighbors[i].s4 = startEndCells[backCellIndex].x;
+    startEndCellsWithNeighbors[i].s5 = startEndCells[backCellIndex].y;
+  }
+  else
+  {
+    startEndCellsWithNeighbors[i].s4 = 1;
+    startEndCellsWithNeighbors[i].s5 = 0;
+  }
+  // Top
+  int topCellIndex = neighborBoidsCellIDs[i].s2;
+  if (topCellIndex >= 0)
+  {
+    startEndCellsWithNeighbors[i].s6 = startEndCells[topCellIndex].x;
+    startEndCellsWithNeighbors[i].s7 = startEndCells[topCellIndex].y;
+  }
+  else
+  {
+    startEndCellsWithNeighbors[i].s6 = 1;
+    startEndCellsWithNeighbors[i].s7 = 0;
+  }
+  // Bottom
+  int bottomCellIndex = neighborBoidsCellIDs[i].s3;
+  if (bottomCellIndex >= 0)
+  {
+    startEndCellsWithNeighbors[i].s8 = startEndCells[bottomCellIndex].x;
+    startEndCellsWithNeighbors[i].s9 = startEndCells[bottomCellIndex].y;
+  }
+  else
+  {
+    startEndCellsWithNeighbors[i].s8 = 1;
+    startEndCellsWithNeighbors[i].s9 = 0;
+  }
+  // Left
+  int leftCellIndex = neighborBoidsCellIDs[i].s4;
+  if (leftCellIndex >= 0)
+  {
+    startEndCellsWithNeighbors[i].sA = startEndCells[leftCellIndex].x;
+    startEndCellsWithNeighbors[i].sB = startEndCells[leftCellIndex].y;
+  }
+  else
+  {
+    startEndCellsWithNeighbors[i].sA = 1;
+    startEndCellsWithNeighbors[i].sB = 0;
+  }
+  // Right
+  int rightCellIndex = neighborBoidsCellIDs[i].s5;
+  if (rightCellIndex >= 0)
+  {
+    startEndCellsWithNeighbors[i].sC = startEndCells[rightCellIndex].x;
+    startEndCellsWithNeighbors[i].sD = startEndCells[rightCellIndex].y;
+  }
+  else
+  {
+    startEndCellsWithNeighbors[i].sC = 1;
+    startEndCellsWithNeighbors[i].sD = 0;
+  }
+
+  startEndCellsWithNeighbors[i].sE = 1;
+  startEndCellsWithNeighbors[i].sF = 0;
+}
+
+__kernel void applyBoidsRulesWithGrid(
+    __global float4* position,
+    __global float4* velocity,
+    __global float4* acc,
+    __global uint16* startEndCellsWithNeighbors,
+    __global boidsParams* params)
+{
+  unsigned int i = get_global_id(0);
+  unsigned int numEnt = get_global_size(0);
+
+  float4 pos = position[i];
+  float4 vel = velocity[i];
+
+  int count = 0;
+
+  float4 averageBoidsPos = (float4)(0.0, 0.0, 0.0, 0.0);
+  float4 averageBoidsVel = (float4)(0.0, 0.0, 0.0, 0.0);
+  float4 repulseHeading = (float4)(0.0, 0.0, 0.0, 0.0);
+
+  float squaredDist = 0.0f;
+  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+
+  // current
+  uint startCurrent = startEndCellsWithNeighbors[i].s0;
+  uint endCurrent = startEndCellsWithNeighbors[i].s1;
+  if (startCurrent <= numEnt && endCurrent <= numEnt)
+  {
+    for (uint e = startCurrent; e <= endCurrent; ++e)
+    {
+      vec = pos - position[e];
+      squaredDist = dot(vec, vec);
+
+      // Second condition to deal with almost identical points generated by parallelRNG and i == e
+      if (squaredDist < EFFECT_RADIUS_SQUARED && squaredDist > FLOAT_EPSILON)
+      {
+        averageBoidsPos += position[e];
+        averageBoidsVel += velocity[e];
+        repulseHeading += vec / squaredDist;
+        ++count;
+      }
+    }
+  }
+  /*
+  // front
+  startCurrent = startEndCellsWithNeighbors[i].s2;
+  endCurrent = startEndCellsWithNeighbors[i].s3;
+  if (startCurrent <= numEnt && endCurrent <= numEnt)
+  {
+    for (uint e = startCurrent; e <= endCurrent; ++e)
+    {
+      vec = pos - position[e];
+      squaredDist = dot(vec, vec);
+
+      // Second condition to deal with almost identical points generated by parallelRNG and i == e
+      if (squaredDist < EFFECT_RADIUS_SQUARED && squaredDist > FLOAT_EPSILON)
+      {
+        averageBoidsPos += position[e];
+        averageBoidsVel += velocity[e];
+        repulseHeading += vec / squaredDist;
+        ++count;
+      }
+    }
+  }
+  // back
+  startCurrent = startEndCellsWithNeighbors[i].s4;
+  endCurrent = startEndCellsWithNeighbors[i].s5;
+  if (startCurrent <= numEnt && endCurrent <= numEnt)
+  {
+    for (uint e = startCurrent; e <= endCurrent; ++e)
+    {
+      vec = pos - position[e];
+      squaredDist = dot(vec, vec);
+
+      // Second condition to deal with almost identical points generated by parallelRNG and i == e
+      if (squaredDist < EFFECT_RADIUS_SQUARED && squaredDist > FLOAT_EPSILON)
+      {
+        averageBoidsPos += position[e];
+        averageBoidsVel += velocity[e];
+        repulseHeading += vec / squaredDist;
+        ++count;
+      }
+    }
+  }
+  // left
+  startCurrent = startEndCellsWithNeighbors[i].s6;
+  endCurrent = startEndCellsWithNeighbors[i].s7;
+  if (startCurrent <= numEnt && endCurrent <= numEnt)
+  {
+    for (uint e = startCurrent; e <= endCurrent; ++e)
+    {
+      vec = pos - position[e];
+      squaredDist = dot(vec, vec);
+
+      // Second condition to deal with almost identical points generated by parallelRNG and i == e
+      if (squaredDist < EFFECT_RADIUS_SQUARED && squaredDist > FLOAT_EPSILON)
+      {
+        averageBoidsPos += position[e];
+        averageBoidsVel += velocity[e];
+        repulseHeading += vec / squaredDist;
+        ++count;
+      }
+    }
+  }
+  // right
+  startCurrent = startEndCellsWithNeighbors[i].s8;
+  endCurrent = startEndCellsWithNeighbors[i].s9;
+  if (startCurrent <= numEnt && endCurrent <= numEnt)
+  {
+    for (uint e = startCurrent; e <= endCurrent; ++e)
+    {
+      vec = pos - position[e];
+      squaredDist = dot(vec, vec);
+
+      // Second condition to deal with almost identical points generated by parallelRNG and i == e
+      if (squaredDist < EFFECT_RADIUS_SQUARED && squaredDist > FLOAT_EPSILON)
+      {
+        averageBoidsPos += position[e];
+        averageBoidsVel += velocity[e];
+        repulseHeading += vec / squaredDist;
+        ++count;
+      }
+    }
+  }
+  // top
+  startCurrent = startEndCellsWithNeighbors[i].sA;
+  endCurrent = startEndCellsWithNeighbors[i].sB;
+  if (startCurrent <= numEnt && endCurrent <= numEnt)
+  {
+    for (uint e = startCurrent; e <= endCurrent; ++e)
+    {
+      vec = pos - position[e];
+      squaredDist = dot(vec, vec);
+
+      // Second condition to deal with almost identical points generated by parallelRNG and i == e
+      if (squaredDist < EFFECT_RADIUS_SQUARED && squaredDist > FLOAT_EPSILON)
+      {
+        averageBoidsPos += position[e];
+        averageBoidsVel += velocity[e];
+        repulseHeading += vec / squaredDist;
+        ++count;
+      }
+    }
+  }
+  // bottom
+  startCurrent = startEndCellsWithNeighbors[i].sC;
+  endCurrent = startEndCellsWithNeighbors[i].sD;
+  if (startCurrent <= numEnt && endCurrent <= numEnt)
+  {
+    for (uint e = startCurrent; e <= endCurrent; ++e)
+    {
+      vec = pos - position[e];
+      squaredDist = dot(vec, vec);
+
+      // Second condition to deal with almost identical points generated by parallelRNG and i == e
+      if (squaredDist < EFFECT_RADIUS_SQUARED && squaredDist > FLOAT_EPSILON)
+      {
+        averageBoidsPos += position[e];
+        averageBoidsVel += velocity[e];
+        repulseHeading += vec / squaredDist;
+        ++count;
+      }
+    }
+  }
+  */
+  if (count != 0)
+  {
+    // cohesion
+    averageBoidsPos /= count;
+    averageBoidsPos -= pos;
+    averageBoidsPos = normalize(averageBoidsPos) * params->velocity;
+    // alignment
+    averageBoidsVel = normalize(averageBoidsVel) * params->velocity;
+    // separation
+    repulseHeading = normalize(repulseHeading) * params->velocity;
+  }
+
+  float4 target = -pos;
+
+  acc[i] = steerForce(averageBoidsPos, vel) * params->scaleCohesion
+      + steerForce(averageBoidsVel, vel) * params->scaleAlignment
+      + steerForce(repulseHeading, vel) * params->scaleSeparation
+      + clamp(target, 0.0, normalize(target) * MAX_STEERING) * params->activeTarget;
+
+  // Dealing with numerical error, forcing 2D
+  if (params->dims < 3.0f)
+    acc[i].x = 0.0f;
+}
