@@ -21,12 +21,6 @@ typedef struct
   int activeTarget;
 } boidsParams;
 
-typedef struct
-{
-  uint resolution;
-  uint numCells;
-} gridParams;
-
 __kernel void colorVerts(__global float4* color)
 {
   int i = get_global_id(0);
@@ -171,37 +165,6 @@ __kernel void flushGridDetector(__global float8* gridDetector)
   gridDetector[i] = 0.0f;
 }
 
-__kernel void fillGridDetector(__global float4* vertPos, __global float8* gridDetector, __global gridParams* gridParams)
-{
-  unsigned int i = get_global_id(0);
-
-  float4 pos = vertPos[i];
-
-  int cellSize = 2 * ABS_WALL_POS / gridParams->resolution;
-
-  // Moving particles in [0 - 2 * ABS_WALL_POS] to have coords matching with cellIndices
-  // Adding epsilon to avoid wrong indices if particle exactly on the ABS_WALL_POS
-  float3 posXYZ = pos.xyz + ABS_WALL_POS - FLOAT_EPSILON;
-
-  int3 cellIndex = convert_int3(posXYZ / cellSize);
-
-  int gridDetectorIndex = cellIndex.x * gridParams->resolution * gridParams->resolution
-      + cellIndex.y * gridParams->resolution
-      + cellIndex.z;
-
-  gridDetector[gridDetectorIndex] = 1.0f;
-}
-
-// To use of Radix Sort accelerator, we need to find the cellID for each boids particle
-__kernel void flushCellIDs(__global uint* boidsCellIDs, __global gridParams* gridParams)
-{
-  unsigned int i = get_global_id(0);
-  // For all particles, giving cell ID above any available one
-  // the ones not filled later (i.e not processed because index > numEntites displayed)
-  // will be sorted at the end and not considered after sorting
-  boidsCellIDs[i] = gridParams->numCells + 1;
-}
-
 int3 getCell3DIndex(float4 pos)
 {
   int cellSize = 2 * ABS_WALL_POS / GRID_RES;
@@ -215,7 +178,32 @@ int3 getCell3DIndex(float4 pos)
   return cell3DIndex;
 }
 
-__kernel void fillCellIDs(__global float4* vertPos, __global uint* boidsCellIDs, __global gridParams* gridParams)
+__kernel void fillGridDetector(__global float4* vertPos, __global float8* gridDetector)
+{
+  unsigned int i = get_global_id(0);
+
+  float4 pos = vertPos[i];
+
+  int3 cellIndex = getCell3DIndex(pos);
+
+  int gridDetectorIndex = cellIndex.x * GRID_RES * GRID_RES
+      + cellIndex.y * GRID_RES
+      + cellIndex.z;
+
+  gridDetector[gridDetectorIndex] = 1.0f;
+}
+
+// To use of Radix Sort accelerator, we need to find the cellID for each boids particle
+__kernel void flushCellIDs(__global uint* boidsCellIDs)
+{
+  unsigned int i = get_global_id(0);
+  // For all particles, giving cell ID above any available one
+  // the ones not filled later (i.e not processed because index > numEntites displayed)
+  // will be sorted at the end and not considered after sorting
+  boidsCellIDs[i] = GRID_NUM_CELLS + 1;
+}
+
+__kernel void fillCellIDs(__global float4* vertPos, __global uint* boidsCellIDs)
 {
   unsigned int i = get_global_id(0);
 
@@ -223,8 +211,8 @@ __kernel void fillCellIDs(__global float4* vertPos, __global uint* boidsCellIDs,
 
   int3 cell3DIndex = getCell3DIndex(pos);
 
-  uint cell1DIndex = cell3DIndex.x * gridParams->resolution * gridParams->resolution
-      + cell3DIndex.y * gridParams->resolution
+  uint cell1DIndex = cell3DIndex.x * GRID_RES * GRID_RES
+      + cell3DIndex.y * GRID_RES
       + cell3DIndex.z;
 
   boidsCellIDs[i] = cell1DIndex;
@@ -243,7 +231,7 @@ __kernel void flushStartEndCell(__global uint2* startEndCells)
   startEndCells[i].y = 0;
 }
 
-__kernel void fillStartEndCell(__global uint* boidsCellIDs, __global uint2* startEndCells)
+__kernel void fillStartCell(__global uint* boidsCellIDs, __global uint2* startEndCells)
 {
   unsigned int i = get_global_id(0);
 

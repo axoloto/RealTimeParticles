@@ -21,7 +21,7 @@ using namespace Core;
 #define KERNEL_FLUSH_CELL_ID "flushCellIDs"
 #define KERNEL_FILL_CELL_ID "fillCellIDs"
 #define KERNEL_FLUSH_START_END_CELL "flushStartEndCell"
-#define KERNEL_FILL_START_END_CELL "fillStartEndCell"
+#define KERNEL_FILL_START_CELL "fillStartCell"
 #define KERNEL_FILL_END_CELL "fillEndCell"
 #define KERNEL_BOIDS_RULES_GRID "applyBoidsRulesWithGrid"
 
@@ -61,8 +61,9 @@ bool Boids::createProgram() const
   clBuildOptions << " -DMAX_VELOCITY=5.0f ";
   clBuildOptions << " -DABS_WALL_POS=" << std::fixed << std::setprecision(2)
                  << std::setfill('0') << m_boxSize / 2.0f << "f";
-  clBuildOptions << " -DFLOAT_EPSILON=0.0001f";
+  clBuildOptions << " -DFLOAT_EPSILON=0.01f";
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
+  clBuildOptions << " -DGRID_NUM_CELLS=" << (m_gridRes * m_gridRes * m_gridRes);
 
   // WIP, hardcoded Path
   clContext.createProgram(PROGRAM_BOIDS,
@@ -84,7 +85,6 @@ bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointClo
   clContext.createBuffer("boidsCellIDs", NUM_MAX_ENTITIES * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
   clContext.createBuffer("boidsParams", sizeof(m_boidsParams), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR);
-  clContext.createBuffer("gridParams", sizeof(m_gridParams), CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR);
 
   clContext.createBuffer("startEndBoidsIndices", 2 * m_gridRes * m_gridRes * m_gridRes * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
@@ -101,7 +101,7 @@ bool Boids::createKernels() const
 
   // For rendering purpose only
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_GRID_DETECTOR, { "gridDetector" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_GRID_DETECTOR, { "boidsPos", "gridDetector", "gridParams" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_GRID_DETECTOR, { "boidsPos", "gridDetector" });
 
   // Boids Physics
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES, { "boidsPos", "boidsVel", "boidsAcc", "boidsParams" });
@@ -110,26 +110,16 @@ bool Boids::createKernels() const
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_CYCLIC, { "boidsPos", "boidsVel" });
 
   // Radix Sort based on 3D grid
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_CELL_ID, { "boidsCellIDs", "gridParams" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_CELL_ID, { "boidsPos", "boidsCellIDs", "gridParams" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_CELL_ID, { "boidsCellIDs" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_CELL_ID, { "boidsPos", "boidsCellIDs" });
 
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_START_END_CELL, { "startEndBoidsIndices" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_START_END_CELL, { "boidsCellIDs", "startEndBoidsIndices" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_START_CELL, { "boidsCellIDs", "startEndBoidsIndices" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_END_CELL, { "boidsCellIDs", "startEndBoidsIndices" });
 
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID, { "boidsPos", "boidsVel", "boidsAcc", "startEndBoidsIndices", "boidsParams" });
 
   return true;
-}
-
-void Boids::updateGridParamsInKernel()
-{
-  CL::Context& clContext = CL::Context::Get();
-
-  m_gridParams.gridRes = (cl_uint)m_gridRes;
-  m_gridParams.numCells = (cl_uint)(m_gridRes * m_gridRes * m_gridRes);
-
-  clContext.mapAndSendBufferToDevice("gridParams", &m_gridParams, sizeof(m_gridParams));
 }
 
 void Boids::updateBoidsParamsInKernel()
@@ -151,8 +141,6 @@ void Boids::reset()
   if (!m_init)
     return;
 
-  updateGridParamsInKernel();
-
   updateBoidsParamsInKernel();
 
   CL::Context& clContext = CL::Context::Get();
@@ -160,7 +148,7 @@ void Boids::reset()
   clContext.acquireGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
   clContext.runKernel(KERNEL_COLOR, m_numEntities);
   clContext.runKernel(KERNEL_RANDOM_POS, m_numEntities);
-  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_gridParams.numCells);
+  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_gridRes * m_gridRes * m_gridRes);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
   clContext.releaseGLBuffers({ "boidsColor", "boidsPos", "gridDetector" });
 }
@@ -178,8 +166,8 @@ void Boids::update()
 
   m_radixSort.sort("boidsCellIDs", { "boidsPos", "boidsVel", "boidsAcc" });
 
-  clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_gridParams.numCells);
-  clContext.runKernel(KERNEL_FILL_START_END_CELL, m_numEntities);
+  clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_gridRes * m_gridRes * m_gridRes);
+  clContext.runKernel(KERNEL_FILL_START_CELL, m_numEntities);
   clContext.runKernel(KERNEL_FILL_END_CELL, m_numEntities);
 
   // std::vector<unsigned int> cellIDs(NUM_MAX_ENTITIES, 0);
@@ -201,7 +189,7 @@ void Boids::update()
   else if (m_boundary == Boundary::BouncingWall)
     clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_numEntities);
 
-  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_gridParams.numCells);
+  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_gridRes * m_gridRes * m_gridRes);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
 
   clContext.releaseGLBuffers({ "boidsPos", "gridDetector" });

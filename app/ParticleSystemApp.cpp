@@ -203,7 +203,7 @@ ParticleSystemApp::ParticleSystemApp()
     , m_windowSize(1280, 720)
     , m_init(false)
     , m_boxSize(500)
-    , m_gridRes(10)
+    , m_gridRes(30)
     , m_numEntities(Core::NUM_MAX_ENTITIES)
 {
   initWindow();
