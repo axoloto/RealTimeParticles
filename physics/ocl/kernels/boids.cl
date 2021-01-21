@@ -192,7 +192,8 @@ __kernel void fillGridDetector(__global float4* vertPos, __global float8* gridDe
       + cellIndex.y * GRID_RES
       + cellIndex.z;
 
-  gridDetector[gridDetectorIndex] = 1.0f;
+  if (gridDetectorIndex < GRID_RES * GRID_RES * GRID_RES) // WIP
+    gridDetector[gridDetectorIndex] = 1.0f;
 }
 
 // To use of Radix Sort accelerator, we need to find the cellID for each boids particle
