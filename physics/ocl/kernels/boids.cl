@@ -175,6 +175,8 @@ int3 getCell3DIndex(float4 pos)
 
   int3 cell3DIndex = convert_int3(posXYZ / cellSize);
 
+  clamp(cell3DIndex, 0, GRID_RES - 1);
+
   return cell3DIndex;
 }
 
