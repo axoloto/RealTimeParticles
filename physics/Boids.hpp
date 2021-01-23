@@ -102,27 +102,6 @@ class Boids : public Physics
   bool m_activeTargets;
 
   Math::float3 m_target;
-  struct boidsParams
-  {
-    cl_float dims;
-    cl_float velocity;
-    cl_float scaleCohesion;
-    cl_float scaleAlignment;
-    cl_float scaleSeparation;
-    cl_int activeTarget;
-  };
-
-  boidsParams m_boidsParams;
-  cl_mem cl_boidsParamsBuff;
-
-  struct gridParams
-  {
-    cl_uint gridRes;
-    cl_uint numCells;
-  };
-
-  gridParams m_gridParams;
-  cl_mem cl_gridParamsBuff;
 
   RadixSort m_radixSort;
 };
