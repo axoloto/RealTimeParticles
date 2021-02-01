@@ -9,8 +9,8 @@
 #include <spdlog/spdlog.h>
 
 #include "Boids.hpp"
-
 #include "RadixSortCommon.hpp"
+#include "ocl/Context.hpp"
 
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
@@ -202,8 +202,8 @@ ParticleSystemApp::ParticleSystemApp()
     , m_buttonLeftActivated(false)
     , m_windowSize(1280, 720)
     , m_init(false)
-    , m_boxSize(500)
-    , m_gridRes(30)
+    , m_boxSize(1200)
+    , m_gridRes(30) // 17
     , m_numEntities(Core::NUM_MAX_ENTITIES)
 {
   initWindow();
@@ -356,6 +356,14 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Separator();
   ImGui::Spacing();
   ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+  Core::CL::Context& clContext = Core::CL::Context::Get();
+  bool isProfiling = clContext.isProfiling();
+  if (ImGui::Checkbox(" GPU Profiler ", &isProfiling))
+  {
+    clContext.enableProfiler(isProfiling);
+  }
+
   ImGui::End();
 }
 

@@ -23,7 +23,9 @@ using namespace Core;
 #define KERNEL_FLUSH_START_END_CELL "flushStartEndCell"
 #define KERNEL_FILL_START_CELL "fillStartCell"
 #define KERNEL_FILL_END_CELL "fillEndCell"
+#define KERNEL_FILL_TEXT "fillBoidsTexture"
 #define KERNEL_BOIDS_RULES_GRID "applyBoidsRulesWithGrid"
+#define KERNEL_BOIDS_RULES_GRID_TEXT "applyBoidsRulesWithGridAndTex"
 
 Boids::Boids(size_t numEntities, size_t boxSize, size_t gridRes,
     unsigned int pointCloudCoordVBO,
@@ -86,6 +88,10 @@ bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointClo
 
   clContext.createBuffer("startEndBoidsIndices", 2 * m_gridRes * m_gridRes * m_gridRes * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
+  CL::imageSpecs imageSpecs { CL_RGBA, CL_FLOAT, 200, m_gridRes * m_gridRes * m_gridRes };
+  clContext.createImage2D("boidsPosText", imageSpecs, CL_MEM_READ_WRITE);
+  clContext.createImage2D("boidsVelText", imageSpecs, CL_MEM_READ_WRITE);
+
   return true;
 }
 
@@ -114,7 +120,8 @@ bool Boids::createKernels() const
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_START_CELL, { "boidsCellIDs", "startEndBoidsIndices" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_END_CELL, { "boidsCellIDs", "startEndBoidsIndices" });
 
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID, { "boidsPos", "boidsVel", "boidsAcc", "startEndBoidsIndices" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_TEXT, { "startEndBoidsIndices", "boidsPos", "boidsPosText" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID_TEXT, { "boidsPos", "boidsVel", "boidsPosText", "boidsVelText", "boidsAcc" });
 
   return true;
 }
@@ -135,7 +142,7 @@ void Boids::updateBoidsParamsInKernel()
   boidsParams[2] = m_activeAlignment ? m_scaleAlignment : 0.0f;
   boidsParams[3] = m_activeSeparation ? m_scaleSeparation : 0.0f;
   boidsParams[4] = m_activeTargets ? 1.0f : 0.0f;
-  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID, 4, sizeof(boidsParams), &boidsParams);
+  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_TEXT, 5, sizeof(boidsParams), &boidsParams);
 }
 
 void Boids::reset()
@@ -171,7 +178,16 @@ void Boids::update()
   clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_gridRes * m_gridRes * m_gridRes);
   clContext.runKernel(KERNEL_FILL_START_CELL, m_numEntities);
   clContext.runKernel(KERNEL_FILL_END_CELL, m_numEntities);
-  clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_numEntities);
+
+  clContext.setKernelArg(KERNEL_FILL_TEXT, 1, "boidsPos");
+  clContext.setKernelArg(KERNEL_FILL_TEXT, 2, "boidsPosText");
+  clContext.runKernel(KERNEL_FILL_TEXT, m_gridRes * m_gridRes * m_gridRes * 200, 200);
+
+  clContext.setKernelArg(KERNEL_FILL_TEXT, 1, "boidsVel");
+  clContext.setKernelArg(KERNEL_FILL_TEXT, 2, "boidsVelText");
+  clContext.runKernel(KERNEL_FILL_TEXT, m_gridRes * m_gridRes * m_gridRes * 200, 200);
+
+  clContext.runKernel(KERNEL_BOIDS_RULES_GRID_TEXT, m_numEntities);
   clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
 
   if (m_boundary == Boundary::CyclicWall)

@@ -235,6 +235,34 @@ bool Core::CL::Context::createBuffer(std::string bufferName, size_t bufferSize, 
   return true;
 }
 
+bool Core::CL::Context::createImage2D(std::string name, imageSpecs specs, cl_mem_flags memoryFlags)
+{
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  if (m_imagesMap.find(name) != m_imagesMap.end())
+  {
+    spdlog::error("Image {} already existing", name);
+    return false;
+  }
+
+  cl::ImageFormat format(specs.channelOrder, specs.channelType);
+
+  auto image = cl::Image2D(cl_context, memoryFlags, format, specs.width, specs.height, 0, nullptr, &err);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot create image {}", name);
+    return false;
+  }
+
+  m_imagesMap.insert(std::make_pair(name, image));
+
+  return true;
+}
+
 bool Core::CL::Context::loadBufferFromHost(std::string bufferName, size_t offset, size_t sizeToFill, const void* hostPtr)
 {
   if (!m_init)
@@ -289,8 +317,6 @@ bool Core::CL::Context::swapBuffers(std::string bufferNameA, std::string bufferN
 {
   if (!m_init)
     return false;
-
-  cl_int err;
 
   auto& itA = m_buffersMap.find(bufferNameA);
   if (itA == m_buffersMap.end())
@@ -396,7 +422,7 @@ bool Core::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int VB
   return true;
 }
 
-bool Core::CL::Context::createKernel(std::string programName, std::string kernelName, std::vector<std::string> bufferNames)
+bool Core::CL::Context::createKernel(std::string programName, std::string kernelName, std::vector<std::string> argNames)
 {
   // WIP Only taking buffer as args for now
 
@@ -425,13 +451,14 @@ bool Core::CL::Context::createKernel(std::string programName, std::string kernel
     return false;
   }
 
-  for (cl_uint i = 0; i < bufferNames.size(); ++i)
+  for (cl_uint i = 0; i < argNames.size(); ++i)
   {
-    if (bufferNames[i].empty())
+    if (argNames[i].empty())
       continue;
 
-    auto it = m_buffersMap.find(bufferNames[i]);
-    auto itGL = m_GLBuffersMap.find(bufferNames[i]);
+    auto it = m_buffersMap.find(argNames[i]);
+    auto itGL = m_GLBuffersMap.find(argNames[i]);
+    auto itIm = m_imagesMap.find(argNames[i]);
     if (it != m_buffersMap.end())
     {
       kernel.setArg(i, it->second);
@@ -440,9 +467,13 @@ bool Core::CL::Context::createKernel(std::string programName, std::string kernel
     {
       kernel.setArg(i, itGL->second);
     }
+    else if (itIm != m_imagesMap.end())
+    {
+      kernel.setArg(i, itIm->second);
+    }
     else
     {
-      spdlog::error("For kernel {} buffer arg not existing {}", kernelName, bufferNames[i]);
+      spdlog::error("For kernel {} arg not existing {}", kernelName, argNames[i]);
       return false;
     }
   }
@@ -476,7 +507,7 @@ bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, s
   return true;
 }
 
-bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, const std::string& bufferName)
+bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, const std::string& argName)
 {
   if (!m_init)
     return false;
@@ -484,32 +515,31 @@ bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, c
   auto itK = m_kernelsMap.find(kernelName);
   if (itK == m_kernelsMap.end())
   {
-    spdlog::error("Cannot set arg {} for unexisting Kernel {}", bufferName, kernelName);
+    spdlog::error("Cannot set arg {} for unexisting Kernel {}", argName, kernelName);
     return false;
   }
 
-  cl::Buffer buffer;
-  auto itB = m_buffersMap.find(bufferName);
-  if (itB == m_buffersMap.end())
+  auto kernel = itK->second;
+
+  auto itB = m_buffersMap.find(argName);
+  auto itBGL = m_GLBuffersMap.find(argName);
+  auto itIm = m_imagesMap.find(argName);
+
+  if (itB != m_buffersMap.end())
   {
-    auto itBGL = m_GLBuffersMap.find(bufferName);
-    if (itBGL == m_GLBuffersMap.end())
-    {
-      spdlog::error("Cannot set arg {}, buffer {} not existing", argIndex, bufferName);
-      return false;
-    }
-    else
-      buffer = itBGL->second;
+    kernel.setArg(argIndex, itB->second);
+  }
+  else if (itBGL != m_GLBuffersMap.end())
+  {
+    kernel.setArg(argIndex, itBGL->second);
+  }
+  else if (itIm != m_imagesMap.end())
+  {
+    kernel.setArg(argIndex, itIm->second);
   }
   else
-    buffer = itB->second;
-
-  auto kernel = itK->second;
-  cl_int err = kernel.setArg(argIndex, buffer);
-
-  if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot set buffer {} as arg {} for kernel {} ", bufferName, argIndex, kernelName);
+    spdlog::error("For kernel {} arg not existing {}", kernelName, argName);
     return false;
   }
 
@@ -561,7 +591,8 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkIt
     //the resolution of the events is 1e-09 sec
     double profilingTimeMs = (double)((cl_double)(end - start) * (1e-06));
 
-    spdlog::info("Profiling kernel {} : {} ms", kernelName, profilingTimeMs);
+    if (profilingTimeMs > 1.0)
+      spdlog::info("Profiling kernel {} : {} ms", kernelName, profilingTimeMs);
   }
 
   return true;

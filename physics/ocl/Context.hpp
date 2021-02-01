@@ -13,6 +13,14 @@ namespace Core
 {
 namespace CL
 {
+struct imageSpecs
+{
+  cl_channel_order channelOrder;
+  cl_channel_type channelType;
+  size_t width;
+  size_t height;
+};
+
 class Context
 {
   public:
@@ -20,11 +28,15 @@ class Context
 
   bool isInit() const { return m_init; }
 
-  bool createProgram(std::string programName, std::string sourcePath, std::string specificBuildOptions);
-  bool createGLBuffer(std::string GLBufferName, unsigned int VBOIndex, cl_mem_flags memoryFlags);
-  bool createBuffer(std::string bufferName, size_t bufferSize, cl_mem_flags memoryFlags);
-  bool loadBufferFromHost(std::string bufferName, size_t offset, size_t sizeToFill, const void* hostPtr);
-  bool unloadBufferFromDevice(std::string bufferName, size_t offset, size_t sizeToFill, void* hostPtr);
+  bool isProfiling() const { return m_isKernelProfilingEnabled; }
+  void enableProfiler(bool enable) { m_isKernelProfilingEnabled = enable; }
+
+  bool createProgram(std::string name, std::string sourcePath, std::string specificBuildOptions);
+  bool createGLBuffer(std::string name, unsigned int VBOIndex, cl_mem_flags memoryFlags);
+  bool createBuffer(std::string name, size_t bufferSize, cl_mem_flags memoryFlags);
+  bool createImage2D(std::string name, imageSpecs specs, cl_mem_flags memoryFlags);
+  bool loadBufferFromHost(std::string name, size_t offset, size_t sizeToFill, const void* hostPtr);
+  bool unloadBufferFromDevice(std::string name, size_t offset, size_t sizeToFill, void* hostPtr);
   bool swapBuffers(std::string bufferNameA, std::string bufferNameB);
   bool copyBuffer(std::string srcBufferName, std::string dstBufferName);
   bool createKernel(std::string programName, std::string kernelName, std::vector<std::string> argNames);
@@ -66,6 +78,7 @@ class Context
   std::map<std::string, cl::Kernel> m_kernelsMap;
   std::map<std::string, cl::Buffer> m_buffersMap;
   std::map<std::string, cl::BufferGL> m_GLBuffersMap;
+  std::map<std::string, cl::Image2D> m_imagesMap;
 
   bool m_isKernelProfilingEnabled;
 
