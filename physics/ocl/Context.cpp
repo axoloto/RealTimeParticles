@@ -20,8 +20,8 @@ Core::CL::Context& Core::CL::Context::Get()
   return context;
 }
 
-Core::CL::Context::Context(bool profilingEnabled)
-    : m_isKernelProfilingEnabled(profilingEnabled)
+Core::CL::Context::Context()
+    : m_isKernelProfilingEnabled(false)
     , m_init(false)
 {
   if (!findPlatforms())
@@ -167,11 +167,7 @@ bool Core::CL::Context::createCommandQueue()
   if (cl_context() == 0 || cl_device() == 0)
     return false;
 
-  cl_command_queue_properties properties = 0;
-  if (m_isKernelProfilingEnabled)
-  {
-    properties |= CL_QUEUE_PROFILING_ENABLE;
-  }
+  cl_command_queue_properties properties = CL_QUEUE_PROFILING_ENABLE;
 
   cl_int err;
   cl_queue = cl::CommandQueue(cl_context, cl_device, properties, &err);
@@ -546,7 +542,7 @@ bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, c
   return true;
 }
 
-bool Core::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkItems, size_t numLocalWorkItems) //WIP 1D Global
+bool Core::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkItems, size_t numLocalWorkItems)
 {
   if (!m_init)
     return false;
@@ -559,12 +555,8 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkIt
   }
 
   cl::Event event;
-  // size_t global1D = (numWorkItems > 10) ? numWorkItems - (numWorkItems % 10) : numWorkItems; //WIP
   cl::NDRange global(numGlobalWorkItems);
-  // wip
-  cl::NDRange local = cl::NullRange;
-  if (numLocalWorkItems > 0)
-    local = cl::NDRange(numLocalWorkItems);
+  cl::NDRange local = (numLocalWorkItems > 0) ? cl::NDRange(numLocalWorkItems) : cl::NullRange;
 
   cl_queue.enqueueNDRangeKernel(it->second, cl::NullRange, global, local, nullptr, &event);
 

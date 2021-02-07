@@ -5,7 +5,6 @@
 
 namespace Core
 {
-//static constexpr int NUM_MAX_ENTITIES = 30000;
 static constexpr int NUM_MAX_ENTITIES = 1 << 17;
 
 enum class Dimension

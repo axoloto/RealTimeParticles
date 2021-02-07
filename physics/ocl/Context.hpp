@@ -50,7 +50,7 @@ class Context
   bool mapAndSendBufferToDevice(std::string bufferName, const void* bufferPtr, size_t bufferSize);
 
   private:
-  Context(bool profilingEnabled = true);
+  Context();
   ~Context() = default;
   Context(const Context&) = delete;
   Context& operator=(const Context&) = delete;

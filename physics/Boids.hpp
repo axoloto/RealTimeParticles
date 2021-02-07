@@ -101,6 +101,8 @@ class Boids : public Physics
 
   bool m_activeTargets;
 
+  size_t m_maxNbPartsInCell;
+
   Math::float3 m_target;
 
   RadixSort m_radixSort;
