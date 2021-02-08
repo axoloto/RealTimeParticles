@@ -263,6 +263,18 @@ __kernel void fillEndCell(__global uint* boidsCellIDs, __global uint2* startEndC
   }
 }
 
+__kernel void adjustEndCell(__global uint2* startEndCells)
+{
+  unsigned int i = get_global_id(0);
+
+  uint2 startEnd = startEndCells[i];
+  if (startEnd.y > startEnd.x)
+  {
+    uint newEnd = startEnd.x + min(startEnd.y - startEnd.x, (uint)NUM_MAX_PARTS_IN_CELL);
+    startEndCells[i] = (uint2)(startEnd.x, newEnd);
+  }
+}
+
 __kernel void applyBoidsRulesWithGrid(
     __global float4* position,
     __global float4* velocity,
@@ -279,9 +291,6 @@ __kernel void applyBoidsRulesWithGrid(
 
   uint2 startEnd = startEndCell[cell1DIndex];
 
-  if ((startEnd.y - startEnd.x) > NUM_MAX_PARTS_IN_CELL)
-    return;
-
   int count = 0;
 
   float4 averageBoidsPos = (float4)(0.0, 0.0, 0.0, 0.0);
@@ -295,13 +304,10 @@ __kernel void applyBoidsRulesWithGrid(
   int y = 0;
   int z = 0;
   uint cellIndex = 0;
-  uint2 startEndCurrent = (uint2)(0, 0);
+  uint2 startEndN = (uint2)(0, 0);
   int3 currentCell3DIndex = getCell3DIndexFromPos(pos);
-  int nbParts = 0;
-  uint endLoop = 0;
 
   float4 posN = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 velN = (float4)(0.0, 0.0, 0.0, 0.0);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -321,14 +327,11 @@ __kernel void applyBoidsRulesWithGrid(
 
         cellIndex = (x * GRID_RES + y) * GRID_RES + z;
 
-        startEndCurrent = startEndCell[cellIndex];
+        startEndN = startEndCell[cellIndex];
 
-        nbParts = min(startEndCurrent.y - startEndCurrent.x, (uint)NUM_MAX_PARTS_IN_CELL);
-        endLoop = startEndCurrent.x + nbParts;
-        for (uint e = startEndCurrent.x; e <= endLoop; ++e)
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
           posN = position[e];
-          velN = velocity[e];
 
           vec = pos - posN;
           squaredDist = dot(vec, vec);
@@ -337,7 +340,7 @@ __kernel void applyBoidsRulesWithGrid(
           if (squaredDist < EFFECT_RADIUS_SQUARED && squaredDist > FLOAT_EPSILON)
           {
             averageBoidsPos += posN;
-            averageBoidsVel += velN;
+            averageBoidsVel += velocity[e];
             repulseHeading += vec / squaredDist;
             ++count;
           }
@@ -367,6 +370,7 @@ __kernel void applyBoidsRulesWithGrid(
       + clamp(target, 0.0, normalize(target) * MAX_STEERING) * params.s4;
 }
 
+/*
 __kernel void fillBoidsTexture(
     __global uint2* startEndCell,
     __global float4* inputBoidsBuffer,
@@ -405,7 +409,7 @@ __kernel void applyBoidsRulesWithGridAndTex(
 
   uint2 startEnd = startEndCell[cell1DIndex];
 
-  if ((startEnd.y - startEnd.x) <= NUM_MAX_PARTS_IN_CELL)
+  if ((startEnd.y - startEnd.x) <= 20 * NUM_MAX_PARTS_IN_CELL)
     return;
 
   int count = 0;
@@ -426,7 +430,6 @@ __kernel void applyBoidsRulesWithGridAndTex(
   sampler_t samp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;
 
   float4 posN = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 velN = (float4)(0.0, 0.0, 0.0, 0.0);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -449,7 +452,6 @@ __kernel void applyBoidsRulesWithGridAndTex(
         for (uint partIndex = 0; partIndex < NUM_MAX_PARTS_IN_CELL; ++partIndex)
         {
           posN = read_imagef(posTex, samp, (int2)(partIndex, cellIndex));
-          velN = read_imagef(velTex, samp, (int2)(partIndex, cellIndex));
 
           if (isequal(posN.s3, -1.0f))
             continue;
@@ -461,7 +463,7 @@ __kernel void applyBoidsRulesWithGridAndTex(
           if (squaredDist < EFFECT_RADIUS_SQUARED && squaredDist > FLOAT_EPSILON)
           {
             averageBoidsPos += posN;
-            averageBoidsVel += velN;
+            averageBoidsVel += read_imagef(velTex, samp, (int2)(partIndex, cellIndex));
             repulseHeading += vec / squaredDist;
             ++count;
           }
@@ -491,7 +493,6 @@ __kernel void applyBoidsRulesWithGridAndTex(
       + clamp(target, 0.0, normalize(target) * MAX_STEERING) * params.s4;
 }
 
-/*
 __kernel void applyBoidsRulesWithGridAndTexLocal(
     __global uint2* startEndCell,
     __read_only image2d_t posTex,
