@@ -11,14 +11,14 @@ unsigned int parallelRNG(unsigned int i)
   return value;
 }
 
-__kernel void colorVerts(__global float4* color)
+__kernel void colorVerts(global float4* color)
 {
   int i = get_global_id(0);
   float col = i / (float)get_global_size(0);
   color[i] = (float4)(col, col, col, 1.0);
 }
 
-__kernel void randPosVerts(__global float4* pos, __global float4* vel, float dim)
+__kernel void randPosVerts(global float4* pos, global float4* vel, float dim)
 {
   unsigned int i = get_global_id(0);
 
@@ -106,7 +106,7 @@ __kernel void applyBoidsRules(__global float4* position, __global float4* veloci
 }
 */
 
-__kernel void updateVelVerts(__global float4* vel, __global float4* acc, float velVal)
+__kernel void updateVelVerts(global float4* vel, const global float4* acc, float velVal)
 {
   unsigned int i = get_global_id(0);
 
@@ -115,7 +115,7 @@ __kernel void updateVelVerts(__global float4* vel, __global float4* acc, float v
   vel[i] = normalize(vel[i]) * velVal;
 }
 
-__kernel void updatePosVertsWithBouncingWalls(__global float4* pos, __global float4* vel)
+__kernel void updatePosVertsWithBouncingWalls(global float4* pos, global float4* vel)
 {
   unsigned int i = get_global_id(0);
 
@@ -128,7 +128,7 @@ __kernel void updatePosVertsWithBouncingWalls(__global float4* pos, __global flo
   pos[i] = clampedNewPos;
 }
 
-__kernel void updatePosVertsWithCyclicWalls(__global float4* pos, __global float4* vel)
+__kernel void updatePosVertsWithCyclicWalls(global float4* pos, const global float4* vel)
 {
   unsigned int i = get_global_id(0);
 
@@ -151,7 +151,7 @@ __kernel void updatePosVertsWithCyclicWalls(__global float4* pos, __global float
 
 // For rendering purpose only, checking for each grid cell if there is any particle
 // If so, grid cell will be displayed in OpenGl
-__kernel void flushGridDetector(__global float8* gridDetector)
+__kernel void flushGridDetector(global float8* gridDetector)
 {
   unsigned int i = get_global_id(0);
   gridDetector[i] = 0.0f;
@@ -196,7 +196,7 @@ __kernel void fillGridDetector(__global float4* vertPos, __global float8* gridDe
 }
 
 // To use of Radix Sort accelerator, we need to find the cellID for each boids particle
-__kernel void flushCellIDs(__global uint* boidsCellIDs)
+__kernel void flushCellIDs(global uint* boidsCellIDs)
 {
   unsigned int i = get_global_id(0);
   // For all particles, giving cell ID above any available one
@@ -205,7 +205,7 @@ __kernel void flushCellIDs(__global uint* boidsCellIDs)
   boidsCellIDs[i] = GRID_NUM_CELLS + 1;
 }
 
-__kernel void fillCellIDs(__global float4* vertPos, __global uint* boidsCellIDs)
+__kernel void fillCellIDs(const global float4* vertPos, global uint* boidsCellIDs)
 {
   unsigned int i = get_global_id(0);
 
@@ -216,20 +216,16 @@ __kernel void fillCellIDs(__global float4* vertPos, __global uint* boidsCellIDs)
   boidsCellIDs[i] = cell1DIndex;
 }
 
-__kernel void flushStartEndCell(__global uint2* startEndCells)
+__kernel void flushStartEndCell(global uint2* startEndCells)
 {
   unsigned int i = get_global_id(0);
 
-  // Flushing buffer with 1 as starting index and 0 as ending index
-  // This little trick bypass any loop where
-  // we loop on the particles found in a cell
-  // if this cell has not been found, hence has no particle at all
-  //startEndCells[i].xy = (uint)(1, 0);
-  startEndCells[i].x = 1;
-  startEndCells[i].y = 0;
+  // Flushing with 1 as starting index and 0 as ending index
+  // Little hack to bypass empty cell further in the boids algo
+  startEndCells[i] = (uint2)(1, 0);
 }
 
-__kernel void fillStartCell(__global uint* boidsCellIDs, __global uint2* startEndCells)
+__kernel void fillStartCell(const global uint* boidsCellIDs, global uint2* startEndCells)
 {
   unsigned int i = get_global_id(0);
 
@@ -246,7 +242,7 @@ __kernel void fillStartCell(__global uint* boidsCellIDs, __global uint2* startEn
   }
 }
 
-__kernel void fillEndCell(__global uint* boidsCellIDs, __global uint2* startEndCells)
+__kernel void fillEndCell(const global uint* boidsCellIDs, global uint2* startEndCells)
 {
   unsigned int i = get_global_id(0);
 
@@ -263,7 +259,7 @@ __kernel void fillEndCell(__global uint* boidsCellIDs, __global uint2* startEndC
   }
 }
 
-__kernel void adjustEndCell(__global uint2* startEndCells)
+__kernel void adjustEndCell(global uint2* startEndCells)
 {
   unsigned int i = get_global_id(0);
 
@@ -276,11 +272,14 @@ __kernel void adjustEndCell(__global uint2* startEndCells)
 }
 
 __kernel void applyBoidsRulesWithGrid(
-    __global float4* position,
-    __global float4* velocity,
-    __global float4* acc,
-    __global uint2* startEndCell,
-    float8 params)
+    // global inputs
+    const global float4* position,
+    const global float4* velocity,
+    const global uint2* startEndCell,
+    // param
+    const float8 params,
+    // global output
+    global float4* acc)
 {
   unsigned int i = get_global_id(0);
 

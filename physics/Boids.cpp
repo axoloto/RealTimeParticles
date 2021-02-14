@@ -121,11 +121,7 @@ bool Boids::createKernels() const
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_END_CELL, { "p_CellID", "c_startEndPartID" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_ADJUST_END_CELL, { "c_startEndPartID" });
 
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID, { "p_Pos", "p_Vel", "p_Acc", "c_startEndPartID" });
-
-  //clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID_TEXT_LOCAL, { "c_startEndPartID", "p_PosTex", "p_VelTex", "p_Acc" });
-  //clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_TEXT_LOCAL, 5, sizeof(float) * 4 * m_maxNbPartsInCell * 9, nullptr);
-  //clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_TEXT_LOCAL, 6, sizeof(float) * 4 * m_maxNbPartsInCell * 9, nullptr);
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID, { "p_Pos", "p_Vel", "c_startEndPartID", "", "p_Acc" });
 
   return true;
 }
@@ -146,8 +142,7 @@ void Boids::updateBoidsParamsInKernel()
   boidsParams[2] = m_activeAlignment ? m_scaleAlignment : 0.0f;
   boidsParams[3] = m_activeSeparation ? m_scaleSeparation : 0.0f;
   boidsParams[4] = m_activeTargets ? 1.0f : 0.0f;
-  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID, 4, sizeof(boidsParams), &boidsParams);
-  //clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_TEXT_LOCAL, 4, sizeof(boidsParams), &boidsParams);
+  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID, 3, sizeof(boidsParams), &boidsParams);
 }
 
 void Boids::reset()
@@ -186,8 +181,6 @@ void Boids::update()
   clContext.runKernel(KERNEL_ADJUST_END_CELL, m_gridRes * m_gridRes * m_gridRes);
 
   clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_numEntities);
-
-  //clContext.runKernel(KERNEL_BOIDS_RULES_GRID_TEXT_LOCAL, m_gridRes * m_gridRes * m_gridRes * m_maxNbPartsInCell, m_maxNbPartsInCell);
   clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
 
   if (m_boundary == Boundary::CyclicWall)
