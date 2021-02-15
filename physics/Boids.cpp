@@ -71,9 +71,7 @@ bool Boids::createProgram() const
   clBuildOptions << " -DGRID_NUM_CELLS=" << (m_gridRes * m_gridRes * m_gridRes);
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
 
-  // WIP, hardcoded Path
-  clContext.createProgram(PROGRAM_BOIDS,
-      "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\boids.cl", clBuildOptions.str());
+  clContext.createProgram(PROGRAM_BOIDS, ".\\physics\\ocl\\kernels\\boids.cl", clBuildOptions.str());
 
   return true;
 }

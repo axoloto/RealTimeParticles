@@ -51,10 +51,7 @@ bool RadixSort::createProgram() const
     clBuildOptions << " -DHOST_PTR_IS_32bit";
   }
 
-  // WIP, hardcoded Path
-  clContext.createProgram(PROGRAM_RADIXSORT,
-      "C:\\Dev_perso\\boids\\physics\\ocl\\kernels\\radixSort.cl",
-      clBuildOptions.str());
+  clContext.createProgram(PROGRAM_RADIXSORT, ".\\physics\\ocl\\kernels\\radixSort.cl", clBuildOptions.str());
 
   return true;
 }
