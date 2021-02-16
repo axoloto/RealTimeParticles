@@ -15,7 +15,7 @@ __kernel void colorVerts(const global float4* pos, global float4* color)
 {
   int i = get_global_id(0);
   float4 currPos = fabs(pos[i]);
-  color[i] = (float4)(currPos.x / 300.f, currPos.y / 300.f, currPos.z / 300.f, 1.0f);
+  color[i] = (float4)(1.0f, currPos.y / 300.f, currPos.z / 300.f, 1.0f);
 }
 
 __kernel void randPosVerts(global float4* pos, global float4* vel, float dim)
@@ -266,9 +266,32 @@ __kernel void applyBoidsRulesWithGrid(
         + steerForce(repulseHeading, vel) * params.s3;
   }
 
-  float4 target = -pos;
+  acc[i] = newAcc;
+}
 
-  acc[i] = newAcc + clamp(target, 0.0, fast_normalize(target) * MAX_STEERING) * params.s4;
+__kernel void addTargetRule(
+    // global input
+    const global float4* pos,
+    // params
+    const float4 targetPos,
+    const float targetSquaredRadiusEffect,
+    const int targetSignEffect,
+    // global output
+    global float4* acc)
+{
+  unsigned int i = get_global_id(0);
+
+  float4 currPos = pos[i];
+
+  float4 vec = targetPos - currPos;
+  float squaredDist = dot(vec, vec);
+
+  float4 targetAcc = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+
+  if (squaredDist < targetSquaredRadiusEffect)
+    targetAcc += targetSignEffect * clamp(vec, 0.0, fast_normalize(vec) * MAX_STEERING);
+
+  acc[i] += targetAcc;
 }
 
 __kernel void updateVel(

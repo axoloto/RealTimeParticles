@@ -167,7 +167,7 @@ ParticleSystemApp::ParticleSystemApp()
 
   size_t numEntities = Core::NUM_MAX_ENTITIES;
   size_t boxSize = 1600;
-  size_t gridRes = 30;
+  size_t gridRes = 20;
   float velocity = 5.0f;
 
   m_graphicsEngine = std::make_unique<Render::OGLRender>(numEntities, boxSize, gridRes,
@@ -195,9 +195,6 @@ ParticleSystemApp::ParticleSystemApp()
 
 void ParticleSystemApp::run()
 {
-  ImGuiIO& io = ImGui::GetIO();
-  (void)io;
-
   bool stopRendering = false;
   while (!stopRendering)
   {
@@ -218,6 +215,7 @@ void ParticleSystemApp::run()
 
     m_physicsWidget->display();
 
+    ImGuiIO& io = ImGui::GetIO();
     glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
     glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

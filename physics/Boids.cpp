@@ -25,6 +25,7 @@ using namespace Core;
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 #define KERNEL_FILL_TEXT "fillBoidsTexture"
 #define KERNEL_BOIDS_RULES_GRID "applyBoidsRulesWithGrid"
+#define KERNEL_ADD_TARGET_RULE "addTargetRule"
 
 Boids::Boids(size_t numEntities, size_t boxSize, size_t gridRes, float velocity,
     unsigned int pointCloudCoordVBO,
@@ -58,7 +59,7 @@ bool Boids::createProgram() const
   CL::Context& clContext = CL::Context::Get();
 
   std::ostringstream clBuildOptions;
-  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=1000 ";
+  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=1500 ";
   clBuildOptions << " -DMAX_STEERING=0.5f ";
   clBuildOptions << " -DABS_WALL_POS=" << std::fixed << std::setprecision(2)
                  << std::setfill('0') << m_boxSize / 2.0f << "f";
@@ -116,6 +117,8 @@ bool Boids::createKernels() const
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_ADJUST_END_CELL, { "c_startEndPartID" });
 
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID, { "p_Pos", "p_Vel", "c_startEndPartID", "", "p_Acc" });
+
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_ADD_TARGET_RULE, { "p_Pos", "", "", "p_Acc", "p_Acc" });
 
   return true;
 }
@@ -180,6 +183,17 @@ void Boids::update()
   clContext.runKernel(KERNEL_ADJUST_END_CELL, m_gridRes * m_gridRes * m_gridRes);
 
   clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_numEntities);
+
+  if (m_activeTargets)
+  {
+    std::array<float, 4> targetPos = { m_target.x, m_target.y, m_target.z, 0.0f };
+    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 1, sizeof(float) * 4, &targetPos);
+    float squaredRadiusEffect = 100000.0f;
+    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(float), &squaredRadiusEffect);
+    int signEffect = 1;
+    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 3, sizeof(int), &signEffect);
+    clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_numEntities);
+  }
 
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(float), &timeStep);
   clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
