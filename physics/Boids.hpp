@@ -1,7 +1,7 @@
 #pragma once
 
-//#include "CL/cl.h"
 #include <array>
+#include <chrono>
 #include <vector>
 
 #include "Physics.hpp"
@@ -10,10 +10,11 @@
 
 namespace Core
 {
+using clock = std::chrono::high_resolution_clock;
 class Boids : public Physics
 {
   public:
-  Boids(size_t numEntities, size_t boxSize, size_t gridRes,
+  Boids(size_t numEntities, size_t boxSize, size_t gridRes, float velocity,
       unsigned int pointCloudCoordVBO,
       unsigned int pointCloudColorVBO,
       unsigned int gridDetectorVBO);
@@ -106,5 +107,7 @@ class Boids : public Physics
   Math::float3 m_target;
 
   RadixSort m_radixSort;
+
+  std::chrono::steady_clock::time_point m_time;
 };
 }

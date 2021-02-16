@@ -19,7 +19,7 @@ enum class UserAction
 class OGLRender
 {
   public:
-  OGLRender(size_t boxSize, size_t gridRes, size_t numDisplayedEntities, size_t numMaxEntities, float aspectRatio);
+  OGLRender(size_t numDisplayedEntities, size_t boxSize, size_t gridRes, size_t numMaxEntities, float aspectRatio);
   ~OGLRender();
 
   void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);

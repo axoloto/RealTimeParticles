@@ -22,12 +22,12 @@ enum class Boundary
 class Physics
 {
   public:
-  Physics(size_t numEntities, size_t boxSize, size_t gridRes, Dimension dimension = Dimension::dim2D)
+  Physics(size_t numEntities, size_t boxSize, size_t gridRes, float velocity, Dimension dimension = Dimension::dim2D)
       : m_numEntities(numEntities)
       , m_boxSize(boxSize)
       , m_gridRes(gridRes)
       , m_init(false)
-      , m_velocity(3.0f)
+      , m_velocity(velocity)
       , m_dimension(dimension)
       , m_boundary(Boundary::BouncingWall)
       , m_pause(false) {};

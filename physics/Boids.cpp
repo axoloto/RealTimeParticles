@@ -11,10 +11,9 @@ using namespace Core;
 #define PROGRAM_BOIDS "boids"
 
 #define KERNEL_RANDOM_POS "randPosVerts"
-#define KERNEL_BOIDS_RULES "applyBoidsRules"
-#define KERNEL_UPDATE_POS_BOUNCING "updatePosVertsWithBouncingWalls"
-#define KERNEL_UPDATE_POS_CYCLIC "updatePosVertsWithCyclicWalls"
-#define KERNEL_UPDATE_VEL "updateVelVerts"
+#define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
+#define KERNEL_UPDATE_POS_CYCLIC "updatePosWithCyclicWalls"
+#define KERNEL_UPDATE_VEL "updateVel"
 #define KERNEL_FLUSH_GRID_DETECTOR "flushGridDetector"
 #define KERNEL_FILL_GRID_DETECTOR "fillGridDetector"
 #define KERNEL_COLOR "colorVerts"
@@ -26,14 +25,12 @@ using namespace Core;
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 #define KERNEL_FILL_TEXT "fillBoidsTexture"
 #define KERNEL_BOIDS_RULES_GRID "applyBoidsRulesWithGrid"
-#define KERNEL_BOIDS_RULES_GRID_TEXT "applyBoidsRulesWithGridAndTex"
-//#define KERNEL_BOIDS_RULES_GRID_TEXT_LOCAL "applyBoidsRulesWithGridAndTexLocal"
 
-Boids::Boids(size_t numEntities, size_t boxSize, size_t gridRes,
+Boids::Boids(size_t numEntities, size_t boxSize, size_t gridRes, float velocity,
     unsigned int pointCloudCoordVBO,
     unsigned int pointCloudColorVBO,
     unsigned int gridDetectorVBO)
-    : Physics(numEntities, boxSize, gridRes)
+    : Physics(numEntities, boxSize, gridRes, velocity)
     , m_scaleAlignment(1.6f)
     , m_scaleCohesion(0.7f)
     , m_scaleSeparation(1.6f)
@@ -63,7 +60,6 @@ bool Boids::createProgram() const
   std::ostringstream clBuildOptions;
   clBuildOptions << "-DEFFECT_RADIUS_SQUARED=1000 ";
   clBuildOptions << " -DMAX_STEERING=0.5f ";
-  clBuildOptions << " -DMAX_VELOCITY=5.0f ";
   clBuildOptions << " -DABS_WALL_POS=" << std::fixed << std::setprecision(2)
                  << std::setfill('0') << m_boxSize / 2.0f << "f";
   clBuildOptions << " -DFLOAT_EPSILON=0.01f";
@@ -106,9 +102,9 @@ bool Boids::createKernels() const
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_GRID_DETECTOR, { "p_Pos", "c_partDetector" });
 
   // Boids Physics
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_VEL, { "p_Vel", "p_Acc" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_BOUNCING, { "p_Pos", "p_Vel" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_CYCLIC, { "p_Pos", "p_Vel" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_VEL, { "p_Acc", "", "", "p_Vel" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_BOUNCING, { "p_Vel", "", "p_Pos" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_CYCLIC, { "p_Vel", "", "p_Pos" });
 
   // Radix Sort based on 3D grid
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_CELL_ID, { "p_CellID" });
@@ -131,8 +127,8 @@ void Boids::updateBoidsParamsInKernel()
   float dim = (m_dimension == Dimension::dim2D) ? 2.0f : 3.0f;
   clContext.setKernelArg(KERNEL_RANDOM_POS, 2, sizeof(float), &dim);
 
-  float velVal = m_velocity;
-  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &velVal);
+  float vel = m_velocity;
+  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &vel);
 
   std::array<float, 8> boidsParams;
   boidsParams[0] = m_velocity;
@@ -150,6 +146,7 @@ void Boids::reset()
 
   updateBoidsParamsInKernel();
 
+  m_time = clock::now();
   CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
@@ -167,6 +164,10 @@ void Boids::update()
 
   CL::Context& clContext = CL::Context::Get();
 
+  auto currentTime = clock::now();
+  float timeStep = (float)(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_time).count()) / 16.0f;
+  m_time = currentTime;
+
   clContext.acquireGLBuffers({ "p_Pos", "c_partDetector" });
   clContext.runKernel(KERNEL_FLUSH_CELL_ID, NUM_MAX_ENTITIES);
   clContext.runKernel(KERNEL_FILL_CELL_ID, m_numEntities);
@@ -179,12 +180,21 @@ void Boids::update()
   clContext.runKernel(KERNEL_ADJUST_END_CELL, m_gridRes * m_gridRes * m_gridRes);
 
   clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_numEntities);
+
+  clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(float), &timeStep);
   clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
 
-  if (m_boundary == Boundary::CyclicWall)
+  switch (m_boundary)
+  {
+  case Boundary::CyclicWall:
+    clContext.setKernelArg(KERNEL_UPDATE_POS_CYCLIC, 1, sizeof(float), &timeStep);
     clContext.runKernel(KERNEL_UPDATE_POS_CYCLIC, m_numEntities);
-  else if (m_boundary == Boundary::BouncingWall)
+    break;
+  case Boundary::BouncingWall:
+    clContext.setKernelArg(KERNEL_UPDATE_POS_BOUNCING, 1, sizeof(float), &timeStep);
     clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_numEntities);
+    break;
+  }
 
   clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_gridRes * m_gridRes * m_gridRes);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);

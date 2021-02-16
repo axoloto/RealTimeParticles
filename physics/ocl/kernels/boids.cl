@@ -32,11 +32,11 @@ __kernel void randPosVerts(global float4* pos, global float4* vel, float dim)
 
   float3 randomXYZ = (float3)(x * step(3.0f, dim), y, z);
 
-  pos[i].xyz = clamp(randomXYZ, -250.0f, 250.0f);
-  pos[i].w = 1.0;
+  pos[i].xyz = clamp(randomXYZ, -ABS_WALL_POS, ABS_WALL_POS);
+  pos[i].w = 0.0;
 
-  vel[i].xyz = clamp(randomXYZ, -10.0f, 10.0f);
-  vel[i].w = 1.0;
+  vel[i].xyz = clamp(randomXYZ, -50.0f, 50.0f);
+  vel[i].w = 0.0;
 }
 
 inline float4 steerForce(float4 desiredVel, float4 vel)
@@ -44,52 +44,9 @@ inline float4 steerForce(float4 desiredVel, float4 vel)
   float4 steerForce = desiredVel - vel;
   if (length(steerForce) > MAX_STEERING)
   {
-    steerForce = normalize(steerForce) * MAX_STEERING;
+    steerForce = fast_normalize(steerForce) * MAX_STEERING;
   }
   return steerForce;
-}
-
-__kernel void updateVelVerts(global float4* vel, const global float4* acc, float velVal)
-{
-  unsigned int i = get_global_id(0);
-
-  vel[i] += acc[i];
-
-  vel[i] = normalize(vel[i]) * velVal;
-}
-
-__kernel void updatePosVertsWithBouncingWalls(global float4* pos, global float4* vel)
-{
-  unsigned int i = get_global_id(0);
-
-  float4 newPos = pos[i] + vel[i];
-  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
-  if (!all(isequal(clampedNewPos.xyz, newPos.xyz)))
-  {
-    vel[i] *= -1;
-  }
-  pos[i] = clampedNewPos;
-}
-
-__kernel void updatePosVertsWithCyclicWalls(global float4* pos, const global float4* vel)
-{
-  unsigned int i = get_global_id(0);
-
-  float4 newPos = pos[i] + vel[i];
-  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
-  if (!isequal(clampedNewPos.x, newPos.x))
-  {
-    clampedNewPos.x *= -1;
-  }
-  if (!isequal(clampedNewPos.y, newPos.y))
-  {
-    clampedNewPos.y *= -1;
-  }
-  if (!isequal(clampedNewPos.z, newPos.z))
-  {
-    clampedNewPos.z *= -1;
-  }
-  pos[i] = clampedNewPos;
 }
 
 // For rendering purpose only, checking for each grid cell if there is any particle
@@ -235,6 +192,7 @@ __kernel void applyBoidsRulesWithGrid(
 
   int count = 0;
 
+  float4 newAcc = (float4)(0.0, 0.0, 0.0, 0.0);
   float4 averageBoidsPos = (float4)(0.0, 0.0, 0.0, 0.0);
   float4 averageBoidsVel = (float4)(0.0, 0.0, 0.0, 0.0);
   float4 repulseHeading = (float4)(0.0, 0.0, 0.0, 0.0);
@@ -297,19 +255,81 @@ __kernel void applyBoidsRulesWithGrid(
     // cohesion
     averageBoidsPos /= count;
     averageBoidsPos -= pos;
-    averageBoidsPos = normalize(averageBoidsPos) * params.s0;
+    averageBoidsPos = fast_normalize(averageBoidsPos) * params.s0;
     // alignment
-    averageBoidsVel = normalize(averageBoidsVel) * params.s0;
+    averageBoidsVel = fast_normalize(averageBoidsVel) * params.s0;
     // separation
-    repulseHeading = normalize(repulseHeading) * params.s0;
+    repulseHeading = fast_normalize(repulseHeading) * params.s0;
+
+    newAcc = steerForce(averageBoidsPos, vel) * params.s1
+        + steerForce(averageBoidsVel, vel) * params.s2
+        + steerForce(repulseHeading, vel) * params.s3;
   }
 
   float4 target = -pos;
 
-  acc[i] = steerForce(averageBoidsPos, vel) * params.s1
-      + steerForce(averageBoidsVel, vel) * params.s2
-      + steerForce(repulseHeading, vel) * params.s3
-      + clamp(target, 0.0, normalize(target) * MAX_STEERING) * params.s4;
+  acc[i] = newAcc + clamp(target, 0.0, fast_normalize(target) * MAX_STEERING) * params.s4;
+}
+
+__kernel void updateVel(
+    // global input
+    const global float4* acc,
+    // params
+    const float timeStep,
+    const float velocity,
+    // global output
+    global float4* vel)
+{
+  unsigned int i = get_global_id(0);
+
+  float4 newVel = vel[i] + acc[i] * timeStep;
+  vel[i] = fast_normalize(newVel) * velocity;
+}
+
+__kernel void updatePosWithBouncingWalls(
+    // global input/output
+    global float4* vel,
+    // param
+    const float timeStep,
+    // global output
+    global float4* pos)
+{
+  unsigned int i = get_global_id(0);
+
+  float4 newPos = pos[i] + vel[i] * timeStep;
+  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
+  if (!all(isequal(clampedNewPos.xyz, newPos.xyz)))
+  {
+    vel[i] *= -0.5f;
+  }
+  pos[i] = clampedNewPos;
+}
+
+__kernel void updatePosWithCyclicWalls(
+    // global input
+    const global float4* vel,
+    // param
+    const float timeStep,
+    // global output
+    global float4* pos)
+{
+  unsigned int i = get_global_id(0);
+
+  float4 newPos = pos[i] + vel[i] * timeStep;
+  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
+  if (!isequal(clampedNewPos.x, newPos.x))
+  {
+    clampedNewPos.x *= -1;
+  }
+  if (!isequal(clampedNewPos.y, newPos.y))
+  {
+    clampedNewPos.y *= -1;
+  }
+  if (!isequal(clampedNewPos.z, newPos.z))
+  {
+    clampedNewPos.z *= -1;
+  }
+  pos[i] = clampedNewPos;
 }
 
 // Classic boids physics with no grid, O(N^2) in time complexity
