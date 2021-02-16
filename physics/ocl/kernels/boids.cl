@@ -11,11 +11,11 @@ unsigned int parallelRNG(unsigned int i)
   return value;
 }
 
-__kernel void colorVerts(global float4* color)
+__kernel void colorVerts(const global float4* pos, global float4* color)
 {
   int i = get_global_id(0);
-  float col = i / (float)get_global_size(0);
-  color[i] = (float4)(col, col, col, 1.0);
+  float4 currPos = fabs(pos[i]);
+  color[i] = (float4)(currPos.x / 300.f, currPos.y / 300.f, currPos.z / 300.f, 1.0f);
 }
 
 __kernel void randPosVerts(global float4* pos, global float4* vel, float dim)

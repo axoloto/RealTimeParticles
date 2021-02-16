@@ -94,7 +94,7 @@ bool Boids::createKernels() const
   CL::Context& clContext = CL::Context::Get();
 
   // Init only
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_COLOR, { "p_Color" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_COLOR, { "p_Pos", "p_Color" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_RANDOM_POS, { "p_Pos", "p_Vel" });
 
   // For rendering purpose only
@@ -150,8 +150,8 @@ void Boids::reset()
   CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
-  clContext.runKernel(KERNEL_COLOR, m_numEntities);
   clContext.runKernel(KERNEL_RANDOM_POS, m_numEntities);
+  clContext.runKernel(KERNEL_COLOR, m_numEntities);
   clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_gridRes * m_gridRes * m_gridRes);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
   clContext.releaseGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
