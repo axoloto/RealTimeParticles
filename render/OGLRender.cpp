@@ -14,8 +14,10 @@ OGLRender::OGLRender(size_t numDisplayedEntities, size_t boxSize, size_t gridRes
 {
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_PROGRAM_POINT_SIZE);
+  glEnable(GL_POINT_SMOOTH);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glEnable(GL_BLEND);
+  glEnable(GL_MULTISAMPLE);
 
   initCamera(sceneAspectRatio);
 

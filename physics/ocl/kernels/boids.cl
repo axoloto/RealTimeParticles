@@ -15,7 +15,7 @@ __kernel void colorVerts(const global float4* pos, global float4* color)
 {
   int i = get_global_id(0);
   float4 currPos = fabs(pos[i]);
-  color[i] = (float4)(1.0f, currPos.y / 300.f, currPos.z / 300.f, 1.0f);
+  color[i] = (float4)(1.0f - currPos.y / 900.f, 0.2f, 0.0f, 1.0f);
 }
 
 __kernel void randPosVerts(global float4* pos, global float4* vel, float dim)
