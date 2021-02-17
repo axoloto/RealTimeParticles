@@ -78,12 +78,26 @@ class Boids : public Physics
 
   //
 
-  void activateTarget(bool targets)
+  void activateTarget(bool target)
   {
-    m_activeTargets = targets;
+    m_activeTargets = target;
     updateBoidsParamsInKernel();
   }
   bool isTargetActivated() const { return m_activeTargets; }
+
+  void setTargetRadiusEffect(float radiusEffect)
+  {
+    m_targetRadiusEffect = radiusEffect;
+    updateBoidsParamsInKernel();
+  }
+  float targetRadiusEffect() const { return m_targetRadiusEffect; }
+
+  void setTargetSignEffect(int signEffect)
+  {
+    m_targetSign = signEffect;
+    updateBoidsParamsInKernel();
+  }
+  int targetSignEffect() const { return m_targetSign; }
 
   private:
   bool createProgram() const;
@@ -105,6 +119,8 @@ class Boids : public Physics
   size_t m_maxNbPartsInCell;
 
   Math::float3 m_target;
+  float m_targetRadiusEffect;
+  int m_targetSign;
 
   RadixSort m_radixSort;
 

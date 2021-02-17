@@ -18,6 +18,21 @@ void UI::BoidsWidget::display()
     boidsEngine.activateTarget(isTarget);
   }
 
+  if (isTarget)
+  {
+    float targetRadius = boidsEngine.targetRadiusEffect();
+    if (ImGui::SliderFloat("##targetRadius", &targetRadius, 10000.0, 1000000.0f))
+    {
+      boidsEngine.setTargetRadiusEffect(targetRadius);
+    }
+    int targetSign = boidsEngine.targetSignEffect();
+    std::string targetMode = targetSign > 0 ? "  Attract  " : "  Repulse  ";
+    if (ImGui::Button(targetMode.c_str()))
+    {
+      boidsEngine.setTargetSignEffect(targetSign * -1);
+    }
+  }
+
   ImGui::Spacing();
   ImGui::Separator();
   ImGui::Spacing();

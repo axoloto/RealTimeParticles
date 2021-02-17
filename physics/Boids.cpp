@@ -40,6 +40,8 @@ Boids::Boids(size_t numEntities, size_t boxSize, size_t gridRes, float velocity,
     , m_activeSeparation(true)
     , m_activeCohesion(true)
     , m_target({ 0.0f, 0.0f, 0.0f })
+    , m_targetRadiusEffect(10000.0f)
+    , m_targetSign(1)
     , m_maxNbPartsInCell(150)
     , m_radixSort(NUM_MAX_ENTITIES)
 {
@@ -140,6 +142,11 @@ void Boids::updateBoidsParamsInKernel()
   boidsParams[3] = m_activeSeparation ? m_scaleSeparation : 0.0f;
   boidsParams[4] = m_activeTargets ? 1.0f : 0.0f;
   clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID, 3, sizeof(boidsParams), &boidsParams);
+
+  std::array<float, 4> targetPos = { m_target.x, m_target.y, m_target.z, 0.0f };
+  clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 1, sizeof(float) * 4, &targetPos);
+  clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(float), &m_targetRadiusEffect);
+  clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 3, sizeof(int), &m_targetSign);
 }
 
 void Boids::reset()
@@ -186,12 +193,6 @@ void Boids::update()
 
   if (m_activeTargets)
   {
-    std::array<float, 4> targetPos = { m_target.x, m_target.y, m_target.z, 0.0f };
-    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 1, sizeof(float) * 4, &targetPos);
-    float squaredRadiusEffect = 100000.0f;
-    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(float), &squaredRadiusEffect);
-    int signEffect = 1;
-    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 3, sizeof(int), &signEffect);
     clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_numEntities);
   }
 
