@@ -178,11 +178,11 @@ void Boids::update()
   float timeStep = (float)(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_time).count()) / 16.0f;
   m_time = currentTime;
 
-  clContext.acquireGLBuffers({ "p_Pos", "c_partDetector" });
+  clContext.acquireGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
   clContext.runKernel(KERNEL_FLUSH_CELL_ID, NUM_MAX_ENTITIES);
   clContext.runKernel(KERNEL_FILL_CELL_ID, m_numEntities);
 
-  m_radixSort.sort("p_CellID", { "p_Pos", "p_Vel", "p_Acc" });
+  m_radixSort.sort("p_CellID", { "p_Color", "p_Pos", "p_Vel", "p_Acc" });
 
   clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_gridRes * m_gridRes * m_gridRes);
   clContext.runKernel(KERNEL_FILL_START_CELL, m_numEntities);
@@ -214,5 +214,5 @@ void Boids::update()
   clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_gridRes * m_gridRes * m_gridRes);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
 
-  clContext.releaseGLBuffers({ "p_Pos", "c_partDetector" });
+  clContext.releaseGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
 }
