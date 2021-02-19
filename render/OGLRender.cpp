@@ -44,7 +44,7 @@ void OGLRender::initCamera(float sceneAspectRatio)
 
 void OGLRender::buildShaders()
 {
-  m_pointCloudShader = std::make_unique<OGLShader>(Render::PointCloudVertShader, Render::FragShader);
+  m_pointCloudShader = std::make_unique<OGLShader>(Render::PointCloudVertShader, Render::PointCloudFragShader);
   m_boxShader = std::make_unique<OGLShader>(Render::BoxVertShader, Render::FragShader);
   m_gridShader = std::make_unique<OGLShader>(Render::GridVertShader, Render::FragShader);
 }

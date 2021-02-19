@@ -21,6 +21,24 @@ constexpr char PointCloudVertShader[] = R"(#version 330 core
     }
     )";
 
+constexpr char PointCloudFragShader[] = R"(#version 330 core
+    in vec4 vertexColor;
+
+    out vec4 fragColor;
+
+    void main()
+    {
+      // Alpha blending
+      vec2 xy = 2.0 * gl_PointCoord.xy - vec2(1.0);
+      float r2 = dot(xy, xy);
+      fragColor.a = exp2(-r2 * 0.2);
+      //fragColor.a = 1.0;
+
+      fragColor.rgb = vertexColor.rgb * fragColor.a;
+      //fragColor = vertexColor;
+    }
+    )";
+
 constexpr char BoxVertShader[] = R"(#version 330 core
     layout(location = 2) in vec3 aPos;
 
