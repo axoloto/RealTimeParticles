@@ -4,18 +4,20 @@
 
 using namespace Render;
 
-OGLRender::OGLRender(size_t boxSize, size_t gridRes, size_t numDisplayedEntities, size_t numMaxEntities, float sceneAspectRatio)
-    : m_boxSize(boxSize)
+OGLRender::OGLRender(size_t numDisplayedEntities, size_t boxSize, size_t gridRes, size_t numMaxEntities, float sceneAspectRatio)
+    : m_numDisplayedEntities(numDisplayedEntities)
+    , m_boxSize(boxSize)
     , m_gridRes(gridRes)
-    , m_numDisplayedEntities(numDisplayedEntities)
     , m_numMaxEntities(numMaxEntities)
-    , m_isBoxVisible(true)
-    , m_isGridVisible(true)
+    , m_isBoxVisible(false)
+    , m_isGridVisible(false)
 {
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_PROGRAM_POINT_SIZE);
+  glEnable(GL_POINT_SMOOTH);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glEnable(GL_BLEND);
+  glEnable(GL_MULTISAMPLE);
 
   initCamera(sceneAspectRatio);
 
@@ -42,7 +44,7 @@ void OGLRender::initCamera(float sceneAspectRatio)
 
 void OGLRender::buildShaders()
 {
-  m_pointCloudShader = std::make_unique<OGLShader>(Render::PointCloudVertShader, Render::FragShader);
+  m_pointCloudShader = std::make_unique<OGLShader>(Render::PointCloudVertShader, Render::PointCloudFragShader);
   m_boxShader = std::make_unique<OGLShader>(Render::BoxVertShader, Render::FragShader);
   m_gridShader = std::make_unique<OGLShader>(Render::GridVertShader, Render::FragShader);
 }

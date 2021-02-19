@@ -14,34 +14,29 @@
 #include <spdlog/spdlog.h>
 #include <vector>
 
-Core::CL::Context::Context(std::string sourcePath, std::string specificBuildOptions, bool profilingEnabled)
-    : m_sourceFilePath(sourcePath)
-    , m_specificBuildOptions(specificBuildOptions)
-    , m_isKernelProfilingEnabled(profilingEnabled)
-    , m_init(false) {};
-
-bool Core::CL::Context::init()
+Core::CL::Context& Core::CL::Context::Get()
 {
-  if (m_init)
-    return true;
+  static Context context;
+  return context;
+}
 
+Core::CL::Context::Context()
+    : m_isKernelProfilingEnabled(false)
+    , m_init(false)
+{
   if (!findPlatforms())
-    return false;
+    return;
 
   if (!findGPUDevices())
-    return false;
+    return;
 
   if (!createContext())
-    return false;
-
-  if (!createAndBuildProgram())
-    return false;
+    return;
 
   if (!createCommandQueue())
-    return false;
+    return;
 
   m_init = true;
-  return m_init;
 }
 
 bool Core::CL::Context::findPlatforms()
@@ -167,46 +162,45 @@ bool Core::CL::Context::createContext()
   return false;
 }
 
-bool Core::CL::Context::createAndBuildProgram()
+bool Core::CL::Context::createCommandQueue()
 {
-  if (cl_context() == 0)
+  if (cl_context() == 0 || cl_device() == 0)
     return false;
 
-  std::ifstream sourceFile(m_sourceFilePath);
-  std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
-  cl::Program::Sources source({ sourceCode });
+  cl_command_queue_properties properties = CL_QUEUE_PROFILING_ENABLE;
 
-  cl_program = cl::Program(cl_context, source);
-
-  std::string options = m_specificBuildOptions + std::string(" -cl-denorms-are-zero -cl-fast-relaxed-math");
-  cl_int err = cl_program.build({ cl_device }, options.c_str());
+  cl_int err;
+  cl_queue = cl::CommandQueue(cl_context, cl_device, properties, &err);
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Error while building OpenCL program : {}", cl_program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
+    spdlog::error("Cannot create OpenCL queue");
     return false;
   }
 
   return true;
 }
 
-bool Core::CL::Context::createCommandQueue()
+bool Core::CL::Context::createProgram(std::string programName, std::string sourcePath, std::string specificBuildOptions)
 {
-  if (cl_context() == 0 || cl_device() == 0)
+  if (!m_init)
     return false;
 
-  cl_command_queue_properties properties = 0;
-  if (m_isKernelProfilingEnabled)
-  {
-    properties |= CL_QUEUE_PROFILING_ENABLE;
-  }
+  std::ifstream sourceFile(sourcePath);
+  std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
+  cl::Program::Sources source({ sourceCode });
 
-  cl_int err;
-  cl_queue = cl::CommandQueue(cl_context, cl_device, properties, &err);
+  auto program = cl::Program(cl_context, source);
+
+  std::string options = specificBuildOptions + std::string(" -cl-denorms-are-zero -cl-fast-relaxed-math");
+  cl_int err = program.build({ cl_device }, options.c_str());
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Error when creating OpenCL queue");
+    spdlog::error("Error while building OpenCL program : {}", program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
+    throw std::runtime_error(" Exiting Program ");
     return false;
   }
+
+  m_programsMap.insert(std::make_pair(programName, program));
 
   return true;
 }
@@ -220,7 +214,7 @@ bool Core::CL::Context::createBuffer(std::string bufferName, size_t bufferSize, 
 
   if (m_buffersMap.find(bufferName) != m_buffersMap.end())
   {
-    printf("error buffer already existing");
+    spdlog::error("Buffer {} already existing", bufferName);
     return false;
   }
 
@@ -228,11 +222,172 @@ bool Core::CL::Context::createBuffer(std::string bufferName, size_t bufferSize, 
 
   if (err != CL_SUCCESS)
   {
-    printf("error when creating buffer");
+    spdlog::error("Cannot create buffer {}", bufferName);
     return false;
   }
 
   m_buffersMap.insert(std::make_pair(bufferName, buffer));
+
+  return true;
+}
+
+bool Core::CL::Context::createImage2D(std::string name, imageSpecs specs, cl_mem_flags memoryFlags)
+{
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  if (m_imagesMap.find(name) != m_imagesMap.end())
+  {
+    spdlog::error("Image {} already existing", name);
+    return false;
+  }
+
+  cl::ImageFormat format(specs.channelOrder, specs.channelType);
+
+  auto image = cl::Image2D(cl_context, memoryFlags, format, specs.width, specs.height, 0, nullptr, &err);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot create image {}", name);
+    return false;
+  }
+
+  m_imagesMap.insert(std::make_pair(name, image));
+
+  return true;
+}
+
+bool Core::CL::Context::loadBufferFromHost(std::string bufferName, size_t offset, size_t sizeToFill, const void* hostPtr)
+{
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  auto it = m_buffersMap.find(bufferName);
+  if (it == m_buffersMap.end())
+  {
+    spdlog::error("Buffer {} not existing", bufferName);
+    return false;
+  }
+
+  err = cl_queue.enqueueWriteBuffer(it->second, CL_TRUE, offset, sizeToFill, hostPtr);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot load buffer {}", bufferName);
+    return false;
+  }
+
+  return true;
+}
+
+bool Core::CL::Context::unloadBufferFromDevice(std::string bufferName, size_t offset, size_t sizeToFill, void* hostPtr)
+{
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  auto it = m_buffersMap.find(bufferName);
+  if (it == m_buffersMap.end())
+  {
+    spdlog::error("Buffer {} not existing", bufferName);
+    return false;
+  }
+
+  err = cl_queue.enqueueReadBuffer(it->second, CL_TRUE, offset, sizeToFill, hostPtr);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot unload buffer {}", bufferName);
+    return false;
+  }
+
+  return true;
+}
+
+bool Core::CL::Context::swapBuffers(std::string bufferNameA, std::string bufferNameB)
+{
+  if (!m_init)
+    return false;
+
+  auto& itA = m_buffersMap.find(bufferNameA);
+  if (itA == m_buffersMap.end())
+  {
+    spdlog::error("Cannot swap buffers, buffer {} not existing", bufferNameA);
+    return false;
+  }
+
+  auto& itB = m_buffersMap.find(bufferNameB);
+  if (itB == m_buffersMap.end())
+  {
+    spdlog::error("Cannot swap buffers, buffer {} not existing", bufferNameB);
+    return false;
+  }
+
+  auto tempBuffer = itA->second;
+  itA->second = itB->second;
+  itB->second = tempBuffer;
+
+  return true;
+}
+
+bool Core::CL::Context::copyBuffer(std::string srcBufferName, std::string dstBufferName)
+{
+  if (!m_init)
+    return false;
+
+  cl_int err;
+
+  cl::Buffer srcBuffer;
+
+  auto& itSrc = m_buffersMap.find(srcBufferName);
+
+  if (itSrc == m_buffersMap.end())
+  {
+    auto itSrcGL = m_GLBuffersMap.find(srcBufferName);
+
+    if (itSrcGL == m_GLBuffersMap.end())
+    {
+      spdlog::error("Cannot copy buffers, source buffer {} not existing", srcBufferName);
+      return false;
+    }
+    else
+    {
+      srcBuffer = itSrcGL->second;
+    }
+  }
+  else
+  {
+    srcBuffer = itSrc->second;
+  }
+
+  auto& itDst = m_buffersMap.find(dstBufferName);
+  if (itDst == m_buffersMap.end())
+  {
+    spdlog::error("Cannot copy buffers, destination buffer {} not existing", dstBufferName);
+    return false;
+  }
+
+  size_t srcBufferSize;
+  err = srcBuffer.getInfo(CL_MEM_SIZE, &srcBufferSize);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot get size from buffer {}", srcBufferName);
+    return false;
+  }
+
+  err = cl_queue.enqueueCopyBuffer(srcBuffer, itDst->second, 0, 0, srcBufferSize);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot copy buffer {} to buffer {}", srcBufferName, dstBufferName);
+    return false;
+  }
 
   return true;
 }
@@ -263,7 +418,7 @@ bool Core::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int VB
   return true;
 }
 
-bool Core::CL::Context::createKernel(std::string kernelName, std::vector<std::string> bufferNames)
+bool Core::CL::Context::createKernel(std::string programName, std::string kernelName, std::vector<std::string> argNames)
 {
   // WIP Only taking buffer as args for now
 
@@ -272,24 +427,34 @@ bool Core::CL::Context::createKernel(std::string kernelName, std::vector<std::st
 
   cl_int err;
 
-  if (m_kernelsMap.find(kernelName) != m_kernelsMap.end())
+  if (m_programsMap.find(programName) == m_programsMap.end())
   {
-    printf("error kernel already existing");
+    spdlog::error("OpenCL program not existing {}", programName);
     return false;
   }
 
-  auto kernel = cl::Kernel(cl_program, kernelName.c_str(), &err);
+  if (m_kernelsMap.find(kernelName) != m_kernelsMap.end())
+  {
+    spdlog::error("OpenCL kernel already existing {}", kernelName);
+    return false;
+  }
+
+  auto kernel = cl::Kernel(m_programsMap.at(programName), kernelName.c_str(), &err);
 
   if (err != CL_SUCCESS)
   {
-    printf("error when creating kernel");
+    spdlog::error("Cannot create OpenCL kernel {} ", kernelName);
     return false;
   }
 
-  for (cl_uint i = 0; i < bufferNames.size(); ++i)
+  for (cl_uint i = 0; i < argNames.size(); ++i)
   {
-    auto it = m_buffersMap.find(bufferNames[i]);
-    auto itGL = m_GLBuffersMap.find(bufferNames[i]);
+    if (argNames[i].empty())
+      continue;
+
+    auto it = m_buffersMap.find(argNames[i]);
+    auto itGL = m_GLBuffersMap.find(argNames[i]);
+    auto itIm = m_imagesMap.find(argNames[i]);
     if (it != m_buffersMap.end())
     {
       kernel.setArg(i, it->second);
@@ -298,9 +463,13 @@ bool Core::CL::Context::createKernel(std::string kernelName, std::vector<std::st
     {
       kernel.setArg(i, itGL->second);
     }
+    else if (itIm != m_imagesMap.end())
+    {
+      kernel.setArg(i, itIm->second);
+    }
     else
     {
-      printf("error kernel buffer arg not existing");
+      spdlog::error("For kernel {} arg not existing {}", kernelName, argNames[i]);
       return false;
     }
   }
@@ -318,17 +487,62 @@ bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, s
   auto it = m_kernelsMap.find(kernelName);
   if (it == m_kernelsMap.end())
   {
-    printf("error kernel not existing");
+    spdlog::error("Cannot set arg {} for unexisting Kernel {}", argIndex, kernelName);
     return false;
   }
 
   auto kernel = it->second;
-  kernel.setArg(argIndex, argSize, value);
+  cl_int err = kernel.setArg(argIndex, argSize, value);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot set arg {} for kernel {} ", argIndex, kernelName);
+    return false;
+  }
 
   return true;
 }
 
-bool Core::CL::Context::runKernel(std::string kernelName, size_t numWorkItems) //WIP 1D Global
+bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, const std::string& argName)
+{
+  if (!m_init)
+    return false;
+
+  auto itK = m_kernelsMap.find(kernelName);
+  if (itK == m_kernelsMap.end())
+  {
+    spdlog::error("Cannot set arg {} for unexisting Kernel {}", argName, kernelName);
+    return false;
+  }
+
+  auto kernel = itK->second;
+
+  auto itB = m_buffersMap.find(argName);
+  auto itBGL = m_GLBuffersMap.find(argName);
+  auto itIm = m_imagesMap.find(argName);
+
+  if (itB != m_buffersMap.end())
+  {
+    kernel.setArg(argIndex, itB->second);
+  }
+  else if (itBGL != m_GLBuffersMap.end())
+  {
+    kernel.setArg(argIndex, itBGL->second);
+  }
+  else if (itIm != m_imagesMap.end())
+  {
+    kernel.setArg(argIndex, itIm->second);
+  }
+  else
+  {
+    spdlog::error("For kernel {} arg not existing {}", kernelName, argName);
+    return false;
+  }
+
+  return true;
+}
+
+bool Core::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkItems, size_t numLocalWorkItems)
 {
   if (!m_init)
     return false;
@@ -336,14 +550,15 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numWorkItems) /
   auto it = m_kernelsMap.find(kernelName);
   if (it == m_kernelsMap.end())
   {
-    printf("error kernel not existing");
+    spdlog::error("Cannot run unexisting Kernel {}", kernelName);
     return false;
   }
 
   cl::Event event;
-  size_t global1D = (numWorkItems > 10) ? numWorkItems - (numWorkItems % 10) : numWorkItems; //WIP
-  cl::NDRange global(global1D);
-  cl_queue.enqueueNDRangeKernel(it->second, cl::NullRange, global, cl::NullRange, nullptr, &event);
+  cl::NDRange global(numGlobalWorkItems);
+  cl::NDRange local = (numLocalWorkItems > 0) ? cl::NDRange(numLocalWorkItems) : cl::NullRange;
+
+  cl_queue.enqueueNDRangeKernel(it->second, cl::NullRange, global, local, nullptr, &event);
 
   if (m_isKernelProfilingEnabled)
   {
@@ -351,11 +566,16 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numWorkItems) /
 
     err = cl_queue.flush();
     if (err != CL_SUCCESS)
-      printf("error when flushing opencl run");
+    {
+      spdlog::error("Cannot flush Opencl run");
+    }
 
     err = cl_queue.finish();
     if (err != CL_SUCCESS)
-      printf("error when finishing opencl run");
+    {
+      spdlog::error("Cannot finish Opencl run");
+      throw 1;
+    }
 
     cl_ulong start = 0, end = 0;
     event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
@@ -363,7 +583,8 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numWorkItems) /
     //the resolution of the events is 1e-09 sec
     double profilingTimeMs = (double)((cl_double)(end - start) * (1e-06));
 
-    //printf("%s %f ms \n", kernelName.c_str(), profilingTimeMs);
+    if (profilingTimeMs > 1.0)
+      spdlog::info("Profiling kernel {} : {} ms", kernelName, profilingTimeMs);
   }
 
   return true;

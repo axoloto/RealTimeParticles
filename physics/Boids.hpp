@@ -1,18 +1,20 @@
 #pragma once
 
-//#include "CL/cl.h"
 #include <array>
+#include <chrono>
 #include <vector>
 
 #include "Physics.hpp"
 #include "ocl/Context.hpp"
+#include "utils/RadixSort.hpp"
 
 namespace Core
 {
+using clock = std::chrono::high_resolution_clock;
 class Boids : public Physics
 {
   public:
-  Boids(size_t numEntities, size_t gridRes,
+  Boids(size_t numEntities, size_t boxSize, size_t gridRes, float velocity,
       unsigned int pointCloudCoordVBO,
       unsigned int pointCloudColorVBO,
       unsigned int gridDetectorVBO);
@@ -76,16 +78,31 @@ class Boids : public Physics
 
   //
 
-  void activateTarget(bool targets)
+  void activateTarget(bool target)
   {
-    m_activeTargets = targets;
+    m_activeTargets = target;
     updateBoidsParamsInKernel();
   }
   bool isTargetActivated() const { return m_activeTargets; }
 
+  void setTargetRadiusEffect(float radiusEffect)
+  {
+    m_targetRadiusEffect = radiusEffect;
+    updateBoidsParamsInKernel();
+  }
+  float targetRadiusEffect() const { return m_targetRadiusEffect; }
+
+  void setTargetSignEffect(int signEffect)
+  {
+    m_targetSign = signEffect;
+    updateBoidsParamsInKernel();
+  }
+  int targetSignEffect() const { return m_targetSign; }
+
   private:
-  bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridDetectorVBO);
-  bool createKernels();
+  bool createProgram() const;
+  bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridDetectorVBO) const;
+  bool createKernels() const;
   void updateBoidsParamsInKernel();
   void updateGridParamsInKernel();
 
@@ -99,29 +116,14 @@ class Boids : public Physics
 
   bool m_activeTargets;
 
+  size_t m_maxNbPartsInCell;
+
   Math::float3 m_target;
-  struct boidsParams
-  {
-    cl_float dims;
-    cl_float velocity;
-    cl_float scaleCohesion;
-    cl_float scaleAlignment;
-    cl_float scaleSeparation;
-    cl_int activeTarget;
-  };
+  float m_targetRadiusEffect;
+  int m_targetSign;
 
-  boidsParams m_boidsParams;
-  cl_mem cl_boidsParamsBuff;
+  RadixSort m_radixSort;
 
-  struct gridParams
-  {
-    cl_uint gridRes;
-    cl_uint numCells;
-  };
-
-  gridParams m_gridParams;
-  cl_mem cl_gridParamsBuff;
-
-  CL::Context m_clContext;
+  std::chrono::steady_clock::time_point m_time;
 };
 }

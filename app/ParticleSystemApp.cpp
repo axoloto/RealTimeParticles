@@ -9,6 +9,7 @@
 #include <spdlog/spdlog.h>
 
 #include "Boids.hpp"
+#include "ocl/Context.hpp"
 
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
@@ -36,6 +37,8 @@ bool ParticleSystemApp::initWindow()
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
   SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
   SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
   m_window = SDL_CreateWindow(m_nameApp.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_windowSize.x, m_windowSize.y, window_flags);
   m_OGLContext = SDL_GL_CreateContext(m_window);
@@ -161,18 +164,22 @@ ParticleSystemApp::ParticleSystemApp()
     , m_buttonLeftActivated(false)
     , m_windowSize(1280, 720)
     , m_init(false)
-    , m_boxSize(500)
-    , m_gridRes(10)
-    , m_numEntities(Core::NUM_MAX_ENTITIES)
 {
   initWindow();
 
-  m_graphicsEngine = std::make_unique<Render::OGLRender>(m_boxSize, m_gridRes, m_numEntities, Core::NUM_MAX_ENTITIES, (float)m_windowSize.x / m_windowSize.y);
+  size_t numEntities = Core::NUM_MAX_ENTITIES;
+  size_t boxSize = 1600;
+  size_t gridRes = 20;
+  float velocity = 5.0f;
+
+  m_graphicsEngine = std::make_unique<Render::OGLRender>(numEntities, boxSize, gridRes,
+      Core::NUM_MAX_ENTITIES,
+      (float)m_windowSize.x / m_windowSize.y);
 
   if (!m_graphicsEngine)
     return;
 
-  m_physicsEngine = std::make_unique<Core::Boids>(m_numEntities, m_gridRes,
+  m_physicsEngine = std::make_unique<Core::Boids>(numEntities, boxSize, gridRes, velocity,
       (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
       (unsigned int)m_graphicsEngine->pointCloudColorVBO(),
       (unsigned int)m_graphicsEngine->gridDetectorVBO());
@@ -190,9 +197,6 @@ ParticleSystemApp::ParticleSystemApp()
 
 void ParticleSystemApp::run()
 {
-  ImGuiIO& io = ImGui::GetIO();
-  (void)io;
-
   bool stopRendering = false;
   while (!stopRendering)
   {
@@ -213,6 +217,7 @@ void ParticleSystemApp::run()
 
     m_physicsWidget->display();
 
+    ImGuiIO& io = ImGui::GetIO();
     glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
     glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -249,11 +254,12 @@ void ParticleSystemApp::displayMainWidget()
     m_physicsEngine->reset();
   }
 
-  if (ImGui::SliderInt("Particles", &m_numEntities, 1, Core::NUM_MAX_ENTITIES))
+  int numEntities = (int)m_physicsEngine->numEntities();
+  if (ImGui::SliderInt("Particles", &numEntities, 1, Core::NUM_MAX_ENTITIES))
   {
-    m_physicsEngine->setNumEntities(m_numEntities);
+    m_physicsEngine->setNumEntities(numEntities);
     m_physicsEngine->reset();
-    m_graphicsEngine->setNumDisplayedEntities(m_numEntities);
+    m_graphicsEngine->setNumDisplayedEntities(numEntities);
   }
 
   bool isSystemDim2D = (m_physicsEngine->dimension() == Core::Dimension::dim2D);
@@ -315,6 +321,14 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Separator();
   ImGui::Spacing();
   ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+  Core::CL::Context& clContext = Core::CL::Context::Get();
+  bool isProfiling = clContext.isProfiling();
+  if (ImGui::Checkbox(" GPU Profiler ", &isProfiling))
+  {
+    clContext.enableProfiler(isProfiling);
+  }
+
   ImGui::End();
 }
 

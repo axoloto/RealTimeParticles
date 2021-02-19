@@ -13,20 +13,36 @@ namespace Core
 {
 namespace CL
 {
+struct imageSpecs
+{
+  cl_channel_order channelOrder;
+  cl_channel_type channelType;
+  size_t width;
+  size_t height;
+};
+
 class Context
 {
   public:
-  Context(std::string sourcePath, std::string specificBuildOptions, bool profilingEnabled = true);
-  ~Context() = default;
+  static Context& Get();
 
-  bool init();
+  bool isInit() const { return m_init; }
 
-  bool createGLBuffer(std::string GLBufferName, unsigned int VBOIndex, cl_mem_flags memoryFlags);
-  bool createBuffer(std::string bufferName, size_t bufferSize, cl_mem_flags memoryFlags);
+  bool isProfiling() const { return m_isKernelProfilingEnabled; }
+  void enableProfiler(bool enable) { m_isKernelProfilingEnabled = enable; }
 
-  bool createKernel(std::string kernelName, std::vector<std::string> argNames);
+  bool createProgram(std::string name, std::string sourcePath, std::string specificBuildOptions);
+  bool createGLBuffer(std::string name, unsigned int VBOIndex, cl_mem_flags memoryFlags);
+  bool createBuffer(std::string name, size_t bufferSize, cl_mem_flags memoryFlags);
+  bool createImage2D(std::string name, imageSpecs specs, cl_mem_flags memoryFlags);
+  bool loadBufferFromHost(std::string name, size_t offset, size_t sizeToFill, const void* hostPtr);
+  bool unloadBufferFromDevice(std::string name, size_t offset, size_t sizeToFill, void* hostPtr);
+  bool swapBuffers(std::string bufferNameA, std::string bufferNameB);
+  bool copyBuffer(std::string srcBufferName, std::string dstBufferName);
+  bool createKernel(std::string programName, std::string kernelName, std::vector<std::string> argNames);
   bool setKernelArg(std::string kernelName, cl_uint argIndex, size_t argSize, const void* value);
-  bool runKernel(std::string kernelName, size_t numWorkItems);
+  bool setKernelArg(std::string kernelName, cl_uint argIndex, const std::string& bufferName);
+  bool runKernel(std::string kernelName, size_t numFlobalWorkItems, size_t numLocalWorkItems = 0);
 
   bool acquireGLBuffers(const std::vector<std::string>& GLBufferNames) { return interactWithGLBuffers(GLBufferNames, interOpCLGL::ACQUIRE); }
   bool releaseGLBuffers(const std::vector<std::string>& GLBufferNames) { return interactWithGLBuffers(GLBufferNames, interOpCLGL::RELEASE); }
@@ -34,10 +50,16 @@ class Context
   bool mapAndSendBufferToDevice(std::string bufferName, const void* bufferPtr, size_t bufferSize);
 
   private:
+  Context();
+  ~Context() = default;
+  Context(const Context&) = delete;
+  Context& operator=(const Context&) = delete;
+  Context(Context&&) = delete;
+  Context& operator=(const Context&&) = delete;
+
   bool findPlatforms();
   bool findGPUDevices();
   bool createContext();
-  bool createAndBuildProgram();
   bool createCommandQueue();
 
   enum class interOpCLGL
@@ -50,12 +72,13 @@ class Context
   cl::Platform cl_platform;
   cl::Device cl_device;
   cl::Context cl_context;
-  cl::Program cl_program;
   cl::CommandQueue cl_queue;
 
+  std::map<std::string, cl::Program> m_programsMap;
   std::map<std::string, cl::Kernel> m_kernelsMap;
   std::map<std::string, cl::Buffer> m_buffersMap;
   std::map<std::string, cl::BufferGL> m_GLBuffersMap;
+  std::map<std::string, cl::Image2D> m_imagesMap;
 
   bool m_isKernelProfilingEnabled;
 
@@ -63,9 +86,6 @@ class Context
 
   std::vector<cl::Platform> m_allPlatforms;
   std::vector<std::pair<cl::Platform, std::vector<cl::Device>>> m_allGPUsWithInteropCLGL;
-
-  std::string m_sourceFilePath;
-  std::string m_specificBuildOptions;
 };
 } //CL
 } //Core

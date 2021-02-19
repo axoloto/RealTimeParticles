@@ -38,8 +38,4 @@ class ParticleSystemApp
   bool m_buttonLeftActivated;
   bool m_buttonRightActivated;
   bool m_init;
-
-  int m_numEntities;
-  size_t m_boxSize;
-  size_t m_gridRes;
 };

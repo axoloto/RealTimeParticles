@@ -19,7 +19,7 @@ enum class UserAction
 class OGLRender
 {
   public:
-  OGLRender(size_t boxSize, size_t gridRes, size_t numDisplayedEntities, size_t numMaxEntities, float aspectRatio);
+  OGLRender(size_t numDisplayedEntities, size_t boxSize, size_t gridRes, size_t numMaxEntities, float aspectRatio);
   ~OGLRender();
 
   void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);
@@ -60,12 +60,11 @@ class OGLRender
 
   void initCamera(float sceneAspectRatio);
 
-  const GLuint
-      m_pointCloudPosAttribIndex { 0 },
-      m_pointCloudColAttribIndex { 1 },
-      m_boxPosAttribIndex { 2 },
-      m_gridPosAttribIndex { 3 },
-      m_gridDetectorAttribIndex { 4 };
+  const GLuint m_pointCloudPosAttribIndex { 0 };
+  const GLuint m_pointCloudColAttribIndex { 1 };
+  const GLuint m_boxPosAttribIndex { 2 };
+  const GLuint m_gridPosAttribIndex { 3 };
+  const GLuint m_gridDetectorAttribIndex { 4 };
 
   GLuint m_VAO;
   GLuint m_pointCloudCoordVBO, m_pointCloudColorVBO;
