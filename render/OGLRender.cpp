@@ -15,7 +15,7 @@ OGLRender::OGLRender(size_t numDisplayedEntities, size_t boxSize, size_t gridRes
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_PROGRAM_POINT_SIZE);
   glEnable(GL_POINT_SMOOTH);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE);
   glEnable(GL_BLEND);
   glEnable(GL_MULTISAMPLE);
 
@@ -86,8 +86,8 @@ void OGLRender::drawPointCloud()
 {
   m_pointCloudShader->activate();
 
-  Math::float4x4 projViewMat = m_camera->getProjViewMat();
-  m_pointCloudShader->setUniform("u_projView", projViewMat);
+  m_pointCloudShader->setUniform("u_projView", m_camera->getProjViewMat());
+  m_pointCloudShader->setUniform("u_cameraPos", m_camera->cameraPos());
 
   glDrawArrays(GL_POINTS, 0, (GLsizei)m_numDisplayedEntities);
 
@@ -98,8 +98,7 @@ void OGLRender::drawBox()
 {
   m_boxShader->activate();
 
-  Math::float4x4 projViewMat = m_camera->getProjViewMat();
-  m_boxShader->setUniform("u_projView", projViewMat);
+  m_boxShader->setUniform("u_projView", m_camera->getProjViewMat());
 
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boxEBO);
   glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
@@ -112,8 +111,7 @@ void OGLRender::drawGrid()
 {
   m_gridShader->activate();
 
-  Math::float4x4 projViewMat = m_camera->getProjViewMat();
-  m_gridShader->setUniform("u_projView", projViewMat);
+  m_gridShader->setUniform("u_projView", m_camera->getProjViewMat());
 
   GLsizei numGridCells = (GLsizei)(m_gridRes * m_gridRes * m_gridRes);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_gridEBO);

@@ -10,6 +10,7 @@ using namespace Core;
 
 #define PROGRAM_BOIDS "boids"
 
+#define KERNEL_INFINITE_POS "infPosVerts"
 #define KERNEL_RANDOM_POS "randPosVerts"
 #define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
 #define KERNEL_UPDATE_POS_CYCLIC "updatePosWithCyclicWalls"
@@ -67,7 +68,7 @@ bool Boids::createProgram() const
                  << std::setfill('0') << m_boxSize / 2.0f << "f";
   clBuildOptions << " -DFLOAT_EPSILON=0.01f";
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
-  clBuildOptions << " -DGRID_NUM_CELLS=" << (m_gridRes * m_gridRes * m_gridRes);
+  clBuildOptions << " -DGRID_NUM_CELLS=" << m_numCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
 
   clContext.createProgram(PROGRAM_BOIDS, ".\\physics\\ocl\\kernels\\boids.cl", clBuildOptions.str());
@@ -87,7 +88,7 @@ bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointClo
   clContext.createBuffer("p_Acc", 4 * NUM_MAX_ENTITIES * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_CellID", NUM_MAX_ENTITIES * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
-  clContext.createBuffer("c_startEndPartID", 2 * m_gridRes * m_gridRes * m_gridRes * sizeof(unsigned int), CL_MEM_READ_WRITE);
+  clContext.createBuffer("c_startEndPartID", 2 * m_numCells * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
   return true;
 }
@@ -98,6 +99,7 @@ bool Boids::createKernels() const
 
   // Init only
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_COLOR, { "p_Pos", "p_Color" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_INFINITE_POS, { "p_Pos" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_RANDOM_POS, { "p_Pos", "p_Vel" });
 
   // For rendering purpose only
@@ -160,9 +162,10 @@ void Boids::reset()
   CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
+  clContext.runKernel(KERNEL_INFINITE_POS, NUM_MAX_ENTITIES);
   clContext.runKernel(KERNEL_RANDOM_POS, m_numEntities);
   clContext.runKernel(KERNEL_COLOR, m_numEntities);
-  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_gridRes * m_gridRes * m_gridRes);
+  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_numCells);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
   clContext.releaseGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
 }
@@ -176,6 +179,9 @@ void Boids::update()
 
   auto currentTime = clock::now();
   float timeStep = (float)(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_time).count()) / 16.0f;
+  // Resetting it if pause mode activated for more than 0.5s
+  if (timeStep > 30.0f)
+    timeStep = 0.0f;
   m_time = currentTime;
 
   clContext.acquireGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
@@ -184,10 +190,17 @@ void Boids::update()
 
   m_radixSort.sort("p_CellID", { "p_Color", "p_Pos", "p_Vel", "p_Acc" });
 
-  clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_gridRes * m_gridRes * m_gridRes);
+  /*
+  std::vector<unsigned int> cellIDs(NUM_MAX_ENTITIES, 0);
+  clContext.unloadBufferFromDevice("p_CellID", 0, sizeof(unsigned int) * cellIDs.size(), cellIDs.data());
+  std::vector<std::array<float, 4>> pos(NUM_MAX_ENTITIES, { 0, 0, 0, 0 });
+  clContext.unloadBufferFromDevice("p_Pos", 0, sizeof(float) * pos.size(), pos.data());
+*/
+
+  clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_numCells);
   clContext.runKernel(KERNEL_FILL_START_CELL, m_numEntities);
   clContext.runKernel(KERNEL_FILL_END_CELL, m_numEntities);
-  clContext.runKernel(KERNEL_ADJUST_END_CELL, m_gridRes * m_gridRes * m_gridRes);
+  clContext.runKernel(KERNEL_ADJUST_END_CELL, m_numCells);
 
   clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_numEntities);
 
@@ -211,7 +224,7 @@ void Boids::update()
     break;
   }
 
-  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_gridRes * m_gridRes * m_gridRes);
+  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_numCells);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
 
   clContext.releaseGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });

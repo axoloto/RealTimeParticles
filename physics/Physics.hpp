@@ -26,6 +26,7 @@ class Physics
       : m_numEntities(numEntities)
       , m_boxSize(boxSize)
       , m_gridRes(gridRes)
+      , m_numCells(gridRes * gridRes * gridRes)
       , m_init(false)
       , m_velocity(velocity)
       , m_dimension(dimension)
@@ -66,6 +67,7 @@ class Physics
   size_t m_numEntities;
   size_t m_boxSize;
   size_t m_gridRes;
+  size_t m_numCells;
   float m_velocity;
   Dimension m_dimension;
   Boundary m_boundary;

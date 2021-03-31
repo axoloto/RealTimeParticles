@@ -118,9 +118,12 @@ bool ParticleSystemApp::checkSDLStatus()
     switch (event.type)
     {
     case SDL_QUIT:
+    {
       stopRendering = true;
       break;
+    }
     case SDL_WINDOWEVENT:
+    {
       if (event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(m_window))
       {
         stopRendering = true;
@@ -131,6 +134,7 @@ bool ParticleSystemApp::checkSDLStatus()
         m_graphicsEngine->setWindowSize(m_windowSize);
       }
       break;
+    }
     case SDL_MOUSEBUTTONDOWN:
     {
       if (event.button.button == SDL_BUTTON_LEFT || event.button.button == SDL_BUTTON_RIGHT)
@@ -139,9 +143,10 @@ bool ParticleSystemApp::checkSDLStatus()
         SDL_GetMouseState(&currentMousePos.x, &currentMousePos.y);
         m_mousePrevPos = currentMousePos;
       }
+      break;
     }
-    break;
     case SDL_MOUSEWHEEL:
+    {
       if (event.wheel.y > 0)
       {
         m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-0.4f, 0.f));
@@ -151,6 +156,13 @@ bool ParticleSystemApp::checkSDLStatus()
         m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(0.4f, 0.f));
       }
       break;
+    }
+    case SDL_KEYDOWN:
+    {
+      bool isPaused = m_physicsEngine->onPause();
+      m_physicsEngine->pause(!isPaused);
+      break;
+    }
     }
   }
   return stopRendering;

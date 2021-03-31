@@ -18,6 +18,13 @@ __kernel void colorVerts(const global float4* pos, global float4* color)
   color[i] = (float4)(1.0f - currPos.y / 900.f, 0.2f, 0.0f, 1.0f);
 }
 
+__kernel void infPosVerts(global float4* pos)
+{
+  unsigned int i = get_global_id(0);
+
+  pos[i] = (float4)(100000000.0f, 100000000.0f, 100000000.0f, 0.0f);
+}
+
 __kernel void randPosVerts(global float4* pos, global float4* vel, float dim)
 {
   unsigned int i = get_global_id(0);
@@ -67,7 +74,7 @@ inline int3 getCell3DIndexFromPos(float4 pos)
 
   int3 cell3DIndex = convert_int3(posXYZ / cellSize);
 
-  clamp(cell3DIndex, 0, GRID_RES - 1);
+  //clamp(cell3DIndex, 0, GRID_RES - 1);
 
   return cell3DIndex;
 }
@@ -83,91 +90,91 @@ inline uint getCell1DIndexFromPos(float4 pos)
   return cell1DIndex;
 }
 
-__kernel void fillGridDetector(__global float4* vertPos, __global float8* gridDetector)
+__kernel void fillGridDetector(__global float4* pPos, __global float8* gridDetector)
 {
   unsigned int i = get_global_id(0);
 
-  float4 pos = vertPos[i];
+  float4 pos = pPos[i];
 
   uint gridDetectorIndex = getCell1DIndexFromPos(pos);
 
-  if (gridDetectorIndex < GRID_RES * GRID_RES * GRID_RES) // WIP
+  if (gridDetectorIndex < GRID_NUM_CELLS)
     gridDetector[gridDetectorIndex] = 1.0f;
 }
 
 // To use of Radix Sort accelerator, we need to find the cellID for each boids particle
-__kernel void flushCellIDs(global uint* boidsCellIDs)
+__kernel void flushCellIDs(global uint* pCellID)
 {
   unsigned int i = get_global_id(0);
   // For all particles, giving cell ID above any available one
   // the ones not filled later (i.e not processed because index > numEntites displayed)
   // will be sorted at the end and not considered after sorting
-  boidsCellIDs[i] = GRID_NUM_CELLS + 1;
+  pCellID[i] = GRID_NUM_CELLS + 1;
 }
 
-__kernel void fillCellIDs(const global float4* vertPos, global uint* boidsCellIDs)
+__kernel void fillCellIDs(const global float4* pPos, global uint* pCellID)
 {
   unsigned int i = get_global_id(0);
 
-  float4 pos = vertPos[i];
+  float4 pos = pPos[i];
 
   uint cell1DIndex = getCell1DIndexFromPos(pos);
 
-  boidsCellIDs[i] = cell1DIndex;
+  pCellID[i] = cell1DIndex;
 }
 
-__kernel void flushStartEndCell(global uint2* startEndCells)
+__kernel void flushStartEndCell(global uint2* cStartEndPartID)
 {
   unsigned int i = get_global_id(0);
 
   // Flushing with 1 as starting index and 0 as ending index
   // Little hack to bypass empty cell further in the boids algo
-  startEndCells[i] = (uint2)(1, 0);
+  cStartEndPartID[i] = (uint2)(1, 0);
 }
 
-__kernel void fillStartCell(const global uint* boidsCellIDs, global uint2* startEndCells)
+__kernel void fillStartCell(const global uint* pCellID, global uint2* cStartEndPartID)
 {
   unsigned int i = get_global_id(0);
 
-  uint currentCellID = boidsCellIDs[i];
+  uint currentCellID = pCellID[i];
 
-  if (i > 0)
+  if (i > 0 && currentCellID < GRID_NUM_CELLS)
   {
-    uint leftCellID = boidsCellIDs[i - 1];
+    uint leftCellID = pCellID[i - 1];
     if (currentCellID != leftCellID)
     {
       // Found start
-      startEndCells[currentCellID].x = i;
+      cStartEndPartID[currentCellID].x = i;
     }
   }
 }
 
-__kernel void fillEndCell(const global uint* boidsCellIDs, global uint2* startEndCells)
+__kernel void fillEndCell(const global uint* pCellID, global uint2* cStartEndPartID)
 {
   unsigned int i = get_global_id(0);
 
-  uint currentCellID = boidsCellIDs[i];
+  uint currentCellID = pCellID[i];
 
-  if (i != get_global_size(0))
+  if (i != get_global_size(0) && currentCellID < GRID_NUM_CELLS)
   {
-    uint rightCellID = boidsCellIDs[i + 1];
+    uint rightCellID = pCellID[i + 1];
     if (currentCellID != rightCellID)
     {
       // Found end
-      startEndCells[currentCellID].y = i;
+      cStartEndPartID[currentCellID].y = i;
     }
   }
 }
 
-__kernel void adjustEndCell(global uint2* startEndCells)
+__kernel void adjustEndCell(global uint2* cStartEndPartID)
 {
   unsigned int i = get_global_id(0);
 
-  uint2 startEnd = startEndCells[i];
+  uint2 startEnd = cStartEndPartID[i];
   if (startEnd.y > startEnd.x)
   {
     uint newEnd = startEnd.x + min(startEnd.y - startEnd.x, (uint)NUM_MAX_PARTS_IN_CELL);
-    startEndCells[i] = (uint2)(startEnd.x, newEnd);
+    cStartEndPartID[i] = (uint2)(startEnd.x, newEnd);
   }
 }
 

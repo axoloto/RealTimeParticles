@@ -2,6 +2,7 @@
 #include "GLSL.hpp"
 #include "OGLShader.hpp"
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 using namespace Render;
 
@@ -19,7 +20,7 @@ OGLShader::OGLShader(const char* vert, const char* frag)
 
   if (status == GL_FALSE)
   {
-    std::cout << "shader linking failed" << std::endl;
+    spdlog::error("Render: Shader linking failed");
     return;
   }
 }
@@ -42,7 +43,7 @@ void OGLShader::compileShader(GLenum type, const char* source)
 
   if (status == GL_FALSE)
   {
-    std::cout << "shader creation failed" << std::endl;
+    spdlog::error("Render: Shader creation failed");
     return;
   }
 
@@ -73,4 +74,9 @@ void OGLShader::setUniform(const std::string& name, float value) const
 void OGLShader::setUniform(const std::string& name, const Math::float4x4& mat) const
 {
   glUniformMatrix4fv(getUniformLocation(name), 1, GL_FALSE, &mat[0][0]);
+}
+
+void OGLShader::setUniform(const std::string& name, const Math::float3& vec) const
+{
+  glUniform3f(getUniformLocation(name), vec[0], vec[1], vec[2]);
 }
