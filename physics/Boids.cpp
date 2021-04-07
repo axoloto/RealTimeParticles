@@ -17,7 +17,7 @@ using namespace Core;
 #define KERNEL_UPDATE_VEL "updateVel"
 #define KERNEL_FLUSH_GRID_DETECTOR "flushGridDetector"
 #define KERNEL_FILL_GRID_DETECTOR "fillGridDetector"
-#define KERNEL_COLOR "colorVerts"
+#define KERNEL_CAMERA_DIST "cameraDist"
 #define KERNEL_FLUSH_CELL_ID "flushCellIDs"
 #define KERNEL_FILL_CELL_ID "fillCellIDs"
 #define KERNEL_FLUSH_START_END_CELL "flushStartEndCell"
@@ -30,7 +30,7 @@ using namespace Core;
 
 Boids::Boids(size_t numEntities, size_t boxSize, size_t gridRes, float velocity,
     unsigned int pointCloudCoordVBO,
-    unsigned int pointCloudColorVBO,
+    unsigned int cameraCoordVBO,
     unsigned int gridDetectorVBO)
     : Physics(numEntities, boxSize, gridRes, velocity)
     , m_scaleAlignment(1.6f)
@@ -43,12 +43,12 @@ Boids::Boids(size_t numEntities, size_t boxSize, size_t gridRes, float velocity,
     , m_target({ 0.0f, 0.0f, 0.0f })
     , m_targetRadiusEffect(10000.0f)
     , m_targetSign(1)
-    , m_maxNbPartsInCell(150)
+    , m_maxNbPartsInCell(1000)
     , m_radixSort(NUM_MAX_ENTITIES)
 {
   createProgram();
 
-  createBuffers(pointCloudCoordVBO, pointCloudColorVBO, gridDetectorVBO);
+  createBuffers(pointCloudCoordVBO, cameraCoordVBO, gridDetectorVBO);
 
   createKernels();
 
@@ -76,17 +76,18 @@ bool Boids::createProgram() const
   return true;
 }
 
-bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridDetectorVBO) const
+bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int cameraCoordVBO, unsigned int gridDetectorVBO) const
 {
   CL::Context& clContext = CL::Context::Get();
 
-  clContext.createGLBuffer("p_Color", pointCloudColorVBO, CL_MEM_WRITE_ONLY);
-  clContext.createGLBuffer("p_Pos", pointCloudCoordVBO, CL_MEM_READ_WRITE);
+  clContext.createGLBuffer("u_cameraPos", cameraCoordVBO, CL_MEM_READ_ONLY);
+  clContext.createGLBuffer("p_pos", pointCloudCoordVBO, CL_MEM_READ_WRITE);
   clContext.createGLBuffer("c_partDetector", gridDetectorVBO, CL_MEM_READ_WRITE);
 
-  clContext.createBuffer("p_Vel", 4 * NUM_MAX_ENTITIES * sizeof(float), CL_MEM_READ_WRITE);
-  clContext.createBuffer("p_Acc", 4 * NUM_MAX_ENTITIES * sizeof(float), CL_MEM_READ_WRITE);
-  clContext.createBuffer("p_CellID", NUM_MAX_ENTITIES * sizeof(unsigned int), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_vel", 4 * NUM_MAX_ENTITIES * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_acc", 4 * NUM_MAX_ENTITIES * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_cellID", NUM_MAX_ENTITIES * sizeof(unsigned int), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_cameraDist", NUM_MAX_ENTITIES * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
   clContext.createBuffer("c_startEndPartID", 2 * m_numCells * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
@@ -98,31 +99,31 @@ bool Boids::createKernels() const
   CL::Context& clContext = CL::Context::Get();
 
   // Init only
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_COLOR, { "p_Pos", "p_Color" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_INFINITE_POS, { "p_Pos" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_RANDOM_POS, { "p_Pos", "p_Vel" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_INFINITE_POS, { "p_pos" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_RANDOM_POS, { "p_pos", "p_vel" });
 
   // For rendering purpose only
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_GRID_DETECTOR, { "c_partDetector" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_GRID_DETECTOR, { "p_Pos", "c_partDetector" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_GRID_DETECTOR, { "p_pos", "c_partDetector" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
 
   // Boids Physics
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_VEL, { "p_Acc", "", "", "p_Vel" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_BOUNCING, { "p_Vel", "", "p_Pos" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_CYCLIC, { "p_Vel", "", "p_Pos" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_VEL, { "p_acc", "", "", "p_vel" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_BOUNCING, { "p_vel", "", "p_pos" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_UPDATE_POS_CYCLIC, { "p_vel", "", "p_pos" });
 
   // Radix Sort based on 3D grid
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_CELL_ID, { "p_CellID" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_CELL_ID, { "p_Pos", "p_CellID" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_CELL_ID, { "p_cellID" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_CELL_ID, { "p_pos", "p_cellID" });
 
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_START_END_CELL, { "c_startEndPartID" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_START_CELL, { "p_CellID", "c_startEndPartID" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_END_CELL, { "p_CellID", "c_startEndPartID" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_START_CELL, { "p_cellID", "c_startEndPartID" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_END_CELL, { "p_cellID", "c_startEndPartID" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_ADJUST_END_CELL, { "c_startEndPartID" });
 
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID, { "p_Pos", "p_Vel", "c_startEndPartID", "", "p_Acc" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID, { "p_pos", "p_vel", "c_startEndPartID", "", "p_acc" });
 
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_ADD_TARGET_RULE, { "p_Pos", "", "", "p_Acc", "p_Acc" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_ADD_TARGET_RULE, { "p_pos", "", "", "p_acc", "p_acc" });
 
   return true;
 }
@@ -161,71 +162,71 @@ void Boids::reset()
   m_time = clock::now();
   CL::Context& clContext = CL::Context::Get();
 
-  clContext.acquireGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
+  clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
   clContext.runKernel(KERNEL_INFINITE_POS, NUM_MAX_ENTITIES);
   clContext.runKernel(KERNEL_RANDOM_POS, m_numEntities);
-  clContext.runKernel(KERNEL_COLOR, m_numEntities);
   clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_numCells);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
-  clContext.releaseGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
+  clContext.releaseGLBuffers({ "p_pos", "c_partDetector" });
 }
 
 void Boids::update()
 {
-  if (!m_init || m_pause)
+  if (!m_init)
     return;
 
   CL::Context& clContext = CL::Context::Get();
 
-  auto currentTime = clock::now();
-  float timeStep = (float)(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_time).count()) / 16.0f;
-  // Resetting it if pause mode activated for more than 0.5s
-  if (timeStep > 30.0f)
-    timeStep = 0.0f;
-  m_time = currentTime;
+  clContext.acquireGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
 
-  clContext.acquireGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
-  clContext.runKernel(KERNEL_FLUSH_CELL_ID, NUM_MAX_ENTITIES);
-  clContext.runKernel(KERNEL_FILL_CELL_ID, m_numEntities);
-
-  m_radixSort.sort("p_CellID", { "p_Color", "p_Pos", "p_Vel", "p_Acc" });
-
-  /*
-  std::vector<unsigned int> cellIDs(NUM_MAX_ENTITIES, 0);
-  clContext.unloadBufferFromDevice("p_CellID", 0, sizeof(unsigned int) * cellIDs.size(), cellIDs.data());
-  std::vector<std::array<float, 4>> pos(NUM_MAX_ENTITIES, { 0, 0, 0, 0 });
-  clContext.unloadBufferFromDevice("p_Pos", 0, sizeof(float) * pos.size(), pos.data());
-*/
-
-  clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_numCells);
-  clContext.runKernel(KERNEL_FILL_START_CELL, m_numEntities);
-  clContext.runKernel(KERNEL_FILL_END_CELL, m_numEntities);
-  clContext.runKernel(KERNEL_ADJUST_END_CELL, m_numCells);
-
-  clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_numEntities);
-
-  if (m_activeTargets)
+  if (!m_pause)
   {
-    clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_numEntities);
+    auto currentTime = clock::now();
+    float timeStep = (float)(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_time).count()) / 16.0f;
+    // Resetting it if pause mode activated for more than 0.5s
+    if (timeStep > 30.0f)
+      timeStep = 0.0f;
+    m_time = currentTime;
+
+    clContext.runKernel(KERNEL_FLUSH_CELL_ID, NUM_MAX_ENTITIES);
+    clContext.runKernel(KERNEL_FILL_CELL_ID, m_numEntities);
+
+    m_radixSort.sort("p_cellID", { "p_pos", "p_vel", "p_acc" });
+
+    clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_numCells);
+    clContext.runKernel(KERNEL_FILL_START_CELL, m_numEntities);
+    clContext.runKernel(KERNEL_FILL_END_CELL, m_numEntities);
+    clContext.runKernel(KERNEL_ADJUST_END_CELL, m_numCells);
+
+    clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_numEntities);
+
+    if (m_activeTargets)
+    {
+      clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_numEntities);
+    }
+
+    clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(float), &timeStep);
+    clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
+
+    switch (m_boundary)
+    {
+    case Boundary::CyclicWall:
+      clContext.setKernelArg(KERNEL_UPDATE_POS_CYCLIC, 1, sizeof(float), &timeStep);
+      clContext.runKernel(KERNEL_UPDATE_POS_CYCLIC, m_numEntities);
+      break;
+    case Boundary::BouncingWall:
+      clContext.setKernelArg(KERNEL_UPDATE_POS_BOUNCING, 1, sizeof(float), &timeStep);
+      clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_numEntities);
+      break;
+    }
+
+    clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_numCells);
+    clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
   }
 
-  clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(float), &timeStep);
-  clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
+  clContext.runKernel(KERNEL_CAMERA_DIST, m_numEntities);
 
-  switch (m_boundary)
-  {
-  case Boundary::CyclicWall:
-    clContext.setKernelArg(KERNEL_UPDATE_POS_CYCLIC, 1, sizeof(float), &timeStep);
-    clContext.runKernel(KERNEL_UPDATE_POS_CYCLIC, m_numEntities);
-    break;
-  case Boundary::BouncingWall:
-    clContext.setKernelArg(KERNEL_UPDATE_POS_BOUNCING, 1, sizeof(float), &timeStep);
-    clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_numEntities);
-    break;
-  }
+  m_radixSort.sort("p_cameraDist", { "p_pos", "p_vel", "p_acc" });
 
-  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_numCells);
-  clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
-
-  clContext.releaseGLBuffers({ "p_Color", "p_Pos", "c_partDetector" });
+  clContext.releaseGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
 }

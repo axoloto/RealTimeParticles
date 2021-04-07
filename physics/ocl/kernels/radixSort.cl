@@ -171,3 +171,14 @@ __kernel void permutate(
   uint newIndex = permutatedIndices[i];
   permutatedVal[i] = valToPermutate[newIndex];
 }
+
+__kernel void permutateInt(
+    global uint* permutatedIndices,
+    global uint* valToPermutate,
+    global uint* permutatedVal)
+{
+  const int i = get_global_id(0);
+
+  uint newIndex = permutatedIndices[i];
+  permutatedVal[i] = valToPermutate[newIndex];
+}

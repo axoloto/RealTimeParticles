@@ -80,6 +80,7 @@ bool RadixSort::createBuffers() const
   //  clContext.loadBufferFromHost("RadixSortKeysIn", sizeof(unsigned int) * size, sizeof(unsigned int) * pad.size(), pad.data());
   //}
 
+  ///
   clContext.createBuffer("RadixSortKeysTemp", sizeInBytes, CL_MEM_READ_WRITE);
 
   clContext.createBuffer("RadixSortHistogram", sizeof(unsigned int) * m_numRadix * m_numGroups * m_numItems, CL_MEM_READ_WRITE);
@@ -133,6 +134,8 @@ void RadixSort::sort(const std::string& inputKeyBufferName, const std::vector<st
   size_t totalScan = m_numRadix * m_numGroups * m_numItems / 2;
   size_t localScan = totalScan / m_histoSplit;
 
+  clContext.loadBufferFromHost("RadixSortIndices", 0, sizeof(unsigned int) * m_indices.size(), m_indices.data());
+
   for (int radixPass = 0; radixPass < m_numRadixPasses; ++radixPass)
   {
     clContext.setKernelArg(KERNEL_HISTOGRAM, 0, inputKeyBufferName);
@@ -160,15 +163,7 @@ void RadixSort::sort(const std::string& inputKeyBufferName, const std::vector<st
     clContext.swapBuffers("RadixSortIndices", "RadixSortIndicesTemp");
   }
 
-  std::vector<unsigned int> keysIn(m_numEntities, 0);
-  clContext.unloadBufferFromDevice(inputKeyBufferName, 0, sizeof(unsigned int) * keysIn.size(), keysIn.data());
-
-  if (!std::is_sorted(keysIn.begin(), keysIn.end()))
-  {
-    spdlog::error("Radix Sort has not correctly sorted input keys");
-  }
-
-  for (auto& bufferToPermutate : optionalInputBufferNames)
+  for (const auto& bufferToPermutate : optionalInputBufferNames)
   {
     clContext.copyBuffer(bufferToPermutate, "RadixSortPermutateTemp");
     clContext.setKernelArg(KERNEL_PERMUTATE, 1, "RadixSortPermutateTemp");

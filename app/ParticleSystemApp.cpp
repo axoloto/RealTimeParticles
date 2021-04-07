@@ -181,7 +181,7 @@ ParticleSystemApp::ParticleSystemApp()
 
   size_t numEntities = Core::NUM_MAX_ENTITIES;
   size_t boxSize = 1600;
-  size_t gridRes = 20;
+  size_t gridRes = 30;
   float velocity = 5.0f;
 
   m_graphicsEngine = std::make_unique<Render::OGLRender>(numEntities, boxSize, gridRes,
@@ -193,7 +193,7 @@ ParticleSystemApp::ParticleSystemApp()
 
   m_physicsEngine = std::make_unique<Core::Boids>(numEntities, boxSize, gridRes, velocity,
       (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
-      (unsigned int)m_graphicsEngine->pointCloudColorVBO(),
+      (unsigned int)m_graphicsEngine->cameraCoordVBO(),
       (unsigned int)m_graphicsEngine->gridDetectorVBO());
 
   if (!m_physicsEngine)

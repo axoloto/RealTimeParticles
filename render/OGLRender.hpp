@@ -43,7 +43,7 @@ class OGLRender
   void setGridVisibility(bool isVisible) { m_isGridVisible = isVisible; }
 
   GLuint pointCloudCoordVBO() const { return m_pointCloudCoordVBO; }
-  GLuint pointCloudColorVBO() const { return m_pointCloudColorVBO; }
+  GLuint cameraCoordVBO() const { return m_cameraCoordVBO; }
   GLuint gridDetectorVBO() const { return m_gridDetectorVBO; }
 
   private:
@@ -58,6 +58,8 @@ class OGLRender
   void generateGrid();
   void drawGrid();
 
+  void loadCameraPos();
+
   void initCamera(float sceneAspectRatio);
 
   const GLuint m_pointCloudPosAttribIndex { 0 };
@@ -70,6 +72,7 @@ class OGLRender
   GLuint m_pointCloudCoordVBO, m_pointCloudColorVBO;
   GLuint m_boxVBO, m_boxEBO;
   GLuint m_gridPosVBO, m_gridDetectorVBO, m_gridEBO;
+  GLuint m_cameraCoordVBO;
 
   std::unique_ptr<OGLShader> m_pointCloudShader;
   std::unique_ptr<OGLShader> m_boxShader;

@@ -35,6 +35,7 @@ OGLRender::~OGLRender()
   glDeleteBuffers(1, &m_pointCloudCoordVBO);
   glDeleteBuffers(1, &m_pointCloudColorVBO);
   glDeleteBuffers(1, &m_boxVBO);
+  glDeleteBuffers(1, &m_cameraCoordVBO);
 }
 
 void OGLRender::initCamera(float sceneAspectRatio)
@@ -53,6 +54,10 @@ void OGLRender::connectPointCloudVBOsToVAO()
 {
   glGenVertexArrays(1, &m_VAO);
   glBindVertexArray(m_VAO);
+
+  // Filled at each frame, for OpenCL use
+  glGenBuffers(1, &m_cameraCoordVBO);
+  loadCameraPos();
 
   // Filled by OpenCL
   glGenBuffers(1, &m_pointCloudCoordVBO);
@@ -73,6 +78,8 @@ void OGLRender::connectPointCloudVBOsToVAO()
 
 void OGLRender::draw()
 {
+  loadCameraPos();
+
   drawPointCloud();
 
   if (m_isBoxVisible)
@@ -80,6 +87,18 @@ void OGLRender::draw()
 
   if (m_isGridVisible)
     drawGrid();
+}
+
+void OGLRender::loadCameraPos()
+{
+  if (!m_camera)
+    return;
+
+  auto pos = m_camera->cameraPos();
+  const std::array<float, 3> cameraCoord = { pos[0], pos[1], pos[2] };
+  glBindBuffer(GL_ARRAY_BUFFER, m_cameraCoordVBO);
+  glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(float), &cameraCoord, GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void OGLRender::drawPointCloud()

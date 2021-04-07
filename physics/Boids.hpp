@@ -16,7 +16,7 @@ class Boids : public Physics
   public:
   Boids(size_t numEntities, size_t boxSize, size_t gridRes, float velocity,
       unsigned int pointCloudCoordVBO,
-      unsigned int pointCloudColorVBO,
+      unsigned int cameraCoordVBO,
       unsigned int gridDetectorVBO);
   ~Boids() = default;
 
@@ -101,7 +101,7 @@ class Boids : public Physics
 
   private:
   bool createProgram() const;
-  bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridDetectorVBO) const;
+  bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int cameraCoordVBO, unsigned int gridDetectorVBO) const;
   bool createKernels() const;
   void updateBoidsParamsInKernel();
   void updateGridParamsInKernel();

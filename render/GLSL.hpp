@@ -8,12 +8,11 @@ constexpr char PointCloudVertShader[] = R"(#version 330 core
     layout(location = 1) in vec3 aCol;
 
     uniform mat4 u_projView;
-    out vec4 vertexColor;
+    out vec4 vertexPos;
 
     void main()
     {
-        //vertexColor = vec4(aCol, 1.0);
-        vertexColor = vec4(aPos, 1.0);
+        vertexPos = vec4(aPos, 1.0);
         gl_Position = u_projView * vec4(aPos, 1.0);
 
         vec4 eye = u_projView * vec4(aPos, 1.0); 
@@ -23,7 +22,7 @@ constexpr char PointCloudVertShader[] = R"(#version 330 core
     )";
 
 constexpr char PointCloudFragShader[] = R"(#version 330 core
-    in vec4 vertexColor;
+    in vec4 vertexPos;
 
     uniform vec3 u_cameraPos;
 
@@ -32,7 +31,7 @@ constexpr char PointCloudFragShader[] = R"(#version 330 core
     void main()
     {
       // Alpha blending
-      vec3 xyz = u_cameraPos.xyz - vertexColor.xyz;
+      vec3 xyz = u_cameraPos.xyz - vertexPos.xyz;
 
       float r2 = dot(xyz, xyz);
       fragColor.a = 2*exp(-r2 / 100000)+0.75;

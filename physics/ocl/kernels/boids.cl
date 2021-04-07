@@ -11,11 +11,11 @@ unsigned int parallelRNG(unsigned int i)
   return value;
 }
 
-__kernel void colorVerts(const global float4* pos, global float4* color)
+__kernel void cameraDist(const global float4* pos, const global float3* cameraPos, global uint* cameraDist)
 {
-  int i = get_global_id(0);
-  float4 currPos = fabs(pos[i]);
-  color[i] = (float4)(1.0f - currPos.y / 900.f, 0.2f, 0.0f, 1.0f);
+  unsigned int i = get_global_id(0);
+
+  cameraDist[i] = (uint)(100000000.0f - fast_length(pos[i].xyz - cameraPos[0].xyz));
 }
 
 __kernel void infPosVerts(global float4* pos)

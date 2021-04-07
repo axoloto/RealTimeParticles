@@ -1,6 +1,5 @@
 #pragma once
 
-//#include "CL/cl.h"
 #include <array>
 #include <vector>
 
