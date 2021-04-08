@@ -10,6 +10,7 @@ using namespace Core;
 
 #define PROGRAM_RADIXSORT "RadixSort"
 
+#define KERNEL_RESET_INDEX "resetIndex"
 #define KERNEL_HISTOGRAM "histogram"
 #define KERNEL_MERGE "merge"
 #define KERNEL_SCAN "scan"
@@ -25,9 +26,6 @@ RadixSort::RadixSort(size_t numEntities)
     , m_numItems(4)
     , m_histoSplit(256)
 {
-  m_indices.resize(m_numEntities);
-  std::iota(m_indices.begin(), m_indices.end(), 0);
-
   m_numRadixPasses = m_numTotalBits / m_numRadixBits;
 
   createProgram();
@@ -89,8 +87,6 @@ bool RadixSort::createBuffers() const
   clContext.createBuffer("RadixSortTempSum", sizeof(unsigned int) * m_histoSplit, CL_MEM_READ_WRITE);
 
   clContext.createBuffer("RadixSortIndices", sizeof(unsigned int) * size, CL_MEM_READ_WRITE);
-  clContext.loadBufferFromHost("RadixSortIndices", 0, sizeof(unsigned int) * m_indices.size(), m_indices.data());
-
   clContext.createBuffer("RadixSortIndicesTemp", sizeof(unsigned int) * size, CL_MEM_READ_WRITE);
 
   clContext.createBuffer("RadixSortPermutateTemp", 4 * sizeof(float) * size, CL_MEM_READ_WRITE);
@@ -104,6 +100,8 @@ bool RadixSort::createKernels() const
 
   const size_t rest = m_numEntities % (m_numGroups * m_numItems);
   const size_t size = (rest == 0) ? m_numEntities : (m_numEntities - rest + (m_numGroups * m_numItems));
+
+  clContext.createKernel(PROGRAM_RADIXSORT, KERNEL_RESET_INDEX, { "RadixSortIndices" });
 
   clContext.createKernel(PROGRAM_RADIXSORT, KERNEL_HISTOGRAM, { "", "", "", "RadixSortHistogram" });
   clContext.setKernelArg(KERNEL_HISTOGRAM, 1, sizeof(size), &size);
@@ -134,7 +132,7 @@ void RadixSort::sort(const std::string& inputKeyBufferName, const std::vector<st
   size_t totalScan = m_numRadix * m_numGroups * m_numItems / 2;
   size_t localScan = totalScan / m_histoSplit;
 
-  clContext.loadBufferFromHost("RadixSortIndices", 0, sizeof(unsigned int) * m_indices.size(), m_indices.data());
+  clContext.runKernel(KERNEL_RESET_INDEX, m_numEntities);
 
   for (int radixPass = 0; radixPass < m_numRadixPasses; ++radixPass)
   {
