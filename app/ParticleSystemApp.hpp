@@ -3,11 +3,14 @@
 
 #include "Math.hpp"
 #include "OGLRender.hpp"
+#include "Parameters.hpp"
 #include "Physics.hpp"
 #include "PhysicsWidget.hpp"
 #include <SDL.h>
 #include <imgui.h>
 
+namespace App
+{
 class ParticleSystemApp
 {
   public:
@@ -39,3 +42,5 @@ class ParticleSystemApp
   bool m_buttonRightActivated;
   bool m_init;
 };
+
+}

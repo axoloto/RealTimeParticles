@@ -1,5 +1,9 @@
 
 #include "ParticleSystemApp.hpp"
+
+#include "Boids.hpp"
+#include "Parameters.hpp"
+
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl.h>
@@ -8,16 +12,14 @@
 #include <sdl2/SDL.h>
 #include <spdlog/spdlog.h>
 
-#include "Boids.hpp"
-#include "ocl/Context.hpp"
-
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
 #else
-constexpr auto GLSL_VERSION
-    = "#version 130";
+constexpr auto GLSL_VERSION = "#version 130";
 #endif
 
+namespace App
+{
 bool ParticleSystemApp::initWindow()
 {
   // Setup SDL
@@ -179,19 +181,26 @@ ParticleSystemApp::ParticleSystemApp()
 {
   initWindow();
 
-  size_t numEntities = Core::NUM_MAX_ENTITIES;
-  size_t boxSize = 1600;
-  size_t gridRes = 30;
+  size_t maxNbParticles = (size_t)(NbParticles::P260k);
+  size_t nbParticles = (size_t)(NbParticles::P130k);
   float velocity = 5.0f;
 
-  m_graphicsEngine = std::make_unique<Render::OGLRender>(numEntities, boxSize, gridRes,
-      Core::NUM_MAX_ENTITIES,
+  m_graphicsEngine = std::make_unique<Render::OGLRender>(
+      maxNbParticles,
+      nbParticles,
+      BOX_SIZE,
+      GRID_RES,
       (float)m_windowSize.x / m_windowSize.y);
 
   if (!m_graphicsEngine)
     return;
 
-  m_physicsEngine = std::make_unique<Core::Boids>(numEntities, boxSize, gridRes, velocity,
+  m_physicsEngine = std::make_unique<Core::Boids>(
+      maxNbParticles,
+      nbParticles,
+      BOX_SIZE,
+      GRID_RES,
+      velocity,
       (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
       (unsigned int)m_graphicsEngine->cameraCoordVBO(),
       (unsigned int)m_graphicsEngine->gridDetectorVBO());
@@ -266,12 +275,13 @@ void ParticleSystemApp::displayMainWidget()
     m_physicsEngine->reset();
   }
 
-  int numEntities = (int)m_physicsEngine->numEntities();
-  if (ImGui::SliderInt("Particles", &numEntities, 1, Core::NUM_MAX_ENTITIES))
+  static int currNbPartsIndex = FindNbPartsIndex((int)m_physicsEngine->nbParticles());
+  if (ImGui::Combo("Particles", &currNbPartsIndex, AllPossibleNbParts().c_str()))
   {
-    m_physicsEngine->setNumEntities(numEntities);
+    int nbParts = FindNbPartsByIndex((size_t)currNbPartsIndex);
+    m_physicsEngine->setNbParticles(nbParts);
     m_physicsEngine->reset();
-    m_graphicsEngine->setNumDisplayedEntities(numEntities);
+    m_graphicsEngine->setNbParticles(nbParts);
   }
 
   bool isSystemDim2D = (m_physicsEngine->dimension() == Core::Dimension::dim2D);
@@ -364,6 +374,8 @@ bool ParticleSystemApp::popUpErrorMessage(std::string errorMessage)
   return closePopUp;
 }
 
+} // End namespace App
+
 auto initializeLogger()
 {
   spdlog::set_level(spdlog::level::debug);
@@ -373,7 +385,7 @@ int main(int, char**)
 {
   initializeLogger();
 
-  ParticleSystemApp app;
+  App::ParticleSystemApp app;
 
   if (app.isInit())
   {

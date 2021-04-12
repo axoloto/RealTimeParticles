@@ -19,7 +19,7 @@ enum class UserAction
 class OGLRender
 {
   public:
-  OGLRender(size_t numDisplayedEntities, size_t boxSize, size_t gridRes, size_t numMaxEntities, float aspectRatio);
+  OGLRender(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float aspectRatio);
   ~OGLRender();
 
   void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);
@@ -34,7 +34,7 @@ class OGLRender
     if (m_camera)
       m_camera->setSceneAspectRatio((float)windowSize.x / windowSize.y);
   }
-  inline void setNumDisplayedEntities(int numDisplayedEntities) { m_numDisplayedEntities = numDisplayedEntities; }
+  inline void setNbParticles(int nbParticles) { m_nbParticles = nbParticles; }
 
   bool isBoxVisible() const { return m_isBoxVisible; }
   void setBoxVisibility(bool isVisible) { m_isBoxVisible = isVisible; }
@@ -80,8 +80,8 @@ class OGLRender
 
   size_t m_boxSize;
   size_t m_gridRes;
-  size_t m_numDisplayedEntities;
-  size_t m_numMaxEntities;
+  size_t m_nbParticles;
+  size_t m_maxNbParticles;
 
   bool m_isBoxVisible;
   bool m_isGridVisible;

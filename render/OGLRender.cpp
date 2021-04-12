@@ -4,11 +4,11 @@
 
 using namespace Render;
 
-OGLRender::OGLRender(size_t numDisplayedEntities, size_t boxSize, size_t gridRes, size_t numMaxEntities, float sceneAspectRatio)
-    : m_numDisplayedEntities(numDisplayedEntities)
+OGLRender::OGLRender(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float sceneAspectRatio)
+    : m_maxNbParticles(maxNbParticles)
+    , m_nbParticles(nbParticles)
     , m_boxSize(boxSize)
     , m_gridRes(gridRes)
-    , m_numMaxEntities(numMaxEntities)
     , m_isBoxVisible(false)
     , m_isGridVisible(false)
 {
@@ -62,7 +62,7 @@ void OGLRender::connectPointCloudVBOsToVAO()
   // Filled by OpenCL
   glGenBuffers(1, &m_pointCloudCoordVBO);
   glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudCoordVBO);
-  glBufferData(GL_ARRAY_BUFFER, 4 * m_numMaxEntities * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, 4 * m_maxNbParticles * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
   glVertexAttribPointer(m_pointCloudPosAttribIndex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
   glEnableVertexAttribArray(m_pointCloudPosAttribIndex);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -70,7 +70,7 @@ void OGLRender::connectPointCloudVBOsToVAO()
   // Filled by OpenCL
   glGenBuffers(1, &m_pointCloudColorVBO);
   glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudColorVBO);
-  glBufferData(GL_ARRAY_BUFFER, 4 * m_numMaxEntities * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, 4 * m_maxNbParticles * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
   glVertexAttribPointer(m_pointCloudColAttribIndex, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), nullptr);
   glEnableVertexAttribArray(m_pointCloudColAttribIndex);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -108,7 +108,7 @@ void OGLRender::drawPointCloud()
   m_pointCloudShader->setUniform("u_projView", m_camera->getProjViewMat());
   m_pointCloudShader->setUniform("u_cameraPos", m_camera->cameraPos());
 
-  glDrawArrays(GL_POINTS, 0, (GLsizei)m_numDisplayedEntities);
+  glDrawArrays(GL_POINTS, 0, (GLsizei)m_nbParticles);
 
   m_pointCloudShader->deactivate();
 }

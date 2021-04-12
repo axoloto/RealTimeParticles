@@ -28,11 +28,11 @@ using namespace Core;
 #define KERNEL_BOIDS_RULES_GRID "applyBoidsRulesWithGrid"
 #define KERNEL_ADD_TARGET_RULE "addTargetRule"
 
-Boids::Boids(size_t numEntities, size_t boxSize, size_t gridRes, float velocity,
+Boids::Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float velocity,
     unsigned int pointCloudCoordVBO,
     unsigned int cameraCoordVBO,
     unsigned int gridDetectorVBO)
-    : Physics(numEntities, boxSize, gridRes, velocity)
+    : Physics(maxNbParticles, nbParticles, boxSize, gridRes, velocity)
     , m_scaleAlignment(1.6f)
     , m_scaleCohesion(0.7f)
     , m_scaleSeparation(1.6f)
@@ -44,7 +44,7 @@ Boids::Boids(size_t numEntities, size_t boxSize, size_t gridRes, float velocity,
     , m_targetRadiusEffect(10000.0f)
     , m_targetSign(1)
     , m_maxNbPartsInCell(1000)
-    , m_radixSort(NUM_MAX_ENTITIES)
+    , m_radixSort(maxNbParticles)
 {
   createProgram();
 
@@ -68,7 +68,7 @@ bool Boids::createProgram() const
                  << std::setfill('0') << m_boxSize / 2.0f << "f";
   clBuildOptions << " -DFLOAT_EPSILON=0.01f";
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
-  clBuildOptions << " -DGRID_NUM_CELLS=" << m_numCells;
+  clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
 
   clContext.createProgram(PROGRAM_BOIDS, ".\\physics\\ocl\\kernels\\boids.cl", clBuildOptions.str());
@@ -76,20 +76,20 @@ bool Boids::createProgram() const
   return true;
 }
 
-bool Boids::createBuffers(unsigned int pointCloudCoordVBO, unsigned int cameraCoordVBO, unsigned int gridDetectorVBO) const
+bool Boids::createBuffers(unsigned int particleCoordVBO, unsigned int cameraCoordVBO, unsigned int gridDetectorVBO) const
 {
   CL::Context& clContext = CL::Context::Get();
 
   clContext.createGLBuffer("u_cameraPos", cameraCoordVBO, CL_MEM_READ_ONLY);
-  clContext.createGLBuffer("p_pos", pointCloudCoordVBO, CL_MEM_READ_WRITE);
+  clContext.createGLBuffer("p_pos", particleCoordVBO, CL_MEM_READ_WRITE);
   clContext.createGLBuffer("c_partDetector", gridDetectorVBO, CL_MEM_READ_WRITE);
 
-  clContext.createBuffer("p_vel", 4 * NUM_MAX_ENTITIES * sizeof(float), CL_MEM_READ_WRITE);
-  clContext.createBuffer("p_acc", 4 * NUM_MAX_ENTITIES * sizeof(float), CL_MEM_READ_WRITE);
-  clContext.createBuffer("p_cellID", NUM_MAX_ENTITIES * sizeof(unsigned int), CL_MEM_READ_WRITE);
-  clContext.createBuffer("p_cameraDist", NUM_MAX_ENTITIES * sizeof(unsigned int), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_vel", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_acc", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_cellID", m_maxNbParticles * sizeof(unsigned int), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_cameraDist", m_maxNbParticles * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
-  clContext.createBuffer("c_startEndPartID", 2 * m_numCells * sizeof(unsigned int), CL_MEM_READ_WRITE);
+  clContext.createBuffer("c_startEndPartID", 2 * m_nbCells * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
   return true;
 }
@@ -163,10 +163,10 @@ void Boids::reset()
   CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
-  clContext.runKernel(KERNEL_INFINITE_POS, NUM_MAX_ENTITIES);
-  clContext.runKernel(KERNEL_RANDOM_POS, m_numEntities);
-  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_numCells);
-  clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
+  clContext.runKernel(KERNEL_INFINITE_POS, m_maxNbParticles);
+  clContext.runKernel(KERNEL_RANDOM_POS, m_nbParticles);
+  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_nbCells);
+  clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_nbParticles);
   clContext.releaseGLBuffers({ "p_pos", "c_partDetector" });
 }
 
@@ -188,43 +188,43 @@ void Boids::update()
       timeStep = 0.0f;
     m_time = currentTime;
 
-    clContext.runKernel(KERNEL_FLUSH_CELL_ID, NUM_MAX_ENTITIES);
-    clContext.runKernel(KERNEL_FILL_CELL_ID, m_numEntities);
+    clContext.runKernel(KERNEL_FLUSH_CELL_ID, m_maxNbParticles);
+    clContext.runKernel(KERNEL_FILL_CELL_ID, m_nbParticles);
 
     m_radixSort.sort("p_cellID", { "p_pos", "p_vel", "p_acc" });
 
-    clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_numCells);
-    clContext.runKernel(KERNEL_FILL_START_CELL, m_numEntities);
-    clContext.runKernel(KERNEL_FILL_END_CELL, m_numEntities);
-    clContext.runKernel(KERNEL_ADJUST_END_CELL, m_numCells);
+    clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_nbCells);
+    clContext.runKernel(KERNEL_FILL_START_CELL, m_nbParticles);
+    clContext.runKernel(KERNEL_FILL_END_CELL, m_nbParticles);
+    clContext.runKernel(KERNEL_ADJUST_END_CELL, m_nbCells);
 
-    clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_numEntities);
+    clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_nbParticles);
 
     if (m_activeTargets)
     {
-      clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_numEntities);
+      clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_nbParticles);
     }
 
     clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(float), &timeStep);
-    clContext.runKernel(KERNEL_UPDATE_VEL, m_numEntities);
+    clContext.runKernel(KERNEL_UPDATE_VEL, m_nbParticles);
 
     switch (m_boundary)
     {
     case Boundary::CyclicWall:
       clContext.setKernelArg(KERNEL_UPDATE_POS_CYCLIC, 1, sizeof(float), &timeStep);
-      clContext.runKernel(KERNEL_UPDATE_POS_CYCLIC, m_numEntities);
+      clContext.runKernel(KERNEL_UPDATE_POS_CYCLIC, m_nbParticles);
       break;
     case Boundary::BouncingWall:
       clContext.setKernelArg(KERNEL_UPDATE_POS_BOUNCING, 1, sizeof(float), &timeStep);
-      clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_numEntities);
+      clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_nbParticles);
       break;
     }
 
-    clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_numCells);
-    clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_numEntities);
+    clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_nbCells);
+    clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_nbParticles);
   }
 
-  clContext.runKernel(KERNEL_CAMERA_DIST, m_numEntities);
+  clContext.runKernel(KERNEL_CAMERA_DIST, m_nbParticles);
 
   m_radixSort.sort("p_cameraDist", { "p_pos", "p_vel", "p_acc" });
 
