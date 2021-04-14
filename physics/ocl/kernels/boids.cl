@@ -11,18 +11,25 @@ unsigned int parallelRNG(unsigned int i)
   return value;
 }
 
-__kernel void cameraDist(const global float4* pos, const global float3* cameraPos, global uint* cameraDist)
+__kernel void resetCameraDist(global uint* cameraDist)
 {
   unsigned int i = get_global_id(0);
 
-  cameraDist[i] = (uint)(100000000.0f - fast_length(pos[i].xyz - cameraPos[0].xyz));
+  cameraDist[i] = (uint)(FAR_DIST * 2);
+}
+
+__kernel void fillCameraDist(const global float4* pos, const global float3* cameraPos, global uint* cameraDist)
+{
+  unsigned int i = get_global_id(0);
+
+  cameraDist[i] = (uint)(FAR_DIST - fast_length(pos[i].xyz - cameraPos[0].xyz));
 }
 
 __kernel void infPosVerts(global float4* pos)
 {
   unsigned int i = get_global_id(0);
 
-  pos[i] = (float4)(100000000.0f, 100000000.0f, 100000000.0f, 0.0f);
+  pos[i] = (float4)(FAR_DIST / 1000.0f, FAR_DIST / 1000.0f, FAR_DIST / 1000.0f, 0.0f);
 }
 
 __kernel void randPosVerts(global float4* pos, global float4* vel, float dim)
@@ -103,13 +110,13 @@ __kernel void fillGridDetector(__global float4* pPos, __global float8* gridDetec
 }
 
 // To use of Radix Sort accelerator, we need to find the cellID for each boids particle
-__kernel void flushCellIDs(global uint* pCellID)
+__kernel void resetCellIDs(global uint* pCellID)
 {
   unsigned int i = get_global_id(0);
   // For all particles, giving cell ID above any available one
-  // the ones not filled later (i.e not processed because index > numEntites displayed)
+  // the ones not filled later (i.e not processed because index > nbParticles displayed)
   // will be sorted at the end and not considered after sorting
-  pCellID[i] = GRID_NUM_CELLS + 1;
+  pCellID[i] = GRID_NUM_CELLS * 2 + i;
 }
 
 __kernel void fillCellIDs(const global float4* pPos, global uint* pCellID)

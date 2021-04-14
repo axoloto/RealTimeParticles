@@ -151,11 +151,11 @@ bool ParticleSystemApp::checkSDLStatus()
     {
       if (event.wheel.y > 0)
       {
-        m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-0.4f, 0.f));
+        m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-1.2f, 0.f));
       }
       else if (event.wheel.y < 0)
       {
-        m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(0.4f, 0.f));
+        m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(1.2f, 0.f));
       }
       break;
     }
@@ -181,13 +181,13 @@ ParticleSystemApp::ParticleSystemApp()
 {
   initWindow();
 
-  size_t maxNbParticles = (size_t)(NbParticles::P260k);
-  size_t nbParticles = (size_t)(NbParticles::P130k);
+  size_t maxNbParticles = (size_t)(NbParticles::P260K);
+  size_t nbParticles = (size_t)(NbParticles::P512);
   float velocity = 5.0f;
 
   m_graphicsEngine = std::make_unique<Render::OGLRender>(
       maxNbParticles,
-      nbParticles,
+      maxNbParticles,
       BOX_SIZE,
       GRID_RES,
       (float)m_windowSize.x / m_windowSize.y);
