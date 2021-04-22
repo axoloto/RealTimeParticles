@@ -24,7 +24,7 @@ class Camera
   void zoom(float delta);
 
   inline const Math::float3 cameraPos() const { return m_cameraPos; }
-  inline const Math::float3 targetPos() const { return m_targetPos; }
+  inline const Math::float3 focusPos() const { return m_focusPos; }
 
   inline Math::float4x4 getProjViewMat() const { return m_projViewMat; }
 
@@ -33,7 +33,7 @@ class Camera
   void updateProjViewMat();
 
   Math::float3 m_cameraPos, m_cameraInitPos;
-  Math::float3 m_targetPos, m_targetInitPos;
+  Math::float3 m_focusPos, m_focusInitPos;
   Math::float4x4 m_projMat, m_viewMat, m_projViewMat;
 
   float m_fov;

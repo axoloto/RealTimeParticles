@@ -26,7 +26,7 @@ class OGLRender
   void draw();
 
   inline const Math::float3 cameraPos() const { return m_camera->cameraPos(); }
-  inline const Math::float3 targetPos() const { return m_camera->targetPos(); }
+  inline const Math::float3 focusPos() const { return m_camera->focusPos(); }
 
   inline void resetCamera() { m_camera->reset(); }
   inline void setWindowSize(Math::int2 windowSize)

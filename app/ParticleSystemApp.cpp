@@ -333,14 +333,14 @@ void ParticleSystemApp::displayMainWidget()
   }
 
   const auto cameraPos = m_graphicsEngine->cameraPos();
-  const auto targetPos = m_graphicsEngine->targetPos();
+  const auto focusPos = m_graphicsEngine->focusPos();
 
   ImGui::Spacing();
   ImGui::Separator();
   ImGui::Spacing();
   ImGui::Text(" Camera (%.1f, %.1f, %.1f)", cameraPos.x, cameraPos.y, cameraPos.z);
-  ImGui::Text(" Target (%.1f, %.1f, %.1f)", targetPos.x, targetPos.y, targetPos.z);
-  ImGui::Text(" Dist. camera target : %.1f", Math::length(cameraPos - targetPos));
+  ImGui::Text(" Target (%.1f, %.1f, %.1f)", focusPos.x, focusPos.y, focusPos.z);
+  ImGui::Text(" Dist. camera target : %.1f", Math::length(cameraPos - focusPos));
   ImGui::Spacing();
   if (ImGui::Button(" Reset Camera "))
   {

@@ -9,7 +9,7 @@ Camera::Camera(float sceneAspectRatio)
     , m_zNear(0.01f)
     , m_zFar(150000.f)
     , m_cameraInitPos({ 3600.0, 50.0, 0.0 })
-    , m_targetInitPos({ 0.0, 0.0, 0.0 })
+    , m_focusInitPos({ 0.0, 0.0, 0.0 })
 {
   reset();
 }
@@ -17,14 +17,14 @@ Camera::Camera(float sceneAspectRatio)
 void Camera::reset()
 {
   m_cameraPos = m_cameraInitPos;
-  m_targetPos = m_targetInitPos;
+  m_focusPos = m_focusInitPos;
   updateProjMat();
   updateProjViewMat();
 }
 
 void Camera::rotate(float angleX, float angleY)
 {
-  float3 vecTargetCamera(m_cameraPos - m_targetPos);
+  float3 vecTargetCamera(m_cameraPos - m_focusPos);
 
   auto rot = float4x4::RotationY(angleY) * float4x4::RotationX(angleX);
 
@@ -32,7 +32,7 @@ void Camera::rotate(float angleX, float angleY)
   rot = matWorldToCam * rot * matWorldToCam.Transpose();
 
   vecTargetCamera = vecTargetCamera * rot;
-  m_cameraPos = m_targetPos + vecTargetCamera;
+  m_cameraPos = m_focusPos + vecTargetCamera;
 
   updateProjViewMat();
 }
@@ -45,7 +45,7 @@ void Camera::translate(float dispX, float dispY)
   trans = matWorldToCam * trans * matWorldToCam.Transpose();
 
   m_cameraPos = float4(m_cameraPos, 1.0) * trans;
-  m_targetPos = float4(m_targetPos, 1.0) * trans;
+  m_focusPos = float4(m_focusPos, 1.0) * trans;
 
   updateProjViewMat();
 }
@@ -53,9 +53,9 @@ void Camera::translate(float dispX, float dispY)
 void Camera::zoom(float delta)
 {
   float zoomRatio = 1.f + delta / 10.f;
-  float3 vecTargetCamera(m_cameraPos - m_targetPos);
+  float3 vecTargetCamera(m_cameraPos - m_focusPos);
 
-  m_cameraPos = m_targetPos + vecTargetCamera * zoomRatio;
+  m_cameraPos = m_focusPos + vecTargetCamera * zoomRatio;
 
   updateProjViewMat();
 }
@@ -71,7 +71,7 @@ void Camera::updateProjViewMat()
 
   float3 refX, refY, refZ;
 
-  refZ = -(m_cameraPos - m_targetPos);
+  refZ = -(m_cameraPos - m_focusPos);
   refZ = normalize(refZ);
 
   refY = { 0.0f, 1.0f, 0.0f };

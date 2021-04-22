@@ -147,8 +147,6 @@ void Boids::updateBoidsParamsInKernel()
   boidsParams[4] = m_activeTarget ? 1.0f : 0.0f;
   clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID, 3, sizeof(boidsParams), &boidsParams);
 
-  std::array<float, 4> targetPos = { m_target.x, m_target.y, m_target.z, 0.0f };
-  clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 1, sizeof(float) * 4, &targetPos);
   clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(float), &m_targetRadiusEffect);
   clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 3, sizeof(int), &m_targetSign);
 }
@@ -206,6 +204,8 @@ void Boids::update()
 
     if (m_activeTarget)
     {
+      std::array<float, 4> targetPos = { m_target.x, m_target.y, m_target.z, 0.0f };
+      clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 1, sizeof(float) * 4, &targetPos);
       clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_nbParticles);
     }
 
