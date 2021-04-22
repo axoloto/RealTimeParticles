@@ -78,12 +78,11 @@ class Boids : public Physics
 
   //
 
-  void activateTarget(bool target)
+  void activateTarget(bool target) override
   {
-    m_activeTargets = target;
+    m_activeTarget = target;
     updateBoidsParamsInKernel();
   }
-  bool isTargetActivated() const { return m_activeTargets; }
 
   void setTargetRadiusEffect(float radiusEffect)
   {
@@ -114,11 +113,8 @@ class Boids : public Physics
   float m_scaleCohesion;
   float m_scaleSeparation;
 
-  bool m_activeTargets;
-
   size_t m_maxNbPartsInCell;
 
-  Math::float3 m_target;
   float m_targetRadiusEffect;
   int m_targetSign;
 

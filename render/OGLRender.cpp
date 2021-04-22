@@ -11,6 +11,7 @@ OGLRender::OGLRender(size_t maxNbParticles, size_t nbParticles, size_t boxSize, 
     , m_gridRes(gridRes)
     , m_isBoxVisible(false)
     , m_isGridVisible(false)
+    , m_targetPos({ 0.0f, 0.0f, 0.0f })
 {
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_PROGRAM_POINT_SIZE);
@@ -19,15 +20,20 @@ OGLRender::OGLRender(size_t maxNbParticles, size_t nbParticles, size_t boxSize, 
   glEnable(GL_BLEND);
   glEnable(GL_MULTISAMPLE);
 
-  initCamera(sceneAspectRatio);
-
   buildShaders();
 
-  connectPointCloudVBOsToVAO();
+  glGenVertexArrays(1, &m_VAO);
+  glBindVertexArray(m_VAO);
 
-  generateBox();
+  initCamera(sceneAspectRatio);
 
-  generateGrid();
+  initPointCloud();
+
+  initBox();
+
+  initGrid();
+
+  initTarget();
 }
 
 OGLRender::~OGLRender()
@@ -35,12 +41,8 @@ OGLRender::~OGLRender()
   glDeleteBuffers(1, &m_pointCloudCoordVBO);
   glDeleteBuffers(1, &m_pointCloudColorVBO);
   glDeleteBuffers(1, &m_boxVBO);
-  glDeleteBuffers(1, &m_cameraCoordVBO);
-}
-
-void OGLRender::initCamera(float sceneAspectRatio)
-{
-  m_camera = std::make_unique<Camera>(sceneAspectRatio);
+  glDeleteBuffers(1, &m_cameraVBO);
+  glDeleteBuffers(1, &m_targetVBO);
 }
 
 void OGLRender::buildShaders()
@@ -48,17 +50,20 @@ void OGLRender::buildShaders()
   m_pointCloudShader = std::make_unique<OGLShader>(Render::PointCloudVertShader, Render::PointCloudFragShader);
   m_boxShader = std::make_unique<OGLShader>(Render::BoxVertShader, Render::FragShader);
   m_gridShader = std::make_unique<OGLShader>(Render::GridVertShader, Render::FragShader);
+  m_targetShader = std::make_unique<OGLShader>(Render::TargetVertShader, Render::FragShader);
 }
 
-void OGLRender::connectPointCloudVBOsToVAO()
+void OGLRender::initCamera(float sceneAspectRatio)
 {
-  glGenVertexArrays(1, &m_VAO);
-  glBindVertexArray(m_VAO);
+  m_camera = std::make_unique<Camera>(sceneAspectRatio);
 
   // Filled at each frame, for OpenCL use
-  glGenBuffers(1, &m_cameraCoordVBO);
+  glGenBuffers(1, &m_cameraVBO);
   loadCameraPos();
+}
 
+void OGLRender::initPointCloud()
+{
   // Filled by OpenCL
   glGenBuffers(1, &m_pointCloudCoordVBO);
   glBindBuffer(GL_ARRAY_BUFFER, m_pointCloudCoordVBO);
@@ -80,13 +85,16 @@ void OGLRender::draw()
 {
   loadCameraPos();
 
-  drawPointCloud();
-
   if (m_isBoxVisible)
     drawBox();
 
   if (m_isGridVisible)
     drawGrid();
+
+  drawPointCloud();
+
+  if (m_isTargetVisible)
+    drawTarget();
 }
 
 void OGLRender::loadCameraPos()
@@ -96,7 +104,7 @@ void OGLRender::loadCameraPos()
 
   auto pos = m_camera->cameraPos();
   const std::array<float, 3> cameraCoord = { pos[0], pos[1], pos[2] };
-  glBindBuffer(GL_ARRAY_BUFFER, m_cameraCoordVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, m_cameraVBO);
   glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(float), &cameraCoord, GL_DYNAMIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
@@ -140,7 +148,22 @@ void OGLRender::drawGrid()
   m_gridShader->deactivate();
 }
 
-void OGLRender::generateBox()
+void OGLRender::drawTarget()
+{
+  m_targetShader->activate();
+
+  m_targetShader->setUniform("u_projView", m_camera->getProjViewMat());
+
+  const std::array<float, 3> targetCoord = { m_targetPos[0], m_targetPos[1], m_targetPos[2] };
+  glBindBuffer(GL_ARRAY_BUFFER, m_targetVBO);
+  glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(float), &targetCoord, GL_DYNAMIC_DRAW);
+  glDrawArrays(GL_POINTS, 0, (GLsizei)1);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  m_targetShader->deactivate();
+}
+
+void OGLRender::initBox()
 {
   std::array<Vertex, 8> boxVertices = m_refCubeVertices;
   for (auto& vertex : boxVertices)
@@ -164,7 +187,7 @@ void OGLRender::generateBox()
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-void OGLRender::generateGrid()
+void OGLRender::initGrid()
 {
   float cellSize = 1.0f * m_boxSize / m_gridRes;
   std::array<Vertex, 8> localCellCoords = m_refCubeVertices;
@@ -239,6 +262,17 @@ void OGLRender::generateGrid()
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_gridEBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, gridIndexSize, globalCellIndices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+void OGLRender::initTarget()
+{
+  const std::array<float, 3> targetCoord = { m_targetPos[0], m_targetPos[1], m_targetPos[2] };
+  glGenBuffers(1, &m_targetVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, m_targetVBO);
+  glVertexAttribPointer(m_targetPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+  glEnableVertexAttribArray(m_targetPosAttribIndex);
+  glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(float), &targetCoord, GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void OGLRender::checkMouseEvents(UserAction action, Math::float2 delta)
