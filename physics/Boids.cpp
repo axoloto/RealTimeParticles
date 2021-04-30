@@ -44,6 +44,7 @@ Boids::Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t g
     , m_targetSign(1)
     , m_maxNbPartsInCell(1000)
     , m_radixSort(maxNbParticles)
+    , m_target(std::make_unique<PerlinParticle>())
 {
   createProgram();
 
@@ -204,9 +205,11 @@ void Boids::update()
 
     if (m_activeTarget)
     {
-      std::array<float, 4> targetPos = { m_target.x, m_target.y, m_target.z, 0.0f };
+      auto targetXYZ = m_target->pos();
+      std::array<float, 4> targetPos = { targetXYZ.x, targetXYZ.y, targetXYZ.z, 0.0f };
       clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 1, sizeof(float) * 4, &targetPos);
       clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_nbParticles);
+      m_target->updatePos(timeStep);
     }
 
     clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(float), &timeStep);

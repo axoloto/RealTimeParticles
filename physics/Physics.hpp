@@ -31,8 +31,7 @@ class Physics
       , m_dimension(dimension)
       , m_boundary(Boundary::BouncingWall)
       , m_pause(false)
-      , m_target({ 100.0f, 0.0f, 0.0f })
-      , m_activeTarget(false) {};
+      , m_activeTarget(true) {};
 
   virtual ~Physics() = default;
 
@@ -68,7 +67,7 @@ class Physics
   virtual void activateTarget(bool target) { m_activeTarget = target; }
   bool isTargetActivated() const { return m_activeTarget; }
 
-  Math::float3 targetPos() const { return m_target; }
+  virtual Math::float3 targetPos() const { return { 0.0f, 0.0f, 0.0f }; }
 
   protected:
   bool m_init;
@@ -88,7 +87,6 @@ class Physics
 
   Boundary m_boundary;
 
-  Math::float3 m_target;
   bool m_activeTarget;
 };
 }

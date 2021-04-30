@@ -6,6 +6,7 @@
 
 #include "Physics.hpp"
 #include "ocl/Context.hpp"
+#include "utils/PerlinParticle.hpp"
 #include "utils/RadixSort.hpp"
 
 namespace Core
@@ -78,6 +79,11 @@ class Boids : public Physics
 
   //
 
+  Math::float3 targetPos() const override
+  {
+    return m_target ? m_target->pos() : Math::float3({ 0.0f, 0.0f, 0.0f });
+  }
+
   void activateTarget(bool target) override
   {
     m_activeTarget = target;
@@ -114,6 +120,8 @@ class Boids : public Physics
   float m_scaleSeparation;
 
   size_t m_maxNbPartsInCell;
+
+  std::unique_ptr<PerlinParticle> m_target;
 
   float m_targetRadiusEffect;
   int m_targetSign;
