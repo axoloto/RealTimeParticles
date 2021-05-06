@@ -44,7 +44,7 @@ Boids::Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t g
     , m_targetSign(1)
     , m_maxNbPartsInCell(1000)
     , m_radixSort(maxNbParticles)
-    , m_target(std::make_unique<PerlinParticle>())
+    , m_target(std::make_unique<PerlinParticle>(boxSize, Math::float3(0.0f, 0.0f, 0.0f)))
 {
   createProgram();
 

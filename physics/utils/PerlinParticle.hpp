@@ -11,7 +11,7 @@ namespace Core
 class PerlinParticle
 {
   public:
-  PerlinParticle(Math::float3 initPos = { 100.0f, 0.0f, 0.0f });
+  PerlinParticle(size_t boxSize, Math::float3 initPos = { 100.0f, 0.0f, 0.0f });
   ~PerlinParticle() = default;
 
   Math::float3 pos() const { return m_pos; }
