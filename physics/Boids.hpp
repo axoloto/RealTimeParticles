@@ -6,8 +6,8 @@
 
 #include "Physics.hpp"
 #include "ocl/Context.hpp"
-#include "utils/PerlinParticle.hpp"
 #include "utils/RadixSort.hpp"
+#include "utils/Target.hpp"
 
 namespace Core
 {
@@ -78,31 +78,37 @@ class Boids : public Physics
   bool isSeparationActivated() const { return m_activeSeparation; }
 
   //
-
   Math::float3 targetPos() const override
   {
     return m_target ? m_target->pos() : Math::float3({ 0.0f, 0.0f, 0.0f });
   }
 
-  void activateTarget(bool target) override
+  void activateTarget(bool isActive)
   {
-    m_activeTarget = target;
+    if (m_target)
+      m_target->activate(isActive);
+
     updateBoidsParamsInKernel();
   }
+  bool isTargetActivated() const override { return m_target ? m_target->isActivated() : false; }
 
   void setTargetRadiusEffect(float radiusEffect)
   {
-    m_targetRadiusEffect = radiusEffect;
+    if (m_target)
+      m_target->setRadiusEffect(radiusEffect);
+
     updateBoidsParamsInKernel();
   }
-  float targetRadiusEffect() const { return m_targetRadiusEffect; }
+  float targetRadiusEffect() const { return m_target ? m_target->radiusEffect() : 0.0f; }
 
   void setTargetSignEffect(int signEffect)
   {
-    m_targetSign = signEffect;
+    if (m_target)
+      m_target->setSignEffect(signEffect);
+
     updateBoidsParamsInKernel();
   }
-  int targetSignEffect() const { return m_targetSign; }
+  int targetSignEffect() const { return m_target ? m_target->signEffect() : 0; }
 
   private:
   bool createProgram() const;
@@ -121,10 +127,7 @@ class Boids : public Physics
 
   size_t m_maxNbPartsInCell;
 
-  std::unique_ptr<PerlinParticle> m_target;
-
-  float m_targetRadiusEffect;
-  int m_targetSign;
+  std::unique_ptr<Target> m_target;
 
   RadixSort m_radixSort;
 

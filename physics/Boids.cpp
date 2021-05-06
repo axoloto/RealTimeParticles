@@ -40,11 +40,9 @@ Boids::Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t g
     , m_activeAlignment(true)
     , m_activeSeparation(true)
     , m_activeCohesion(true)
-    , m_targetRadiusEffect(10000.0f)
-    , m_targetSign(1)
     , m_maxNbPartsInCell(1000)
     , m_radixSort(maxNbParticles)
-    , m_target(std::make_unique<PerlinParticle>(boxSize, Math::float3(0.0f, 0.0f, 0.0f)))
+    , m_target(std::make_unique<Target>(boxSize))
 {
   createProgram();
 
@@ -145,11 +143,16 @@ void Boids::updateBoidsParamsInKernel()
   boidsParams[1] = m_activeCohesion ? m_scaleCohesion : 0.0f;
   boidsParams[2] = m_activeAlignment ? m_scaleAlignment : 0.0f;
   boidsParams[3] = m_activeSeparation ? m_scaleSeparation : 0.0f;
-  boidsParams[4] = m_activeTarget ? 1.0f : 0.0f;
+  boidsParams[4] = isTargetActivated() ? 1.0f : 0.0f;
   clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID, 3, sizeof(boidsParams), &boidsParams);
 
-  clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(float), &m_targetRadiusEffect);
-  clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 3, sizeof(int), &m_targetSign);
+  if (isTargetActivated())
+  {
+    const auto radiusEffect = targetRadiusEffect();
+    const auto signEffect = targetSignEffect();
+    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(float), &radiusEffect);
+    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 3, sizeof(int), &signEffect);
+  }
 }
 
 void Boids::reset()
@@ -203,13 +206,13 @@ void Boids::update()
 
     clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_nbParticles);
 
-    if (m_activeTarget)
+    if (isTargetActivated())
     {
       auto targetXYZ = m_target->pos();
       std::array<float, 4> targetPos = { targetXYZ.x, targetXYZ.y, targetXYZ.z, 0.0f };
       clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 1, sizeof(float) * 4, &targetPos);
       clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_nbParticles);
-      m_target->updatePos(timeStep);
+      m_target->updatePos(m_velocity);
     }
 
     clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(float), &timeStep);
