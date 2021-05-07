@@ -40,6 +40,7 @@ Boids::Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t g
     , m_activeAlignment(true)
     , m_activeSeparation(true)
     , m_activeCohesion(true)
+    , m_simplifiedMode(true)
     , m_maxNbPartsInCell(1000)
     , m_radixSort(maxNbParticles)
     , m_target(std::make_unique<Target>(boxSize))
@@ -202,17 +203,19 @@ void Boids::update()
     clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_nbParticles);
     clContext.runKernel(KERNEL_FILL_END_CELL, m_nbParticles);
-    clContext.runKernel(KERNEL_ADJUST_END_CELL, m_nbCells);
+
+    if (m_simplifiedMode)
+      clContext.runKernel(KERNEL_ADJUST_END_CELL, m_nbCells);
 
     clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_nbParticles);
 
     if (isTargetActivated())
     {
+      m_target->updatePos(m_dimension, m_velocity);
       auto targetXYZ = m_target->pos();
       std::array<float, 4> targetPos = { targetXYZ.x, targetXYZ.y, targetXYZ.z, 0.0f };
       clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 1, sizeof(float) * 4, &targetPos);
       clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_nbParticles);
-      m_target->updatePos(m_velocity);
     }
 
     clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(float), &timeStep);

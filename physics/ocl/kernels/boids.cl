@@ -298,10 +298,10 @@ __kernel void addTargetRule(
   float4 currPos = pos[i];
 
   float4 vec = targetPos - currPos;
-  float squaredDist = dot(vec, vec);
+  float dist = fast_length(vec);
 
-  if (squaredDist < targetSquaredRadiusEffect)
-    acc[i] += targetSignEffect * clamp(vec, 0.0, fast_normalize(vec) * MAX_STEERING);
+  if (dist < half_sqrt(targetSquaredRadiusEffect))
+    acc[i] += targetSignEffect * vec * clamp(1.2f / dist, 0.0f, 1.2f * MAX_STEERING);
 }
 
 __kernel void updateVel(

@@ -125,6 +125,7 @@ class Boids : public Physics
   float m_scaleCohesion;
   float m_scaleSeparation;
 
+  bool m_simplifiedMode;
   size_t m_maxNbPartsInCell;
 
   std::unique_ptr<Target> m_target;

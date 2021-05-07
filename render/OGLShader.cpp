@@ -66,6 +66,11 @@ GLint OGLShader::getUniformLocation(const std::string& name) const
   return glGetUniformLocation(m_programID, name.c_str());
 }
 
+void OGLShader::setUniform(const std::string& name, int value) const
+{
+  glUniform1i(getUniformLocation(name), value);
+}
+
 void OGLShader::setUniform(const std::string& name, float value) const
 {
   glUniform1f(getUniformLocation(name), value);

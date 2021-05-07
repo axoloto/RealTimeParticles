@@ -1,6 +1,7 @@
 #include "GLSL.hpp"
 #include "Math.hpp"
 #include "OGLRender.hpp"
+#include <spdlog/spdlog.h>
 
 using namespace Render;
 
@@ -113,6 +114,7 @@ void OGLRender::drawPointCloud()
 {
   m_pointCloudShader->activate();
 
+  m_pointCloudShader->setUniform("u_pointSize", (m_nbParticles < 10000) ? 3 : 1);
   m_pointCloudShader->setUniform("u_projView", m_camera->getProjViewMat());
   m_pointCloudShader->setUniform("u_cameraPos", m_camera->cameraPos());
 

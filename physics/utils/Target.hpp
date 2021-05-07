@@ -5,6 +5,8 @@
 
 #include "Math.hpp"
 #include "PerlinNoise.hpp"
+#include "Physics.hpp"
+
 
 namespace Core
 {
@@ -15,7 +17,7 @@ class Target
   ~Target() = default;
 
   Math::float3 pos() const { return m_pos; }
-  void updatePos(float velocity);
+  void updatePos(Dimension dim, float velocity);
 
   void activate(bool isActive) { m_isActive = isActive; }
   bool isActivated() const { return m_isActive; }

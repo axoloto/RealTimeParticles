@@ -187,7 +187,7 @@ ParticleSystemApp::ParticleSystemApp()
 
   m_graphicsEngine = std::make_unique<Render::OGLRender>(
       maxNbParticles,
-      maxNbParticles,
+      nbParticles,
       BOX_SIZE,
       GRID_RES,
       (float)m_windowSize.x / m_windowSize.y);
