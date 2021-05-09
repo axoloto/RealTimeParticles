@@ -53,16 +53,6 @@ __kernel void randPosVerts(global float4* pos, global float4* vel, float dim)
   vel[i].w = 0.0;
 }
 
-inline float4 steerForce(float4 desiredVel, float4 vel)
-{
-  float4 steerForce = desiredVel - vel;
-  if (length(steerForce) > MAX_STEERING)
-  {
-    steerForce = fast_normalize(steerForce) * MAX_STEERING;
-  }
-  return steerForce;
-}
-
 // For rendering purpose only, checking for each grid cell if there is any particle
 // If so, grid cell will be displayed in OpenGl
 __kernel void flushGridDetector(global float8* gridDetector)
@@ -275,9 +265,9 @@ __kernel void applyBoidsRulesWithGrid(
     // separation
     repulseHeading = fast_normalize(repulseHeading) * params.s0;
 
-    newAcc = steerForce(averageBoidsPos, vel) * params.s1
-        + steerForce(averageBoidsVel, vel) * params.s2
-        + steerForce(repulseHeading, vel) * params.s3;
+    newAcc = averageBoidsPos * params.s1
+        + averageBoidsVel * params.s2
+        + repulseHeading * params.s3;
   }
 
   acc[i] = newAcc;
@@ -301,7 +291,7 @@ __kernel void addTargetRule(
   float dist = fast_length(vec);
 
   if (dist < half_sqrt(targetSquaredRadiusEffect))
-    acc[i] += targetSignEffect * vec * clamp(1.2f / dist, 0.0f, 1.2f * MAX_STEERING);
+    acc[i] += targetSignEffect * vec * clamp(1.3f / dist, 0.0f, 1.4f * MAX_STEERING);
 }
 
 __kernel void updateVel(
@@ -365,8 +355,22 @@ __kernel void updatePosWithCyclicWalls(
   pos[i] = clampedNewPos;
 }
 
+//
+//
+//
+//
 // Classic boids physics with no grid, O(N^2) in time complexity
 /*
+inline float4 steerForce(float4 desiredVel, float4 vel)
+{
+  float4 steerForce = desiredVel - vel;
+  if (length(steerForce) > MAX_STEERING)
+  {
+    steerForce = fast_normalize(steerForce) * MAX_STEERING;
+  }
+  return steerForce;
+}
+
 __kernel void applyBoidsRules(__global float4* position, __global float4* velocity, __global float4* acc, __global boidsParams* params)
 {
   unsigned int i = get_global_id(0);

@@ -15,7 +15,7 @@ Target::Target(size_t boxSize, Math::float3 initPos)
     , m_radiusEffect(10000.0f)
     , m_signEffect(1)
 {
-  m_maxRadius = 0.35 * boxSize;
+  m_maxRadius = 0.48 * boxSize;
   m_perlinPos = m_pos;
 };
 

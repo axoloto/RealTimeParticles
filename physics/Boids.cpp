@@ -35,7 +35,7 @@ Boids::Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t g
     unsigned int gridDetectorVBO)
     : Physics(maxNbParticles, nbParticles, boxSize, gridRes, velocity)
     , m_scaleAlignment(1.6f)
-    , m_scaleCohesion(0.7f)
+    , m_scaleCohesion(1.45f)
     , m_scaleSeparation(1.6f)
     , m_activeAlignment(true)
     , m_activeSeparation(true)
