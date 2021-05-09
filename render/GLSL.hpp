@@ -31,11 +31,15 @@ constexpr char PointCloudFragShader[] = R"(#version 330 core
 
     void main()
     {
-      // Alpha blending
+      // Additive alpha blending
       vec3 xyz = u_cameraPos.xyz - vertexPos.xyz;
 
+      // WIP not working well
+      // Alpha tending to 1 close from the camera
+      // to see non translucent close neighbor particles
+      // And down to 0.75 away from the camera to allow additive blending
       float r2 = dot(xyz, xyz);
-      fragColor.a = 2*exp(-r2 / 100000)+0.75;
+      fragColor.a = 2.5* exp(-r2 / 100000)+0.75;
 
       fragColor.rgb = vec3(0.8, 0.0, 0.0) * fragColor.a;
     }

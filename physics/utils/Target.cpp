@@ -40,7 +40,7 @@ void Target::updatePos(Dimension dim, float particlesVel)
   // Adjusting target velocity to match followers ones
   float velRatio = particlesVel / 35.0f;
   // Mapping it to spheric coordinates to generate a pseudo random 3D trajectory remaining inside radius
-  float radius = m_maxRadius * cos(6 * velRatio * PI * nR);
+  float radius = m_maxRadius * cos(12 * velRatio * PI * nR);
   m_pos.x = (dim == Dimension::dim3D) ? (radius * cos(5 * velRatio * PI * nBeta)) : 0.0f;
   m_pos.y = radius * sin(5 * velRatio * PI * nBeta) * cos(4 * velRatio * PI * nTheta);
   m_pos.z = radius * sin(5 * velRatio * PI * nBeta) * sin(4 * velRatio * PI * nTheta);
