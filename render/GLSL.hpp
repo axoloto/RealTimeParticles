@@ -7,35 +7,41 @@ constexpr char PointCloudVertShader[] = R"(#version 330 core
     layout(location = 0) in vec3 aPos;
     layout(location = 1) in vec3 aCol;
 
+    uniform int u_pointSize;
     uniform mat4 u_projView;
-    out vec4 vertexColor;
+    out vec4 vertexPos;
 
     void main()
     {
-        vertexColor = vec4(aCol, 1.0);
+        vertexPos = vec4(aPos, 1.0);
         gl_Position = u_projView * vec4(aPos, 1.0);
 
         vec4 eye = u_projView * vec4(aPos, 1.0); 
         float d = length(eye);
-        gl_PointSize = max(3000.0 * 1.0/(0.04 + 0.8*d + 0.0002*d*d), 0.8); 			
+        gl_PointSize = u_pointSize * max(3000.0 * 1.0/(0.04 + 0.8*d + 0.0002*d*d), 0.8); 			
     }
     )";
 
 constexpr char PointCloudFragShader[] = R"(#version 330 core
-    in vec4 vertexColor;
+    in vec4 vertexPos;
+
+    uniform vec3 u_cameraPos;
 
     out vec4 fragColor;
 
     void main()
     {
-      // Alpha blending
-      vec2 xy = 2.0 * gl_PointCoord.xy - vec2(1.0);
-      float r2 = dot(xy, xy);
-      fragColor.a = exp2(-r2 * 0.2);
-      //fragColor.a = 1.0;
+      // Additive alpha blending
+      vec3 xyz = u_cameraPos.xyz - vertexPos.xyz;
 
-      fragColor.rgb = vertexColor.rgb * fragColor.a;
-      //fragColor = vertexColor;
+      // WIP not working well
+      // Alpha tending to 1 close from the camera
+      // to see non translucent close neighbor particles
+      // And down to 0.75 away from the camera to allow additive blending
+      float r2 = dot(xyz, xyz);
+      fragColor.a = 2.5* exp(-r2 / 100000)+0.75;
+
+      fragColor.rgb = vec3(0.8, 0.0, 0.0) * fragColor.a;
     }
     )";
 
@@ -70,6 +76,23 @@ constexpr char GridVertShader[] = R"(#version 330 core
         gl_Position =  vec4(0.0, 0.0, 0.0, 1.0);
 
       gl_PointSize = 1.0;
+    }
+    )";
+
+constexpr char TargetVertShader[] = R"(#version 330 core
+    layout(location = 5) in vec3 aPos;
+
+    uniform mat4 u_projView;
+    out vec4 vertexColor;
+
+    void main()
+    {
+        vertexColor = vec4(1.0, 1.0, 0.0, 1.0);
+        gl_Position = u_projView * vec4(aPos, 1.0);
+
+        vec4 eye = u_projView * vec4(aPos, 1.0); 
+        float d = length(eye);
+        gl_PointSize = 5 * max(3000.0 * 1.0/(0.04 + 0.8*d + 0.0002*d*d), 0.8); 			
     }
     )";
 

@@ -1,6 +1,5 @@
 #pragma once
 
-//#include "CL/cl.h"
 #include <array>
 #include <vector>
 
@@ -48,7 +47,7 @@ class RadixSort
   bool createBuffers() const;
   bool createKernels() const;
 
-  unsigned int m_numEntities;
+  size_t m_numEntities;
 
   unsigned int m_numRadix;
 

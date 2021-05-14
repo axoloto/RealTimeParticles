@@ -1,5 +1,9 @@
 
 #include "ParticleSystemApp.hpp"
+
+#include "Boids.hpp"
+#include "Parameters.hpp"
+
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl.h>
@@ -8,16 +12,14 @@
 #include <sdl2/SDL.h>
 #include <spdlog/spdlog.h>
 
-#include "Boids.hpp"
-#include "ocl/Context.hpp"
-
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
 #else
-constexpr auto GLSL_VERSION
-    = "#version 130";
+constexpr auto GLSL_VERSION = "#version 130";
 #endif
 
+namespace App
+{
 bool ParticleSystemApp::initWindow()
 {
   // Setup SDL
@@ -118,9 +120,12 @@ bool ParticleSystemApp::checkSDLStatus()
     switch (event.type)
     {
     case SDL_QUIT:
+    {
       stopRendering = true;
       break;
+    }
     case SDL_WINDOWEVENT:
+    {
       if (event.window.event == SDL_WINDOWEVENT_CLOSE && event.window.windowID == SDL_GetWindowID(m_window))
       {
         stopRendering = true;
@@ -131,6 +136,7 @@ bool ParticleSystemApp::checkSDLStatus()
         m_graphicsEngine->setWindowSize(m_windowSize);
       }
       break;
+    }
     case SDL_MOUSEBUTTONDOWN:
     {
       if (event.button.button == SDL_BUTTON_LEFT || event.button.button == SDL_BUTTON_RIGHT)
@@ -139,18 +145,26 @@ bool ParticleSystemApp::checkSDLStatus()
         SDL_GetMouseState(&currentMousePos.x, &currentMousePos.y);
         m_mousePrevPos = currentMousePos;
       }
+      break;
     }
-    break;
     case SDL_MOUSEWHEEL:
+    {
       if (event.wheel.y > 0)
       {
-        m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-0.4f, 0.f));
+        m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(-1.2f, 0.f));
       }
       else if (event.wheel.y < 0)
       {
-        m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(0.4f, 0.f));
+        m_graphicsEngine->checkMouseEvents(Render::UserAction::ZOOM, Math::float2(1.2f, 0.f));
       }
       break;
+    }
+    case SDL_KEYDOWN:
+    {
+      bool isPaused = m_physicsEngine->onPause();
+      m_physicsEngine->pause(!isPaused);
+      break;
+    }
     }
   }
   return stopRendering;
@@ -167,21 +181,28 @@ ParticleSystemApp::ParticleSystemApp()
 {
   initWindow();
 
-  size_t numEntities = Core::NUM_MAX_ENTITIES;
-  size_t boxSize = 1600;
-  size_t gridRes = 20;
+  size_t maxNbParticles = (size_t)(NbParticles::P260K);
+  size_t nbParticles = (size_t)(NbParticles::P512);
   float velocity = 5.0f;
 
-  m_graphicsEngine = std::make_unique<Render::OGLRender>(numEntities, boxSize, gridRes,
-      Core::NUM_MAX_ENTITIES,
+  m_graphicsEngine = std::make_unique<Render::OGLRender>(
+      maxNbParticles,
+      nbParticles,
+      BOX_SIZE,
+      GRID_RES,
       (float)m_windowSize.x / m_windowSize.y);
 
   if (!m_graphicsEngine)
     return;
 
-  m_physicsEngine = std::make_unique<Core::Boids>(numEntities, boxSize, gridRes, velocity,
+  m_physicsEngine = std::make_unique<Core::Boids>(
+      maxNbParticles,
+      nbParticles,
+      BOX_SIZE,
+      GRID_RES,
+      velocity,
       (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
-      (unsigned int)m_graphicsEngine->pointCloudColorVBO(),
+      (unsigned int)m_graphicsEngine->cameraCoordVBO(),
       (unsigned int)m_graphicsEngine->gridDetectorVBO());
 
   if (!m_physicsEngine)
@@ -224,6 +245,9 @@ void ParticleSystemApp::run()
 
     m_physicsEngine->update();
 
+    m_graphicsEngine->setTargetVisibility(m_physicsEngine->isTargetActivated());
+    m_graphicsEngine->setTargetPos(m_physicsEngine->targetPos());
+
     m_graphicsEngine->draw();
 
     ImGui::Render();
@@ -254,12 +278,13 @@ void ParticleSystemApp::displayMainWidget()
     m_physicsEngine->reset();
   }
 
-  int numEntities = (int)m_physicsEngine->numEntities();
-  if (ImGui::SliderInt("Particles", &numEntities, 1, Core::NUM_MAX_ENTITIES))
+  static int currNbPartsIndex = FindNbPartsIndex((int)m_physicsEngine->nbParticles());
+  if (ImGui::Combo("Particles", &currNbPartsIndex, AllPossibleNbParts().c_str()))
   {
-    m_physicsEngine->setNumEntities(numEntities);
+    int nbParts = FindNbPartsByIndex((size_t)currNbPartsIndex);
+    m_physicsEngine->setNbParticles(nbParts);
     m_physicsEngine->reset();
-    m_graphicsEngine->setNumDisplayedEntities(numEntities);
+    m_graphicsEngine->setNbParticles(nbParts);
   }
 
   bool isSystemDim2D = (m_physicsEngine->dimension() == Core::Dimension::dim2D);
@@ -297,20 +322,20 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Spacing();
 
   float velocity = m_physicsEngine->velocity();
-  if (ImGui::SliderFloat("Speed", &velocity, 0.01f, 10.0f))
+  if (ImGui::SliderFloat("Speed", &velocity, 0.01f, 20.0f))
   {
     m_physicsEngine->setVelocity(velocity);
   }
 
   const auto cameraPos = m_graphicsEngine->cameraPos();
-  const auto targetPos = m_graphicsEngine->targetPos();
+  const auto focusPos = m_graphicsEngine->focusPos();
 
   ImGui::Spacing();
   ImGui::Separator();
   ImGui::Spacing();
   ImGui::Text(" Camera (%.1f, %.1f, %.1f)", cameraPos.x, cameraPos.y, cameraPos.z);
-  ImGui::Text(" Target (%.1f, %.1f, %.1f)", targetPos.x, targetPos.y, targetPos.z);
-  ImGui::Text(" Dist. camera target : %.1f", Math::length(cameraPos - targetPos));
+  ImGui::Text(" Target (%.1f, %.1f, %.1f)", focusPos.x, focusPos.y, focusPos.z);
+  ImGui::Text(" Dist. camera target : %.1f", Math::length(cameraPos - focusPos));
   ImGui::Spacing();
   if (ImGui::Button(" Reset Camera "))
   {
@@ -352,6 +377,8 @@ bool ParticleSystemApp::popUpErrorMessage(std::string errorMessage)
   return closePopUp;
 }
 
+} // End namespace App
+
 auto initializeLogger()
 {
   spdlog::set_level(spdlog::level::debug);
@@ -361,7 +388,7 @@ int main(int, char**)
 {
   initializeLogger();
 
-  ParticleSystemApp app;
+  App::ParticleSystemApp app;
 
   if (app.isInit())
   {

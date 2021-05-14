@@ -7,6 +7,7 @@
 #include "Physics.hpp"
 #include "ocl/Context.hpp"
 #include "utils/RadixSort.hpp"
+#include "utils/Target.hpp"
 
 namespace Core
 {
@@ -14,9 +15,9 @@ using clock = std::chrono::high_resolution_clock;
 class Boids : public Physics
 {
   public:
-  Boids(size_t numEntities, size_t boxSize, size_t gridRes, float velocity,
-      unsigned int pointCloudCoordVBO,
-      unsigned int pointCloudColorVBO,
+  Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float velocity,
+      unsigned int particleCoordVBO,
+      unsigned int cameraCoordVBO,
       unsigned int gridDetectorVBO);
   ~Boids() = default;
 
@@ -77,31 +78,41 @@ class Boids : public Physics
   bool isSeparationActivated() const { return m_activeSeparation; }
 
   //
-
-  void activateTarget(bool target)
+  Math::float3 targetPos() const override
   {
-    m_activeTargets = target;
+    return m_target ? m_target->pos() : Math::float3({ 0.0f, 0.0f, 0.0f });
+  }
+
+  void activateTarget(bool isActive)
+  {
+    if (m_target)
+      m_target->activate(isActive);
+
     updateBoidsParamsInKernel();
   }
-  bool isTargetActivated() const { return m_activeTargets; }
+  bool isTargetActivated() const override { return m_target ? m_target->isActivated() : false; }
 
   void setTargetRadiusEffect(float radiusEffect)
   {
-    m_targetRadiusEffect = radiusEffect;
+    if (m_target)
+      m_target->setRadiusEffect(radiusEffect);
+
     updateBoidsParamsInKernel();
   }
-  float targetRadiusEffect() const { return m_targetRadiusEffect; }
+  float targetRadiusEffect() const { return m_target ? m_target->radiusEffect() : 0.0f; }
 
   void setTargetSignEffect(int signEffect)
   {
-    m_targetSign = signEffect;
+    if (m_target)
+      m_target->setSignEffect(signEffect);
+
     updateBoidsParamsInKernel();
   }
-  int targetSignEffect() const { return m_targetSign; }
+  int targetSignEffect() const { return m_target ? m_target->signEffect() : 0; }
 
   private:
   bool createProgram() const;
-  bool createBuffers(unsigned int pointCloudCoordVBO, unsigned int pointCloudColorVBO, unsigned int gridDetectorVBO) const;
+  bool createBuffers(unsigned int particleCoordVBO, unsigned int cameraCoordVBO, unsigned int gridDetectorVBO) const;
   bool createKernels() const;
   void updateBoidsParamsInKernel();
   void updateGridParamsInKernel();
@@ -114,13 +125,10 @@ class Boids : public Physics
   float m_scaleCohesion;
   float m_scaleSeparation;
 
-  bool m_activeTargets;
-
+  bool m_simplifiedMode;
   size_t m_maxNbPartsInCell;
 
-  Math::float3 m_target;
-  float m_targetRadiusEffect;
-  int m_targetSign;
+  std::unique_ptr<Target> m_target;
 
   RadixSort m_radixSort;
 

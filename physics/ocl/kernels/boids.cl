@@ -11,11 +11,25 @@ unsigned int parallelRNG(unsigned int i)
   return value;
 }
 
-__kernel void colorVerts(const global float4* pos, global float4* color)
+__kernel void resetCameraDist(global uint* cameraDist)
 {
-  int i = get_global_id(0);
-  float4 currPos = fabs(pos[i]);
-  color[i] = (float4)(1.0f - currPos.y / 900.f, 0.2f, 0.0f, 1.0f);
+  unsigned int i = get_global_id(0);
+
+  cameraDist[i] = (uint)(FAR_DIST * 2);
+}
+
+__kernel void fillCameraDist(const global float4* pos, const global float3* cameraPos, global uint* cameraDist)
+{
+  unsigned int i = get_global_id(0);
+
+  cameraDist[i] = (uint)(FAR_DIST - fast_length(pos[i].xyz - cameraPos[0].xyz));
+}
+
+__kernel void infPosVerts(global float4* pos)
+{
+  unsigned int i = get_global_id(0);
+
+  pos[i] = (float4)(FAR_DIST / 1000.0f, FAR_DIST / 1000.0f, FAR_DIST / 1000.0f, 0.0f);
 }
 
 __kernel void randPosVerts(global float4* pos, global float4* vel, float dim)
@@ -39,16 +53,6 @@ __kernel void randPosVerts(global float4* pos, global float4* vel, float dim)
   vel[i].w = 0.0;
 }
 
-inline float4 steerForce(float4 desiredVel, float4 vel)
-{
-  float4 steerForce = desiredVel - vel;
-  if (length(steerForce) > MAX_STEERING)
-  {
-    steerForce = fast_normalize(steerForce) * MAX_STEERING;
-  }
-  return steerForce;
-}
-
 // For rendering purpose only, checking for each grid cell if there is any particle
 // If so, grid cell will be displayed in OpenGl
 __kernel void flushGridDetector(global float8* gridDetector)
@@ -67,7 +71,7 @@ inline int3 getCell3DIndexFromPos(float4 pos)
 
   int3 cell3DIndex = convert_int3(posXYZ / cellSize);
 
-  clamp(cell3DIndex, 0, GRID_RES - 1);
+  //clamp(cell3DIndex, 0, GRID_RES - 1);
 
   return cell3DIndex;
 }
@@ -83,91 +87,91 @@ inline uint getCell1DIndexFromPos(float4 pos)
   return cell1DIndex;
 }
 
-__kernel void fillGridDetector(__global float4* vertPos, __global float8* gridDetector)
+__kernel void fillGridDetector(__global float4* pPos, __global float8* gridDetector)
 {
   unsigned int i = get_global_id(0);
 
-  float4 pos = vertPos[i];
+  float4 pos = pPos[i];
 
   uint gridDetectorIndex = getCell1DIndexFromPos(pos);
 
-  if (gridDetectorIndex < GRID_RES * GRID_RES * GRID_RES) // WIP
+  if (gridDetectorIndex < GRID_NUM_CELLS)
     gridDetector[gridDetectorIndex] = 1.0f;
 }
 
 // To use of Radix Sort accelerator, we need to find the cellID for each boids particle
-__kernel void flushCellIDs(global uint* boidsCellIDs)
+__kernel void resetCellIDs(global uint* pCellID)
 {
   unsigned int i = get_global_id(0);
   // For all particles, giving cell ID above any available one
-  // the ones not filled later (i.e not processed because index > numEntites displayed)
+  // the ones not filled later (i.e not processed because index > nbParticles displayed)
   // will be sorted at the end and not considered after sorting
-  boidsCellIDs[i] = GRID_NUM_CELLS + 1;
+  pCellID[i] = GRID_NUM_CELLS * 2 + i;
 }
 
-__kernel void fillCellIDs(const global float4* vertPos, global uint* boidsCellIDs)
+__kernel void fillCellIDs(const global float4* pPos, global uint* pCellID)
 {
   unsigned int i = get_global_id(0);
 
-  float4 pos = vertPos[i];
+  float4 pos = pPos[i];
 
   uint cell1DIndex = getCell1DIndexFromPos(pos);
 
-  boidsCellIDs[i] = cell1DIndex;
+  pCellID[i] = cell1DIndex;
 }
 
-__kernel void flushStartEndCell(global uint2* startEndCells)
+__kernel void flushStartEndCell(global uint2* cStartEndPartID)
 {
   unsigned int i = get_global_id(0);
 
   // Flushing with 1 as starting index and 0 as ending index
   // Little hack to bypass empty cell further in the boids algo
-  startEndCells[i] = (uint2)(1, 0);
+  cStartEndPartID[i] = (uint2)(1, 0);
 }
 
-__kernel void fillStartCell(const global uint* boidsCellIDs, global uint2* startEndCells)
+__kernel void fillStartCell(const global uint* pCellID, global uint2* cStartEndPartID)
 {
   unsigned int i = get_global_id(0);
 
-  uint currentCellID = boidsCellIDs[i];
+  uint currentCellID = pCellID[i];
 
-  if (i > 0)
+  if (i > 0 && currentCellID < GRID_NUM_CELLS)
   {
-    uint leftCellID = boidsCellIDs[i - 1];
+    uint leftCellID = pCellID[i - 1];
     if (currentCellID != leftCellID)
     {
       // Found start
-      startEndCells[currentCellID].x = i;
+      cStartEndPartID[currentCellID].x = i;
     }
   }
 }
 
-__kernel void fillEndCell(const global uint* boidsCellIDs, global uint2* startEndCells)
+__kernel void fillEndCell(const global uint* pCellID, global uint2* cStartEndPartID)
 {
   unsigned int i = get_global_id(0);
 
-  uint currentCellID = boidsCellIDs[i];
+  uint currentCellID = pCellID[i];
 
-  if (i != get_global_size(0))
+  if (i != get_global_size(0) && currentCellID < GRID_NUM_CELLS)
   {
-    uint rightCellID = boidsCellIDs[i + 1];
+    uint rightCellID = pCellID[i + 1];
     if (currentCellID != rightCellID)
     {
       // Found end
-      startEndCells[currentCellID].y = i;
+      cStartEndPartID[currentCellID].y = i;
     }
   }
 }
 
-__kernel void adjustEndCell(global uint2* startEndCells)
+__kernel void adjustEndCell(global uint2* cStartEndPartID)
 {
   unsigned int i = get_global_id(0);
 
-  uint2 startEnd = startEndCells[i];
+  uint2 startEnd = cStartEndPartID[i];
   if (startEnd.y > startEnd.x)
   {
     uint newEnd = startEnd.x + min(startEnd.y - startEnd.x, (uint)NUM_MAX_PARTS_IN_CELL);
-    startEndCells[i] = (uint2)(startEnd.x, newEnd);
+    cStartEndPartID[i] = (uint2)(startEnd.x, newEnd);
   }
 }
 
@@ -261,9 +265,9 @@ __kernel void applyBoidsRulesWithGrid(
     // separation
     repulseHeading = fast_normalize(repulseHeading) * params.s0;
 
-    newAcc = steerForce(averageBoidsPos, vel) * params.s1
-        + steerForce(averageBoidsVel, vel) * params.s2
-        + steerForce(repulseHeading, vel) * params.s3;
+    newAcc = averageBoidsPos * params.s1
+        + averageBoidsVel * params.s2
+        + repulseHeading * params.s3;
   }
 
   acc[i] = newAcc;
@@ -284,14 +288,10 @@ __kernel void addTargetRule(
   float4 currPos = pos[i];
 
   float4 vec = targetPos - currPos;
-  float squaredDist = dot(vec, vec);
+  float dist = fast_length(vec);
 
-  float4 targetAcc = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
-
-  if (squaredDist < targetSquaredRadiusEffect)
-    targetAcc += targetSignEffect * clamp(vec, 0.0, fast_normalize(vec) * MAX_STEERING);
-
-  acc[i] += targetAcc;
+  if (dist < half_sqrt(targetSquaredRadiusEffect))
+    acc[i] += targetSignEffect * vec * clamp(1.3f / dist, 0.0f, 1.4f * MAX_STEERING);
 }
 
 __kernel void updateVel(
@@ -355,8 +355,22 @@ __kernel void updatePosWithCyclicWalls(
   pos[i] = clampedNewPos;
 }
 
+//
+//
+//
+//
 // Classic boids physics with no grid, O(N^2) in time complexity
 /*
+inline float4 steerForce(float4 desiredVel, float4 vel)
+{
+  float4 steerForce = desiredVel - vel;
+  if (length(steerForce) > MAX_STEERING)
+  {
+    steerForce = fast_normalize(steerForce) * MAX_STEERING;
+  }
+  return steerForce;
+}
+
 __kernel void applyBoidsRules(__global float4* position, __global float4* velocity, __global float4* acc, __global boidsParams* params)
 {
   unsigned int i = get_global_id(0);

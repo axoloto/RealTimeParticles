@@ -4,7 +4,6 @@
 #include <glad/glad.h>
 #include <string>
 
-
 namespace Render
 {
 class OGLShader
@@ -18,9 +17,10 @@ class OGLShader
 
   // activate shader program before calling these functions
   void setUniform(const std::string& name, bool value) const {};
-  void setUniform(const std::string& name, int value) const {};
+  void setUniform(const std::string& name, int value) const;
   void setUniform(const std::string& name, float value) const;
   void setUniform(const std::string& name, const Math::float4x4& mat) const;
+  void setUniform(const std::string& name, const Math::float3& vec) const;
 
   const GLuint getProgramID() const { return m_programID; }
 

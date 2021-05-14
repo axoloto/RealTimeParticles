@@ -291,14 +291,27 @@ bool Core::CL::Context::unloadBufferFromDevice(std::string bufferName, size_t of
 
   cl_int err;
 
-  auto it = m_buffersMap.find(bufferName);
-  if (it == m_buffersMap.end())
-  {
-    spdlog::error("Buffer {} not existing", bufferName);
-    return false;
-  }
+  cl::Buffer srcBuffer;
 
-  err = cl_queue.enqueueReadBuffer(it->second, CL_TRUE, offset, sizeToFill, hostPtr);
+  auto itSrc = m_buffersMap.find(bufferName);
+  if (itSrc == m_buffersMap.end())
+  {
+    auto itSrcGL = m_GLBuffersMap.find(bufferName);
+
+    if (itSrcGL == m_GLBuffersMap.end())
+    {
+      spdlog::error("Buffer {} not existing", bufferName);
+      return false;
+    }
+    else
+    {
+      srcBuffer = itSrcGL->second;
+    }
+  }
+  else
+    srcBuffer = itSrc->second;
+
+  err = cl_queue.enqueueReadBuffer(srcBuffer, CL_TRUE, offset, sizeToFill, hostPtr);
 
   if (err != CL_SUCCESS)
   {

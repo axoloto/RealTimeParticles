@@ -11,9 +11,11 @@ void UI::BoidsWidget::display()
   ImGui::PushItemWidth(150);
 
   ImGui::Spacing();
+  ImGui::Text("Target");
+  ImGui::Spacing();
 
   bool isTarget = boidsEngine.isTargetActivated();
-  if (ImGui::Checkbox("Center Target", &isTarget))
+  if (ImGui::Checkbox("Activate", &isTarget))
   {
     boidsEngine.activateTarget(isTarget);
   }
@@ -25,16 +27,29 @@ void UI::BoidsWidget::display()
     {
       boidsEngine.setTargetRadiusEffect(targetRadius);
     }
+
     int targetSign = boidsEngine.targetSignEffect();
-    std::string targetMode = targetSign > 0 ? "  Attract  " : "  Repulse  ";
-    if (ImGui::Button(targetMode.c_str()))
+
+    bool repulse = (targetSign < 0);
+    if (ImGui::Checkbox("Repulse", &repulse))
     {
-      boidsEngine.setTargetSignEffect(targetSign * -1);
+      boidsEngine.setTargetSignEffect(-1);
+    }
+
+    ImGui::SameLine();
+
+    bool attract = (targetSign > 0);
+    if (ImGui::Checkbox("Attract", &attract))
+    {
+      boidsEngine.setTargetSignEffect(1);
     }
   }
 
   ImGui::Spacing();
   ImGui::Separator();
+  ImGui::Spacing();
+
+  ImGui::Text("Boids Rules");
   ImGui::Spacing();
 
   bool isAlignment = boidsEngine.isAlignmentActivated();
@@ -47,7 +62,7 @@ void UI::BoidsWidget::display()
     ImGui::PushItemWidth(75);
 
     float scaleAlignment = boidsEngine.scaleAlignment();
-    if (ImGui::SliderFloat("##scaleAlign", &scaleAlignment, 0.0, 5.0f))
+    if (ImGui::SliderFloat("##scaleAlign", &scaleAlignment, 0.0, 3.0f))
     {
       boidsEngine.setScaleAlignment(scaleAlignment);
     }
@@ -65,7 +80,7 @@ void UI::BoidsWidget::display()
     ImGui::PushItemWidth(75);
 
     float scaleCohesion = boidsEngine.scaleCohesion();
-    if (ImGui::SliderFloat("##scaleCoh", &scaleCohesion, 0.0f, 5.0f))
+    if (ImGui::SliderFloat("##scaleCoh", &scaleCohesion, 0.0f, 3.0f))
     {
       boidsEngine.setScaleCohesion(scaleCohesion);
     }
@@ -83,7 +98,7 @@ void UI::BoidsWidget::display()
     ImGui::PushItemWidth(75);
 
     float scaleSeparation = boidsEngine.scaleSeparation();
-    if (ImGui::SliderFloat("##scaleSep", &scaleSeparation, 0.0f, 5.0f))
+    if (ImGui::SliderFloat("##scaleSep", &scaleSeparation, 0.0f, 3.0f))
     {
       boidsEngine.setScaleSeparation(scaleSeparation);
     }
@@ -96,6 +111,8 @@ void UI::BoidsWidget::display()
   ImGui::Spacing();
 
   ImGui::Text(" Boundary ");
+  ImGui::Spacing();
+
   bool isBouncingWall = (boidsEngine.boundary() == Core::Boundary::BouncingWall);
   if (ImGui::Checkbox("Bouncing Wall", &isBouncingWall))
   {
