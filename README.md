@@ -4,11 +4,11 @@ Minimalist particle simulator combining DearImGui/OpenGL and OpenCL to admire an
 
 Physics models :
 - Boids, currently based on classical Reynolds implementation
-- SPH fluids (to come)
-
-**For best performance, make sure that the application runs on any available discrete GPU and not the IGPU.**
+- SPH fluids (not available yet)
 
 ![](boids.gif)
+
+**For best performance, make sure that the application runs on a discrete GPU and not default IGPU.**
 
 # Requirements
 
@@ -16,8 +16,8 @@ Physics models :
 - Python >= 3.5 (https://www.python.org/) and pip (https://pypi.org/project/pip/)
 - Conan (https://conan.io/)
 - CMake (https://cmake.org/download/)
-- C++ compiler, tested with MSVC 15/19 only for now
-- Device (GPU or IGPU) supporting OpenGL and OpenCL 1.2 or higher
+- C++ compiler, tested with MSVC 15/19 only for now (https://visualstudio.microsoft.com/vs/features/cplusplus/)
+- Device (GPU, IGPU or else) supporting OpenGL and OpenCL 1.2 or higher
 
 # Build and Run
 
