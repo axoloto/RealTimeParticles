@@ -15,11 +15,11 @@ Target::Target(size_t boxSize, Math::float3 initPos)
     , m_radiusEffect(10000.0f)
     , m_signEffect(1)
 {
-  m_maxRadius = 0.48 * boxSize;
+  m_maxRadius = 0.48f * boxSize;
   m_perlinPos = m_pos;
 };
 
-static constexpr float PI = 3.14;
+static constexpr float PI = 3.14f;
 
 void Target::updatePos(Dimension dim, float particlesVel)
 {
