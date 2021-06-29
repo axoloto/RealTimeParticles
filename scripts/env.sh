@@ -1,4 +1,3 @@
-
 set -euo pipefail
 
 DEV_DIR=$(pwd)

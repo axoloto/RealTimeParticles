@@ -1,3 +1,3 @@
-set -euo pipefail
-
-./install/"$DEV_BUILD_TYPE"/bin/ParticleSystemApp.exe
+source ./scripts/env.sh
+./scripts/build.sh
+./scripts/run.sh
