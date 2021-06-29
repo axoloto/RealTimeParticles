@@ -261,6 +261,9 @@ void ParticleSystemApp::run()
 
 void ParticleSystemApp::displayMainWidget()
 {
+  // First default pos
+  ImGui::SetNextWindowPos(ImVec2(60, 20), ImGuiCond_FirstUseEver);
+
   ImGui::Begin("Main Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);
 

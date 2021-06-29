@@ -1,4 +1,5 @@
 #include "RadixSort.hpp"
+#include "FileUtils.hpp"
 
 #include <ctime>
 #include <iostream>
@@ -52,7 +53,7 @@ bool RadixSort::createProgram() const
     clBuildOptions << " -DHOST_PTR_IS_32bit";
   }
 
-  clContext.createProgram(PROGRAM_RADIXSORT, ".\\physics\\ocl\\kernels\\radixSort.cl", clBuildOptions.str());
+  clContext.createProgram(PROGRAM_RADIXSORT, FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\radixSort.cl", clBuildOptions.str());
 
   return true;
 }

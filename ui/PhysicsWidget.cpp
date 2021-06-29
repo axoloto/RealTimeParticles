@@ -1,11 +1,15 @@
 
-#include "Boids.hpp"
 #include "PhysicsWidget.hpp"
+#include "Boids.hpp"
 #include <imgui.h>
+
 
 void UI::BoidsWidget::display()
 {
   auto& boidsEngine = dynamic_cast<Core::Boids&>(m_physicsEngine);
+
+  // First default pos
+  ImGui::SetNextWindowPos(ImVec2(60, 330), ImGuiCond_FirstUseEver);
 
   ImGui::Begin("Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);

@@ -59,7 +59,7 @@ float PerlinNoise::computeNoiseValue(Math::float3 pos)
       lerp(v, lerp(u, grad(m_perms[AA + 1], x, y, z - 1), grad(m_perms[BA + 1], x - 1, y, z - 1)),
           lerp(u, grad(m_perms[AB + 1], x, y - 1, z - 1), grad(m_perms[BB + 1], x - 1, y - 1, z - 1))));
 
-  return (res + 1.0) / 2.0;
+  return (res + 1.0f) / 2.0f;
 }
 
 float PerlinNoise::fade(float t)
@@ -78,7 +78,8 @@ float PerlinNoise::grad(int hash, float x, float y, float z)
 
   // Convert lower 4 bits of hash into 12 gradient directions
   float u = h < 8 ? x : y,
-        v = h < 4 ? y : h == 12 || h == 14 ? x : z;
+        v = h < 4 ? y : h == 12 || h == 14 ? x
+                                           : z;
 
   return ((h & 1) == 0 ? u : -u) + ((h & 2) == 0 ? v : -v);
 }
