@@ -385,6 +385,16 @@ bool Core::CL::Context::copyBuffer(std::string srcBufferName, std::string dstBuf
     return false;
   }
 
+  cl::Buffer dstBuffer = itDst->second;
+  size_t dstBufferSize;
+  err = dstBuffer.getInfo(CL_MEM_SIZE, &dstBufferSize);
+
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot get size from buffer {}", dstBufferName);
+    return false;
+  }
+
   size_t srcBufferSize;
   err = srcBuffer.getInfo(CL_MEM_SIZE, &srcBufferSize);
 
@@ -394,7 +404,20 @@ bool Core::CL::Context::copyBuffer(std::string srcBufferName, std::string dstBuf
     return false;
   }
 
-  err = cl_queue.enqueueCopyBuffer(srcBuffer, itDst->second, 0, 0, srcBufferSize);
+  if (dstBufferSize > srcBufferSize)
+  {
+    spdlog::error("Source buffer {} with size {} is smaller than destination buffer {} with size {} ", srcBufferName, srcBufferSize, dstBufferName, dstBufferSize);
+    return false;
+  }
+
+  err = cl_queue.flush();
+  if (err != CL_SUCCESS)
+  {
+    spdlog::error("Cannot flush Opencl before copying buffer");
+  }
+
+  // Only copying the amount of data which can fit into the destination buffer
+  err = cl_queue.enqueueCopyBuffer(srcBuffer, dstBuffer, 0, 0, dstBufferSize);
 
   if (err != CL_SUCCESS)
   {

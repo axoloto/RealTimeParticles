@@ -1,4 +1,5 @@
 #include "Boids.hpp"
+#include "FileUtils.hpp"
 
 #include <ctime>
 #include <iomanip>
@@ -71,7 +72,7 @@ bool Boids::createProgram() const
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
   clBuildOptions << " -DFAR_DIST=100000000.0f";
 
-  clContext.createProgram(PROGRAM_BOIDS, ".\\physics\\ocl\\kernels\\boids.cl", clBuildOptions.str());
+  clContext.createProgram(PROGRAM_BOIDS, FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\boids.cl", clBuildOptions.str());
 
   return true;
 }
