@@ -7,7 +7,6 @@
 #include "PerlinNoise.hpp"
 #include "Physics.hpp"
 
-
 namespace Core
 {
 class Target
@@ -21,6 +20,9 @@ class Target
 
   void activate(bool isActive) { m_isActive = isActive; }
   bool isActivated() const { return m_isActive; }
+
+  void show(bool isVisible) { m_isVisible = m_isActive ? isVisible : false; }
+  bool isVisible() const { return m_isVisible; }
 
   void setRadiusEffect(float radiusEffect) { m_radiusEffect = radiusEffect; }
   float radiusEffect() const { return m_radiusEffect; }
@@ -38,6 +40,7 @@ class Target
   Math::float3 m_pos;
 
   bool m_isActive;
+  bool m_isVisible;
   float m_radiusEffect;
   int m_signEffect;
 };

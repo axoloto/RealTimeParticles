@@ -245,7 +245,7 @@ void ParticleSystemApp::run()
 
     m_physicsEngine->update();
 
-    m_graphicsEngine->setTargetVisibility(m_physicsEngine->isTargetActivated());
+    m_graphicsEngine->setTargetVisibility(m_physicsEngine->isTargetVisible());
     m_graphicsEngine->setTargetPos(m_physicsEngine->targetPos());
 
     m_graphicsEngine->draw();
