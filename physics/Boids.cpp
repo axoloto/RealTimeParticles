@@ -42,7 +42,7 @@ Boids::Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t g
     , m_activeSeparation(true)
     , m_activeCohesion(true)
     , m_simplifiedMode(true)
-    , m_maxNbPartsInCell(1000)
+    , m_maxNbPartsInCell(4000)
     , m_radixSort(maxNbParticles)
     , m_target(std::make_unique<Target>(boxSize))
 {
@@ -62,7 +62,7 @@ bool Boids::createProgram() const
   CL::Context& clContext = CL::Context::Get();
 
   std::ostringstream clBuildOptions;
-  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=1500 ";
+  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << (int)(m_boxSize * m_boxSize / (m_gridRes * m_gridRes));
   clBuildOptions << " -DMAX_STEERING=0.5f ";
   clBuildOptions << " -DABS_WALL_POS=" << std::fixed << std::setprecision(2)
                  << std::setfill('0') << m_boxSize / 2.0f << "f";

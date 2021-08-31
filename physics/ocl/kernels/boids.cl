@@ -244,7 +244,7 @@ __kernel void applyBoidsRulesWithGrid(
           if (squaredDist < EFFECT_RADIUS_SQUARED && squaredDist > FLOAT_EPSILON)
           {
             averageBoidsPos += posN;
-            averageBoidsVel += velocity[e];
+            averageBoidsVel += fast_normalize(velocity[e]);
             repulseHeading += vec / squaredDist;
             ++count;
           }
@@ -299,14 +299,18 @@ __kernel void updateVel(
     const global float4* acc,
     // params
     const float timeStep,
-    const float velocity,
+    const float maxVelocity,
     // global output
     global float4* vel)
 {
   unsigned int i = get_global_id(0);
 
   float4 newVel = vel[i] + acc[i] * timeStep;
-  vel[i] = fast_normalize(newVel) * velocity;
+  
+  float newVelNorm = clamp(fast_length(newVel), 0.2f * maxVelocity, maxVelocity);
+  
+  vel[i] = fast_normalize(newVel) * newVelNorm;
+
 }
 
 __kernel void updatePosWithBouncingWalls(
