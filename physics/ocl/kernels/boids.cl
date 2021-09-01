@@ -302,7 +302,7 @@ __kernel void applyBoidsRulesWithGrid2D(
   float squaredDist = 0.0f;
   float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
 
-  int x = floor(GRID_RES /2.f);
+  int x = GRID_RES /2;
   int y = 0;
   int z = 0;
   uint cellIndex = 0;
