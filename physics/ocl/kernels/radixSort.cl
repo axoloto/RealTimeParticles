@@ -1,3 +1,9 @@
+// Preprocessor defines following constant variables in RadixSort.cpp
+// _RADIX            - number of radix
+// _BITS             - size of radix in bits
+// _GROUPS           - number of work groups
+// _ITEMS            - number of work items
+// HOST_PTR_IS_32bit - only if 32bit OS
 
 #ifdef HOST_PTR_IS_32bit
 #define SIZE uint
@@ -5,19 +11,20 @@
 #define SIZE ulong
 #endif
 
-// this kernel creates histograms from key vector
-// defines required: _RADIX (radix), _BITS (size of radix in bits)
-// it is possible to unroll 2 loops inside this kernel, take this into account
-// when providing options to CL C compiler
-__kernel void histogram(
-    // in
-    const global uint* keys,
-    const SIZE length,
-    const int pass,
-    // out
-    global uint* global_histograms,
-    // local
-    local uint* histograms)
+#define ID get_global_id(0)
+
+/*
+  Create histograms from key vector
+*/
+__kernel void histogram(//Input
+                        const __global uint *keys,              // 0
+                        const          SIZE length,             // 1
+                        const          int  pass,               // 2
+                        //Output
+                              __global uint *global_histograms, // 3
+                        //Local
+                              __local  uint *histograms)        // 4
+    
 {
   const uint group = get_group_id(0);
   const uint item = get_local_id(0);
@@ -46,12 +53,14 @@ __kernel void histogram(
   }
 }
 
-// this kernel updates histograms with global sum after scan
-__kernel void merge(
-    // in
-    const global uint* sum,
-    // in-out
-    global uint* histogram)
+/*
+  Update histograms with global sum after scan
+*/
+__kernel void merge(//Input
+                    const __global uint *sum,       // 0
+                    //Input/Output
+                          __global uint *histogram) // 1
+
 {
   const uint s = sum[get_group_id(0)];
   const uint gid2 = get_global_id(0) << 1;
@@ -61,13 +70,12 @@ __kernel void merge(
 }
 
 // see Blelloch 1990
-__kernel void scan(
-    // in-out
-    global uint* input,
-    // out
-    global uint* sum,
-    // local
-    local uint* temp)
+__kernel void scan(//Input/Output
+                   __global uint *input, // 0
+                   //Output
+                   __global uint *sum,   // 1
+                   //Local
+                   __local  uint *temp)  // 2
 {
   const int gid2 = get_global_id(0) << 1;
   const int group = get_group_id(0);
@@ -121,18 +129,17 @@ __kernel void scan(
   input[gid2 + 1] = temp[(item << 1) + 1];
 }
 
-__kernel void reorder(
-    // in
-    const global uint* keysIn,
-    const global uint* permutationIn,
-    const SIZE length,
-    const global uint* histograms,
-    const int pass,
-    // out
-    global uint* keysOut,
-    global uint* permutationOut,
-    // local
-    local uint* local_histograms)
+__kernel void reorder(//Input
+                      const __global uint *keysIn,
+                      const __global uint *permutationIn,
+                      const          SIZE length,
+                      const __global uint *histograms,
+                      const          int  pass,
+                      //Output
+                            __global uint *keysOut,
+                            __global uint *permutationOut,
+                      //Local
+                            __local  uint *local_histograms)
 {
   const int item = get_local_id(0);
   const int group = get_group_id(0);
@@ -161,32 +168,35 @@ __kernel void reorder(
   }
 }
 
-__kernel void resetIndex(
-    global uint* indices)
+__kernel void resetIndex(__global uint* indices)
 {
-  const int i = get_global_id(0);
-
-  indices[i] = i;
+  indices[ID] = ID;
 }
 
-__kernel void permutate(
-    global uint* permutatedIndices,
-    global float4* valToPermutate,
-    global float4* permutatedVal)
+/*
+  Permutate float4 values.
+*/
+__kernel void permutate(//Input
+                        const __global uint   *permutatedIndices, // 0
+                        const __global float4 *valToPermutate,    // 1
+                        //Output
+                              __global float4 *permutatedVal)     // 2
 {
-  const int i = get_global_id(0);
+  const uint newIndex = permutatedIndices[ID];
 
-  uint newIndex = permutatedIndices[i];
-  permutatedVal[i] = valToPermutate[newIndex];
+  permutatedVal[ID] = valToPermutate[newIndex];
 }
 
-__kernel void permutateInt(
-    global uint* permutatedIndices,
-    global uint* valToPermutate,
-    global uint* permutatedVal)
+/*
+  Permutate uint values.
+*/
+__kernel void permutateInt(//Input
+                           const __global uint *permutatedIndices, // 0
+                           const __global uint *valToPermutate,    // 1
+                           //Output
+                                 __global uint *permutatedVal)     // 2
 {
-  const int i = get_global_id(0);
+  const uint newIndex = permutatedIndices[ID];
 
-  uint newIndex = permutatedIndices[i];
-  permutatedVal[i] = valToPermutate[newIndex];
+  permutatedVal[ID] = valToPermutate[newIndex];
 }

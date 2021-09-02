@@ -37,7 +37,7 @@ __kernel void resetCameraDist(__global uint *cameraDist)
 /*
   Fill camera distance buffer
 */
-__kernel void fillCameraDist(//Inputs
+__kernel void fillCameraDist(//Input
                              const __global float4 *pos,          // 0
                              const __global float3 *cameraPos,    // 1
                              //Output
