@@ -64,14 +64,11 @@ bool Boids::createProgram() const
 
   std::ostringstream clBuildOptions;
   clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << (int)(m_boxSize * m_boxSize / (m_gridRes * m_gridRes));
-  clBuildOptions << " -DMAX_STEERING=0.5f ";
   clBuildOptions << " -DABS_WALL_POS=" << std::fixed << std::setprecision(2)
                  << std::setfill('0') << m_boxSize / 2.0f << "f";
-  clBuildOptions << " -DFLOAT_EPSILON=0.01f";
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
-  clBuildOptions << " -DFAR_DIST=100000000.0f";
 
   clContext.createProgram(PROGRAM_BOIDS, FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\boids.cl", clBuildOptions.str());
 
