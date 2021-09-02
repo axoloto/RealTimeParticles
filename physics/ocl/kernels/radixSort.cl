@@ -130,16 +130,16 @@ __kernel void scan(//Input/Output
 }
 
 __kernel void reorder(//Input
-                      const __global uint *keysIn,
-                      const __global uint *permutationIn,
-                      const          SIZE length,
-                      const __global uint *histograms,
-                      const          int  pass,
+                      const __global uint *keysIn,           // 0
+                      const __global uint *permutationIn,    // 1
+                      const          SIZE length,            // 2
+                      const __global uint *histograms,       // 3
+                      const          int  pass,              // 4
                       //Output
-                            __global uint *keysOut,
-                            __global uint *permutationOut,
+                            __global uint *keysOut,          // 5 
+                            __global uint *permutationOut,   // 6
                       //Local
-                            __local  uint *local_histograms)
+                            __local  uint *local_histograms) // 7
 {
   const int item = get_local_id(0);
   const int group = get_group_id(0);
