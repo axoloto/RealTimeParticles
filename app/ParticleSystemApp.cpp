@@ -2,6 +2,11 @@
 #include "ParticleSystemApp.hpp"
 
 #include "Boids.hpp"
+#include "BoidsWidget.hpp"
+
+#include "Fluids.hpp"
+#include "FluidsWidget.hpp"
+
 #include "Parameters.hpp"
 
 #include <imgui.h>
@@ -195,7 +200,7 @@ ParticleSystemApp::ParticleSystemApp()
   if (!m_graphicsEngine)
     return;
 
-  m_physicsEngine = std::make_unique<Core::Boids>(
+  m_physicsEngine = std::make_unique<Core::Fluids>(
       maxNbParticles,
       currNbParticles,
       BOX_SIZE,
@@ -208,7 +213,7 @@ ParticleSystemApp::ParticleSystemApp()
   if (!m_physicsEngine)
     return;
 
-  m_physicsWidget = std::make_unique<UI::BoidsWidget>(*m_physicsEngine);
+  m_physicsWidget = std::make_unique<UI::FluidsWidget>(*m_physicsEngine);
 
   if (!m_physicsWidget)
     return;

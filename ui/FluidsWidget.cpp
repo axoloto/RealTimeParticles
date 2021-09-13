@@ -1,12 +1,15 @@
 
-#include "PhysicsWidget.hpp"
-#include "Boids.hpp"
+#include "FluidsWidget.hpp"
+#include "Fluids.hpp"
 #include <imgui.h>
 
-void UI::BoidsWidget::display()
-{
-  auto& boidsEngine = dynamic_cast<Core::Boids&>(m_physicsEngine);
 
+void UI::FluidsWidget::display()
+{
+  // add a catch on the dynamic cast of the ref
+  auto& fluidsEngine = dynamic_cast<Core::Fluids&>(m_physicsEngine);
+
+  /*
   // First default pos
   ImGui::SetNextWindowPos(ImVec2(60, 330), ImGuiCond_FirstUseEver);
 
@@ -143,5 +146,5 @@ void UI::BoidsWidget::display()
       boidsEngine.setBoundary(Core::Boundary::BouncingWall);
   }
 
-  ImGui::End();
+  ImGui::End();*/
 }
