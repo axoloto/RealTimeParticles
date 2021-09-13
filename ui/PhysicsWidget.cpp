@@ -3,7 +3,6 @@
 #include "Boids.hpp"
 #include <imgui.h>
 
-
 void UI::BoidsWidget::display()
 {
   auto& boidsEngine = dynamic_cast<Core::Boids&>(m_physicsEngine);
@@ -22,12 +21,19 @@ void UI::BoidsWidget::display()
   if (ImGui::Checkbox("Activate", &isTarget))
   {
     boidsEngine.activateTarget(isTarget);
+    boidsEngine.setTargetVisibility(isTarget);
   }
 
   if (isTarget)
   {
+    bool isTargetVisible = boidsEngine.isTargetVisible();
+    if (ImGui::Checkbox("Show", &isTargetVisible))
+    {
+      boidsEngine.setTargetVisibility(isTargetVisible);
+    }
+
     float targetRadius = boidsEngine.targetRadiusEffect();
-    if (ImGui::SliderFloat("##targetRadius", &targetRadius, 10000.0, 1000000.0f))
+    if (ImGui::SliderFloat("##targetRadius", &targetRadius, 30.0f, 1000.0f))
     {
       boidsEngine.setTargetRadiusEffect(targetRadius);
     }

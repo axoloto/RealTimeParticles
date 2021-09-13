@@ -182,12 +182,12 @@ ParticleSystemApp::ParticleSystemApp()
   initWindow();
 
   size_t maxNbParticles = (size_t)(NbParticles::P260K);
-  size_t nbParticles = (size_t)(NbParticles::P512);
+  size_t currNbParticles = (size_t)(NbParticles::P512);
   float velocity = 5.0f;
 
   m_graphicsEngine = std::make_unique<Render::OGLRender>(
       maxNbParticles,
-      nbParticles,
+      currNbParticles,
       BOX_SIZE,
       GRID_RES,
       (float)m_windowSize.x / m_windowSize.y);
@@ -197,7 +197,7 @@ ParticleSystemApp::ParticleSystemApp()
 
   m_physicsEngine = std::make_unique<Core::Boids>(
       maxNbParticles,
-      nbParticles,
+      currNbParticles,
       BOX_SIZE,
       GRID_RES,
       velocity,
@@ -245,7 +245,7 @@ void ParticleSystemApp::run()
 
     m_physicsEngine->update();
 
-    m_graphicsEngine->setTargetVisibility(m_physicsEngine->isTargetActivated());
+    m_graphicsEngine->setTargetVisibility(m_physicsEngine->isTargetVisible());
     m_graphicsEngine->setTargetPos(m_physicsEngine->targetPos());
 
     m_graphicsEngine->draw();

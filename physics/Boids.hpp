@@ -92,6 +92,13 @@ class Boids : public Physics
   }
   bool isTargetActivated() const override { return m_target ? m_target->isActivated() : false; }
 
+  void setTargetVisibility(bool isVisible)
+  {
+    if (m_target)
+      m_target->show(isVisible);
+  }
+  bool isTargetVisible() const override { return m_target ? m_target->isVisible() : false; }
+
   void setTargetRadiusEffect(float radiusEffect)
   {
     if (m_target)

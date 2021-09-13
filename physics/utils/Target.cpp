@@ -12,7 +12,7 @@ Target::Target(size_t boxSize, Math::float3 initPos)
     , m_pNoiseR(PerlinNoise(246))
     , m_pos(initPos)
     , m_isActive(false)
-    , m_radiusEffect(10000.0f)
+    , m_radiusEffect(500.0f)
     , m_signEffect(1)
 {
   m_maxRadius = 0.48f * boxSize;

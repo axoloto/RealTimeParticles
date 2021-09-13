@@ -27,7 +27,8 @@ using namespace Core;
 #define KERNEL_FILL_END_CELL "fillEndCell"
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 #define KERNEL_FILL_TEXT "fillBoidsTexture"
-#define KERNEL_BOIDS_RULES_GRID "applyBoidsRulesWithGrid"
+#define KERNEL_BOIDS_RULES_GRID_2D "applyBoidsRulesWithGrid2D"
+#define KERNEL_BOIDS_RULES_GRID_3D "applyBoidsRulesWithGrid3D"
 #define KERNEL_ADD_TARGET_RULE "addTargetRule"
 
 Boids::Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float velocity,
@@ -42,7 +43,7 @@ Boids::Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t g
     , m_activeSeparation(true)
     , m_activeCohesion(true)
     , m_simplifiedMode(true)
-    , m_maxNbPartsInCell(1000)
+    , m_maxNbPartsInCell(10000)
     , m_radixSort(maxNbParticles)
     , m_target(std::make_unique<Target>(boxSize))
 {
@@ -62,15 +63,12 @@ bool Boids::createProgram() const
   CL::Context& clContext = CL::Context::Get();
 
   std::ostringstream clBuildOptions;
-  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=1500 ";
-  clBuildOptions << " -DMAX_STEERING=0.5f ";
+  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << (int)(m_boxSize * m_boxSize / (m_gridRes * m_gridRes));
   clBuildOptions << " -DABS_WALL_POS=" << std::fixed << std::setprecision(2)
                  << std::setfill('0') << m_boxSize / 2.0f << "f";
-  clBuildOptions << " -DFLOAT_EPSILON=0.01f";
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
-  clBuildOptions << " -DFAR_DIST=100000000.0f";
 
   clContext.createProgram(PROGRAM_BOIDS, FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\boids.cl", clBuildOptions.str());
 
@@ -123,7 +121,8 @@ bool Boids::createKernels() const
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_END_CELL, { "p_cellID", "c_startEndPartID" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_ADJUST_END_CELL, { "c_startEndPartID" });
 
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID, { "p_pos", "p_vel", "c_startEndPartID", "", "p_acc" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID_2D, { "p_pos", "p_vel", "c_startEndPartID", "", "p_acc" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID_3D, { "p_pos", "p_vel", "c_startEndPartID", "", "p_acc" });
 
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_ADD_TARGET_RULE, { "p_pos", "", "", "p_acc", "p_acc" });
 
@@ -146,13 +145,14 @@ void Boids::updateBoidsParamsInKernel()
   boidsParams[2] = m_activeAlignment ? m_scaleAlignment : 0.0f;
   boidsParams[3] = m_activeSeparation ? m_scaleSeparation : 0.0f;
   boidsParams[4] = isTargetActivated() ? 1.0f : 0.0f;
-  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID, 3, sizeof(boidsParams), &boidsParams);
+  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_2D, 3, sizeof(boidsParams), &boidsParams);
+  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_3D, 3, sizeof(boidsParams), &boidsParams);
 
   if (isTargetActivated())
   {
-    const auto radiusEffect = targetRadiusEffect();
+    const auto squaredRadiusEffect = targetRadiusEffect() * targetRadiusEffect();
     const auto signEffect = targetSignEffect();
-    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(float), &radiusEffect);
+    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(float), &squaredRadiusEffect);
     clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 3, sizeof(int), &signEffect);
   }
 }
@@ -208,7 +208,10 @@ void Boids::update()
     if (m_simplifiedMode)
       clContext.runKernel(KERNEL_ADJUST_END_CELL, m_nbCells);
 
-    clContext.runKernel(KERNEL_BOIDS_RULES_GRID, m_nbParticles);
+    if (m_dimension == Dimension::dim2D)
+      clContext.runKernel(KERNEL_BOIDS_RULES_GRID_2D, m_nbParticles);
+    else
+      clContext.runKernel(KERNEL_BOIDS_RULES_GRID_3D, m_nbParticles);
 
     if (isTargetActivated())
     {

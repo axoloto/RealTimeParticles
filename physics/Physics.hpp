@@ -65,6 +65,7 @@ class Physics
 
   virtual Math::float3 targetPos() const { return { 0.0f, 0.0f, 0.0f }; }
   virtual bool isTargetActivated() const { return false; }
+  virtual bool isTargetVisible() const { return false; }
 
   protected:
   bool m_init;
