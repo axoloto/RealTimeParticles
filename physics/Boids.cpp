@@ -43,7 +43,7 @@ Boids::Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t g
     , m_activeSeparation(true)
     , m_activeCohesion(true)
     , m_simplifiedMode(true)
-    , m_maxNbPartsInCell(3000)
+    , m_maxNbPartsInCell(10000)
     , m_radixSort(maxNbParticles)
     , m_target(std::make_unique<Target>(boxSize))
 {

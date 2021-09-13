@@ -259,7 +259,6 @@ __kernel void applyBoidsRulesWithGrid3D(//Input
   uint  cellIndex = 0;
   uint2 startEndN = (uint2)(0, 0);
 
-
   float4 posN = (float4)(0.0, 0.0, 0.0, 0.0);
 
   // 27 cells to visit, current one + 3D neighbors
