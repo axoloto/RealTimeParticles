@@ -212,11 +212,11 @@ ParticleSystemApp::ParticleSystemApp()
 
 bool ParticleSystemApp::initGraphicsEngine()
 {
-  spdlog::info("max part {}", ALL_PARTS.crbegin()->first);
-  spdlog::info("min part {}", ALL_PARTS.cbegin()->first);
+  spdlog::info("max part {}", ALL_NB_PARTICLES.crbegin()->first);
+  spdlog::info("min part {}", ALL_NB_PARTICLES.cbegin()->first);
   m_graphicsEngine = std::make_unique<Render::OGLRender>(
-      ALL_PARTS.crbegin()->first,
-      ALL_PARTS.cbegin()->first,
+      ALL_NB_PARTICLES.crbegin()->first,
+      ALL_NB_PARTICLES.cbegin()->first,
       BOX_SIZE,
       GRID_RES,
       (float)m_windowSize.x / m_windowSize.y);
@@ -232,8 +232,8 @@ bool ParticleSystemApp::initPhysicsEngine(PhysicsModel model)
   {
   case PhysicsModel::BOIDS:
     m_physicsEngine = std::make_unique<Core::Boids>(
-        ALL_PARTS.crbegin()->first,
-        ALL_PARTS.cbegin()->first,
+        ALL_NB_PARTICLES.crbegin()->first,
+        ALL_NB_PARTICLES.cbegin()->first,
         BOX_SIZE,
         GRID_RES,
         velocity,
@@ -243,8 +243,8 @@ bool ParticleSystemApp::initPhysicsEngine(PhysicsModel model)
     break;
   case PhysicsModel::FLUIDS:
     m_physicsEngine = std::make_unique<Core::Fluids>(
-        ALL_PARTS.crbegin()->first,
-        ALL_PARTS.cbegin()->first,
+        ALL_NB_PARTICLES.crbegin()->first,
+        ALL_NB_PARTICLES.cbegin()->first,
         BOX_SIZE,
         GRID_RES,
         velocity,
@@ -320,7 +320,11 @@ void ParticleSystemApp::displayMainWidget()
 
   // Selection of the physical model
   static PhysicsModel selModelType = ALL_PHYSICS_MODELS.cbegin()->first;
-  const auto& selModelName = (ALL_PHYSICS_MODELS.find(selModelType) != ALL_PHYSICS_MODELS.end()) ? ALL_PHYSICS_MODELS.find(selModelType)->second : ALL_PHYSICS_MODELS.cbegin()->second;
+
+  const auto& selModelName = (ALL_PHYSICS_MODELS.find(selModelType) != ALL_PHYSICS_MODELS.end())
+      ? ALL_PHYSICS_MODELS.find(selModelType)->second
+      : ALL_PHYSICS_MODELS.cbegin()->second;
+
   if (ImGui::BeginCombo("Physical Model", selModelName.c_str()))
   {
     for (const auto& model : ALL_PHYSICS_MODELS)
@@ -371,28 +375,27 @@ void ParticleSystemApp::displayMainWidget()
     m_graphicsEngine->setNbParticles(nbParts);
   }
 */
-  /*
-  int idx;
-  //  for (idx = 0; idx < IM_ARRAYSIZE(policies); idx++)
-  //      if (policies[idx].Value == (*p_flags & ImGuiTableFlags_SizingMask_))
-  //          break;
-  const char* preview_text = (idx < IM_ARRAYSIZE(policies)) ? policies[idx].Name + (idx > 0 ? strlen("ImGuiTableFlags") : 0) : "";
-  if (ImGui::BeginCombo("Nb parts", preview_text))
+  // Selection of the number of particles in the model
+  static NbParticles selNbParticles = ALL_NB_PARTICLES.cbegin()->first;
+
+  const auto& nbParticlesStr = (ALL_NB_PARTICLES.find(selNbParticles) != ALL_NB_PARTICLES.end())
+      ? ALL_NB_PARTICLES.find(selNbParticles)->second
+      : ALL_NB_PARTICLES.cbegin()->second;
+
+  if (ImGui::BeginCombo("Particles", nbParticlesStr.c_str()))
   {
-    int n = 0;
-    for (parts : ALL_PARTS)
+    for (const auto& nbParticlesPair : ALL_NB_PARTICLES)
     {
-      if (ImGui::Selectable(parts.second, idx == n))
+      if (ImGui::Selectable(nbParticlesPair.second.c_str(), selNbParticles == nbParticlesPair.first))
       {
-        int nbParts = FindNbPartsByIndex((size_t)currNbPartsIndex);
-        m_physicsEngine->setNbParticles(nbParts);
+        m_physicsEngine->setNbParticles(nbParticlesPair.first);
         m_physicsEngine->reset();
-        m_graphicsEngine->setNbParticles(nbParts);
+        m_graphicsEngine->setNbParticles(nbParticlesPair.first);
+        selNbParticles = nbParticlesPair.first;
       }
-      n++;
     }
     ImGui::EndCombo();
-  }*/
+  }
 
   bool isSystemDim2D = (m_physicsEngine->dimension() == Core::Dimension::dim2D);
   if (ImGui::Checkbox("2D", &isSystemDim2D))

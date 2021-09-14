@@ -39,6 +39,14 @@ enum NbParticles
   P260K = 1 << 18
 };
 
+struct CompareNbParticles
+{
+  bool operator()(const NbParticles& nbA, const NbParticles& nbB) const
+  {
+    return (int)nbA < (int)nbB;
+  }
+};
+
 static const std::vector<std::pair<int, std::string>> ALL_POSSIBLE_NB_PARTS {
   std::make_pair(NbParticles::P512, "512"),
   std::make_pair(NbParticles::P1K, "1k"),
@@ -48,7 +56,7 @@ static const std::vector<std::pair<int, std::string>> ALL_POSSIBLE_NB_PARTS {
   std::make_pair(NbParticles::P260K, "260k")
 };
 
-static const std::map<int, std::string> ALL_PARTS {
+static const std::map<NbParticles, std::string, CompareNbParticles> ALL_NB_PARTICLES {
   { NbParticles::P512, "512" },
   { NbParticles::P1K, "1k" },
   { NbParticles::P4K, "4k" },
