@@ -15,10 +15,7 @@ using clock = std::chrono::high_resolution_clock;
 class Fluids : public Physics
 {
   public:
-  Fluids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float velocity,
-      unsigned int particleCoordVBO,
-      unsigned int cameraCoordVBO,
-      unsigned int gridDetectorVBO);
+  Fluids(ModelParams params);
   ~Fluids() = default;
 
   void update() override;
@@ -33,7 +30,7 @@ class Fluids : public Physics
 
   private:
   bool createProgram() const;
-  bool createBuffers(unsigned int particleCoordVBO, unsigned int cameraCoordVBO, unsigned int gridDetectorVBO) const;
+  bool createBuffers() const;
   bool createKernels() const;
 
   void updateFluidsParamsInKernel();

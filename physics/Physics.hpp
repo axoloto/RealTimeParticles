@@ -17,27 +17,42 @@ enum class Boundary
   CyclicWall
 };
 
+struct ModelParams
+{
+  size_t currNbParticles = 0;
+  size_t maxNbParticles = 0;
+  size_t boxSize = 0;
+  size_t gridRes = 0;
+  float velocity = 0.0f;
+  unsigned int particleVBO = 0;
+  unsigned int cameraVBO = 0;
+  unsigned int gridVBO = 0;
+};
+
 class Physics
 {
   public:
-  Physics(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float velocity, Dimension dimension = Dimension::dim2D)
-      : m_maxNbParticles(maxNbParticles)
-      , m_nbParticles(nbParticles)
-      , m_boxSize(boxSize)
-      , m_gridRes(gridRes)
-      , m_nbCells(gridRes * gridRes * gridRes)
-      , m_init(false)
-      , m_velocity(velocity)
+  Physics(ModelParams params, Dimension dimension = Dimension::dim2D)
+      : m_maxNbParticles(params.maxNbParticles)
+      , m_currNbParticles(params.currNbParticles)
+      , m_boxSize(params.boxSize)
+      , m_gridRes(params.gridRes)
+      , m_nbCells(params.gridRes * params.gridRes * params.gridRes)
+      , m_velocity(params.velocity)
+      , m_particleVBO(params.particleVBO)
+      , m_cameraVBO(params.cameraVBO)
+      , m_gridVBO(params.gridVBO)
       , m_dimension(dimension)
       , m_boundary(Boundary::BouncingWall)
+      , m_init(false)
       , m_pause(false) {};
 
   virtual ~Physics() = default;
 
   size_t maxNbParticles() const { return m_maxNbParticles; }
 
-  void setNbParticles(size_t nbSelParticles) { m_nbParticles = nbSelParticles; }
-  size_t nbParticles() const { return m_nbParticles; }
+  void setNbParticles(size_t nbSelParticles) { m_currNbParticles = nbSelParticles; }
+  size_t nbParticles() const { return m_currNbParticles; }
 
   void setDimension(Dimension dim)
   {
@@ -72,7 +87,7 @@ class Physics
   bool m_pause;
 
   size_t m_maxNbParticles;
-  size_t m_nbParticles;
+  size_t m_currNbParticles;
 
   size_t m_boxSize;
 
@@ -84,5 +99,10 @@ class Physics
   Dimension m_dimension;
 
   Boundary m_boundary;
+
+  // Gate to graphics
+  unsigned int m_particleVBO;
+  unsigned int m_cameraVBO;
+  unsigned int m_gridVBO;
 };
 }

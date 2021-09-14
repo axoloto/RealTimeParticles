@@ -31,11 +31,8 @@ using namespace Core;
 #define KERNEL_BOIDS_RULES_GRID_3D "applyBoidsRulesWithGrid3D"
 #define KERNEL_ADD_TARGET_RULE "addTargetRule"
 
-Fluids::Fluids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float velocity,
-    unsigned int pointCloudCoordVBO,
-    unsigned int cameraCoordVBO,
-    unsigned int gridDetectorVBO)
-    : Physics(maxNbParticles, nbParticles, boxSize, gridRes, velocity)
+Fluids::Fluids(ModelParams params)
+    : Physics(params)
     , m_scaleAlignment(1.6f)
     , m_scaleCohesion(1.45f)
     , m_scaleSeparation(1.6f)
@@ -44,12 +41,12 @@ Fluids::Fluids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t
     , m_activeCohesion(true)
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(1000)
-    , m_radixSort(maxNbParticles)
-    , m_target(std::make_unique<Target>(boxSize))
+    , m_radixSort(params.maxNbParticles)
+    , m_target(std::make_unique<Target>(params.boxSize))
 {
   createProgram();
 
-  createBuffers(pointCloudCoordVBO, cameraCoordVBO, gridDetectorVBO);
+  createBuffers();
 
   createKernels();
 
@@ -75,7 +72,7 @@ bool Fluids::createProgram() const
   return true;
 }
 
-bool Fluids::createBuffers(unsigned int particleCoordVBO, unsigned int cameraCoordVBO, unsigned int gridDetectorVBO) const
+bool Fluids::createBuffers() const
 {
   CL::Context& clContext = CL::Context::Get();
   /*

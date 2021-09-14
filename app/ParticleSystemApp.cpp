@@ -212,45 +212,37 @@ ParticleSystemApp::ParticleSystemApp()
 
 bool ParticleSystemApp::initGraphicsEngine()
 {
-  spdlog::info("max part {}", ALL_NB_PARTICLES.crbegin()->first);
-  spdlog::info("min part {}", ALL_NB_PARTICLES.cbegin()->first);
-  m_graphicsEngine = std::make_unique<Render::OGLRender>(
-      ALL_NB_PARTICLES.crbegin()->first,
-      ALL_NB_PARTICLES.cbegin()->first,
-      BOX_SIZE,
-      GRID_RES,
-      (float)m_windowSize.x / m_windowSize.y);
+  Render::OGLRenderParams params;
+  params.currNbParticles = ALL_NB_PARTICLES.cbegin()->first;
+  params.maxNbParticles = ALL_NB_PARTICLES.crbegin()->first;
+  params.boxSize = BOX_SIZE;
+  params.gridRes = GRID_RES;
+  params.aspectRatio = (float)m_windowSize.x / m_windowSize.y;
+
+  m_graphicsEngine = std::make_unique<Render::OGLRender>(params);
 
   return (m_graphicsEngine.get() != nullptr);
 }
 
 bool ParticleSystemApp::initPhysicsEngine(PhysicsModel model)
 {
-  float velocity = 5.0f;
+  Core::ModelParams params;
+  params.currNbParticles = ALL_NB_PARTICLES.cbegin()->first;
+  params.maxNbParticles = ALL_NB_PARTICLES.crbegin()->first;
+  params.boxSize = BOX_SIZE;
+  params.gridRes = GRID_RES;
+  params.velocity = 5.0f;
+  params.particleVBO = (unsigned int)m_graphicsEngine->pointCloudCoordVBO();
+  params.cameraVBO = (unsigned int)m_graphicsEngine->cameraCoordVBO();
+  params.gridVBO = (unsigned int)m_graphicsEngine->gridDetectorVBO();
 
   switch ((int)model)
   {
   case PhysicsModel::BOIDS:
-    m_physicsEngine = std::make_unique<Core::Boids>(
-        ALL_NB_PARTICLES.crbegin()->first,
-        ALL_NB_PARTICLES.cbegin()->first,
-        BOX_SIZE,
-        GRID_RES,
-        velocity,
-        (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
-        (unsigned int)m_graphicsEngine->cameraCoordVBO(),
-        (unsigned int)m_graphicsEngine->gridDetectorVBO());
+    m_physicsEngine = std::make_unique<Core::Boids>(params);
     break;
   case PhysicsModel::FLUIDS:
-    m_physicsEngine = std::make_unique<Core::Fluids>(
-        ALL_NB_PARTICLES.crbegin()->first,
-        ALL_NB_PARTICLES.cbegin()->first,
-        BOX_SIZE,
-        GRID_RES,
-        velocity,
-        (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
-        (unsigned int)m_graphicsEngine->cameraCoordVBO(),
-        (unsigned int)m_graphicsEngine->gridDetectorVBO());
+    m_physicsEngine = std::make_unique<Core::Fluids>(params);
     break;
   }
 

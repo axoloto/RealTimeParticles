@@ -15,10 +15,7 @@ using clock = std::chrono::high_resolution_clock;
 class Boids : public Physics
 {
   public:
-  Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float velocity,
-      unsigned int particleCoordVBO,
-      unsigned int cameraCoordVBO,
-      unsigned int gridDetectorVBO);
+  Boids(ModelParams params);
   ~Boids() = default;
 
   void update() override;
@@ -119,7 +116,7 @@ class Boids : public Physics
 
   private:
   bool createProgram() const;
-  bool createBuffers(unsigned int particleCoordVBO, unsigned int cameraCoordVBO, unsigned int gridDetectorVBO) const;
+  bool createBuffers() const;
   bool createKernels() const;
   void updateBoidsParamsInKernel();
   void updateGridParamsInKernel();

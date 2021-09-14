@@ -16,10 +16,19 @@ enum class UserAction
   ZOOM
 };
 
+struct OGLRenderParams
+{
+  size_t currNbParticles = 0;
+  size_t maxNbParticles = 0;
+  size_t boxSize = 0;
+  size_t gridRes = 0;
+  float aspectRatio = 0.0f;
+};
+
 class OGLRender
 {
   public:
-  OGLRender(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float aspectRatio);
+  OGLRender(OGLRenderParams params);
   ~OGLRender();
 
   void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);

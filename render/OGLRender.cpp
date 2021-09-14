@@ -1,15 +1,15 @@
+#include "OGLRender.hpp"
 #include "GLSL.hpp"
 #include "Math.hpp"
-#include "OGLRender.hpp"
 #include <spdlog/spdlog.h>
 
 using namespace Render;
 
-OGLRender::OGLRender(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float sceneAspectRatio)
-    : m_maxNbParticles(maxNbParticles)
-    , m_nbParticles(nbParticles)
-    , m_boxSize(boxSize)
-    , m_gridRes(gridRes)
+OGLRender::OGLRender(OGLRenderParams params)
+    : m_maxNbParticles(params.maxNbParticles)
+    , m_nbParticles(params.currNbParticles)
+    , m_boxSize(params.boxSize)
+    , m_gridRes(params.gridRes)
     , m_isBoxVisible(false)
     , m_isGridVisible(false)
     , m_targetPos({ 0.0f, 0.0f, 0.0f })
@@ -26,7 +26,7 @@ OGLRender::OGLRender(size_t maxNbParticles, size_t nbParticles, size_t boxSize, 
   glGenVertexArrays(1, &m_VAO);
   glBindVertexArray(m_VAO);
 
-  initCamera(sceneAspectRatio);
+  initCamera(params.aspectRatio);
 
   initPointCloud();
 
