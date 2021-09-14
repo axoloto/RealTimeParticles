@@ -28,7 +28,7 @@ using namespace Physics;
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
 #define KERNEL_PREDICT_POS "predictPosition"
-#define KERNEL_DENSITY "computeFluidDensity"
+#define KERNEL_DENSITY "computeDensity"
 #define KERNEL_CONSTRAINT_FACTOR "computeConstraintFactor"
 #define KERNEL_CONSTRAINT_CORRECTION "computeConstraintCorrection"
 #define KERNEL_CORRECT_POS "correctPosition"
@@ -70,6 +70,7 @@ bool Fluids::createProgram() const
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
+  clBuildOptions << " -DREST_DENSITY" << 1.0f; // TODO
 
   clContext.createProgram(PROGRAM_FLUIDS, "fluids.cl", clBuildOptions.str());
 
@@ -84,8 +85,10 @@ bool Fluids::createBuffers() const
   clContext.createGLBuffer("p_pos", m_particleVBO, CL_MEM_READ_WRITE);
   clContext.createGLBuffer("c_partDetector", m_gridVBO, CL_MEM_READ_WRITE);
 
+  clContext.createBuffer("p_density", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_predPos", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_corrPos", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_constFactor", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_vel", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_cellID", m_maxNbParticles * sizeof(unsigned int), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_cameraDist", m_maxNbParticles * sizeof(unsigned int), CL_MEM_READ_WRITE);
@@ -123,15 +126,15 @@ bool Fluids::createKernels() const
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_PREDICT_POS, { "p_pos", "p_vel", "", "p_predPos" });
 
   /// Jacobi solver to correct position
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_DENSITY, { "p_predPos", "p_density" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_FACTOR, { "p_density", "p_predPos", "p_corrPos" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_CORRECTION, { "p_predPos", "p_density", "p_corrPos" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CORRECT_POS, { "p_corrPos", "p_vel", "p_predPos" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_DENSITY, { "p_predPos", "c_startEndPartID", "p_density" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_FACTOR, { "p_density", "p_predPos", "p_constFactor" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_CORRECTION, { "p_constFactor", "c_startEndPartID", "p_predPos", "p_corrPos" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CORRECT_POS, { "p_corrPos", "p_predPos" });
 
   /// Velocity and position update
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_VEL, { "p_predPos", "p_pos", "", "p_vel" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_POS_BOUNCING, { "p_vel", "p_predPos", "", "p_pos" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_POS_CYCLIC, { "p_vel", "p_predPos", "", "p_pos" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_POS_BOUNCING, { "p_predPos", "p_pos" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_POS_CYCLIC, { "p_predPos", "p_pos" });
 
   return true;
 }
@@ -198,15 +201,14 @@ void Fluids::update()
       timeStep = 0.0f;
     m_time = currentTime;
 
-    clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
-
-    m_radixSort.sort("p_cellID", { "p_pos", "p_vel" });
-
     // Prediction on velocity and correction
     clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(float), &timeStep);
     clContext.runKernel(KERNEL_PREDICT_POS, m_currNbParticles);
 
+    clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
+
     // NNS
+    m_radixSort.sort("p_cellID", { "p_pos", "p_vel", "p_predPos" });
     clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
     clContext.runKernel(KERNEL_FILL_END_CELL, m_currNbParticles);
@@ -229,17 +231,15 @@ void Fluids::update()
     }
 
     // Update velocity and position
-    clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(float), &timeStep);
+    clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &timeStep);
     clContext.runKernel(KERNEL_UPDATE_VEL, m_currNbParticles);
 
     switch (m_boundary)
     {
     case Boundary::CyclicWall:
-      clContext.setKernelArg(KERNEL_UPDATE_POS_CYCLIC, 1, sizeof(float), &timeStep);
       clContext.runKernel(KERNEL_UPDATE_POS_CYCLIC, m_currNbParticles);
       break;
     case Boundary::BouncingWall:
-      clContext.setKernelArg(KERNEL_UPDATE_POS_BOUNCING, 1, sizeof(float), &timeStep);
       clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_currNbParticles);
       break;
     }

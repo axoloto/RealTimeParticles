@@ -9,6 +9,9 @@
 #include "utils/RadixSort.hpp"
 #include "utils/Target.hpp"
 
+// Position based fluids model based on NVIDIA paper
+// Muller and al. 2013. "Position Based Fluids"
+
 namespace Physics
 {
 using clock = std::chrono::high_resolution_clock;

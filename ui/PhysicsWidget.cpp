@@ -17,6 +17,8 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
 {
   if (!fluidsEngine)
     return;
+
+  displayBoundaryConditions(fluidsEngine);
 }
 
 void UI::PhysicsWidget::displayBoidsParameters(Physics::Boids* boidsEngine)
@@ -133,32 +135,39 @@ void UI::PhysicsWidget::displayBoidsParameters(Physics::Boids* boidsEngine)
     ImGui::PushItemWidth(150);
   }
 
+  displayBoundaryConditions(boidsEngine);
+
+  ImGui::End();
+}
+
+void UI::PhysicsWidget::displayBoundaryConditions(Physics::Model* engine)
+{
+  if (!engine)
+    return;
+
   ImGui::Spacing();
   ImGui::Separator();
   ImGui::Spacing();
-
   ImGui::Text(" Boundary ");
   ImGui::Spacing();
 
-  bool isBouncingWall = (boidsEngine->boundary() == Physics::Boundary::BouncingWall);
+  bool isBouncingWall = (engine->boundary() == Physics::Boundary::BouncingWall);
   if (ImGui::Checkbox("Bouncing Wall", &isBouncingWall))
   {
     if (isBouncingWall)
-      boidsEngine->setBoundary(Physics::Boundary::BouncingWall);
+      engine->setBoundary(Physics::Boundary::BouncingWall);
     else
-      boidsEngine->setBoundary(Physics::Boundary::CyclicWall);
+      engine->setBoundary(Physics::Boundary::CyclicWall);
   }
 
   ImGui::SameLine();
 
-  bool isCyclicWall = (boidsEngine->boundary() == Physics::Boundary::CyclicWall);
+  bool isCyclicWall = (engine->boundary() == Physics::Boundary::CyclicWall);
   if (ImGui::Checkbox("Cyclic Wall", &isCyclicWall))
   {
     if (isCyclicWall)
-      boidsEngine->setBoundary(Physics::Boundary::CyclicWall);
+      engine->setBoundary(Physics::Boundary::CyclicWall);
     else
-      boidsEngine->setBoundary(Physics::Boundary::BouncingWall);
+      engine->setBoundary(Physics::Boundary::BouncingWall);
   }
-
-  ImGui::End();
 }
