@@ -21,6 +21,9 @@ class ParticleSystemApp
 
   private:
   bool initWindow();
+  bool initGraphicsEngine();
+  bool initPhysicsEngine(PhysicsModel model);
+  bool initPhysicsWidget();
   bool closeWindow();
   bool checkSDLStatus();
   void checkMouseState();

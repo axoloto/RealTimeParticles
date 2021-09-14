@@ -2,10 +2,7 @@
 #include "ParticleSystemApp.hpp"
 
 #include "Boids.hpp"
-#include "BoidsWidget.hpp"
-
 #include "Fluids.hpp"
-#include "FluidsWidget.hpp"
 
 #include "Parameters.hpp"
 
@@ -184,41 +181,87 @@ ParticleSystemApp::ParticleSystemApp()
     , m_windowSize(1280, 720)
     , m_init(false)
 {
-  initWindow();
+  if (!initWindow())
+  {
+    spdlog::error("Failed to initialize application window");
+    return;
+  }
 
-  size_t maxNbParticles = (size_t)(NbParticles::P260K);
-  size_t currNbParticles = (size_t)(NbParticles::P512);
-  float velocity = 5.0f;
+  if (!initGraphicsEngine())
+  {
+    spdlog::error("Failed to initialize graphics engine");
+    return;
+  }
 
+  if (!initPhysicsEngine(PhysicsModel::FLUIDS))
+  {
+    spdlog::error("Failed to initialize physics engine");
+    return;
+  }
+
+  if (!initPhysicsWidget())
+  {
+    spdlog::error("Failed to initialize physics widget");
+    return;
+  }
+
+  spdlog::info("Application correctly initialized");
+
+  m_init = true;
+}
+
+bool ParticleSystemApp::initGraphicsEngine()
+{
+  spdlog::info("max part {}", ALL_PARTS.crbegin()->first);
+  spdlog::info("min part {}", ALL_PARTS.cbegin()->first);
   m_graphicsEngine = std::make_unique<Render::OGLRender>(
-      maxNbParticles,
-      currNbParticles,
+      ALL_PARTS.crbegin()->first,
+      ALL_PARTS.cbegin()->first,
       BOX_SIZE,
       GRID_RES,
       (float)m_windowSize.x / m_windowSize.y);
 
-  if (!m_graphicsEngine)
-    return;
+  return (m_graphicsEngine.get() != nullptr);
+}
 
-  m_physicsEngine = std::make_unique<Core::Fluids>(
-      maxNbParticles,
-      currNbParticles,
-      BOX_SIZE,
-      GRID_RES,
-      velocity,
-      (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
-      (unsigned int)m_graphicsEngine->cameraCoordVBO(),
-      (unsigned int)m_graphicsEngine->gridDetectorVBO());
+bool ParticleSystemApp::initPhysicsEngine(PhysicsModel model)
+{
+  float velocity = 5.0f;
 
-  if (!m_physicsEngine)
-    return;
+  switch ((int)model)
+  {
+  case PhysicsModel::BOIDS:
+    m_physicsEngine = std::make_unique<Core::Boids>(
+        ALL_PARTS.crbegin()->first,
+        ALL_PARTS.cbegin()->first,
+        BOX_SIZE,
+        GRID_RES,
+        velocity,
+        (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
+        (unsigned int)m_graphicsEngine->cameraCoordVBO(),
+        (unsigned int)m_graphicsEngine->gridDetectorVBO());
+    break;
+  case PhysicsModel::FLUIDS:
+    m_physicsEngine = std::make_unique<Core::Fluids>(
+        ALL_PARTS.crbegin()->first,
+        ALL_PARTS.cbegin()->first,
+        BOX_SIZE,
+        GRID_RES,
+        velocity,
+        (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
+        (unsigned int)m_graphicsEngine->cameraCoordVBO(),
+        (unsigned int)m_graphicsEngine->gridDetectorVBO());
+    break;
+  }
 
-  m_physicsWidget = std::make_unique<UI::FluidsWidget>(*m_physicsEngine);
+  return (m_physicsEngine.get() != nullptr);
+}
 
-  if (!m_physicsWidget)
-    return;
+bool ParticleSystemApp::initPhysicsWidget()
+{
+  m_physicsWidget = std::make_unique<UI::PhysicsWidget>(m_physicsEngine);
 
-  m_init = true;
+  return (m_physicsWidget.get() != nullptr);
 }
 
 void ParticleSystemApp::run()
@@ -272,6 +315,38 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Begin("Main Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);
 
+  if (!isInit())
+    return;
+
+  // Selection of the physical model
+  static PhysicsModel selModelType = ALL_PHYSICS_MODELS.cbegin()->first;
+  const auto& selModelName = (ALL_PHYSICS_MODELS.find(selModelType) != ALL_PHYSICS_MODELS.end()) ? ALL_PHYSICS_MODELS.find(selModelType)->second : ALL_PHYSICS_MODELS.cbegin()->second;
+  if (ImGui::BeginCombo("Physical Model", selModelName.c_str()))
+  {
+    for (const auto& model : ALL_PHYSICS_MODELS)
+    {
+      if (ImGui::Selectable(model.second.c_str(), selModelType == model.first))
+      {
+        if (!initPhysicsEngine(model.first))
+        {
+          spdlog::error("Failed to change physics engine");
+          return;
+        }
+
+        if (!initPhysicsWidget())
+        {
+          spdlog::error("Failed to change physics widget");
+          return;
+        }
+
+        spdlog::info("Application correctly switched to {}", ALL_PHYSICS_MODELS.find(selModelType)->second);
+
+        selModelType = model.first;
+      }
+    }
+    ImGui::EndCombo();
+  }
+
   bool isOnPaused = m_physicsEngine->onPause();
   std::string pauseRun = isOnPaused ? "  Start  " : "  Pause  ";
   if (ImGui::Button(pauseRun.c_str()))
@@ -286,6 +361,7 @@ void ParticleSystemApp::displayMainWidget()
     m_physicsEngine->reset();
   }
 
+  /*
   static int currNbPartsIndex = FindNbPartsIndex((int)m_physicsEngine->nbParticles());
   if (ImGui::Combo("Particles", &currNbPartsIndex, AllPossibleNbParts().c_str()))
   {
@@ -294,6 +370,29 @@ void ParticleSystemApp::displayMainWidget()
     m_physicsEngine->reset();
     m_graphicsEngine->setNbParticles(nbParts);
   }
+*/
+  /*
+  int idx;
+  //  for (idx = 0; idx < IM_ARRAYSIZE(policies); idx++)
+  //      if (policies[idx].Value == (*p_flags & ImGuiTableFlags_SizingMask_))
+  //          break;
+  const char* preview_text = (idx < IM_ARRAYSIZE(policies)) ? policies[idx].Name + (idx > 0 ? strlen("ImGuiTableFlags") : 0) : "";
+  if (ImGui::BeginCombo("Nb parts", preview_text))
+  {
+    int n = 0;
+    for (parts : ALL_PARTS)
+    {
+      if (ImGui::Selectable(parts.second, idx == n))
+      {
+        int nbParts = FindNbPartsByIndex((size_t)currNbPartsIndex);
+        m_physicsEngine->setNbParticles(nbParts);
+        m_physicsEngine->reset();
+        m_graphicsEngine->setNbParticles(nbParts);
+      }
+      n++;
+    }
+    ImGui::EndCombo();
+  }*/
 
   bool isSystemDim2D = (m_physicsEngine->dimension() == Core::Dimension::dim2D);
   if (ImGui::Checkbox("2D", &isSystemDim2D))

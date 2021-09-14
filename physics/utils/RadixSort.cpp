@@ -32,11 +32,25 @@ RadixSort::RadixSort(size_t numEntities)
   if (m_numEntities % (m_numGroups * m_numItems) != 0)
     spdlog::error("Radix sort not supporting arrays of size {}, only ones whose size is multiple of {} ", m_numEntities, m_numGroups * m_numItems);
 
-  createProgram();
+  if (!createProgram())
+  {
+    spdlog::error("Failed to initialize radix sort program");
+    return;
+  }
 
-  createBuffers();
+  if (!createBuffers())
+  {
+    spdlog::error("Failed to initialize radix sort buffers");
+    return;
+  }
 
-  createKernels();
+  if (!createKernels())
+  {
+    spdlog::error("Failed to initialize radix sort kernels");
+    return;
+  }
+
+  spdlog::info("Radix sort correctly initialized");
 }
 
 bool RadixSort::createProgram() const
@@ -53,7 +67,8 @@ bool RadixSort::createProgram() const
     clBuildOptions << " -DHOST_PTR_IS_32bit";
   }
 
-  clContext.createProgram(PROGRAM_RADIXSORT, FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\radixSort.cl", clBuildOptions.str());
+  if (!clContext.createProgram(PROGRAM_RADIXSORT, FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\radixSort.cl", clBuildOptions.str()))
+    return false;
 
   return true;
 }

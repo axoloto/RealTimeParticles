@@ -1,12 +1,33 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace App
 {
+// List of supported physical models
+enum PhysicsModel
+{
+  BOIDS = 0,
+  FLUIDS = 1
+};
+
+struct ComparePhysicsModel
+{
+  bool operator()(const PhysicsModel& modelA, const PhysicsModel& modelB) const
+  {
+    return (int)modelA < (int)modelB;
+  }
+};
+
+static const std::map<PhysicsModel, std::string, ComparePhysicsModel> ALL_PHYSICS_MODELS {
+  { PhysicsModel::BOIDS, "Boids" },
+  { PhysicsModel::FLUIDS, "Fluids" },
+};
+
 // List of supported particles system sizes
 enum NbParticles
 {
@@ -25,6 +46,15 @@ static const std::vector<std::pair<int, std::string>> ALL_POSSIBLE_NB_PARTS {
   std::make_pair(NbParticles::P65K, "65k"),
   std::make_pair(NbParticles::P130K, "130k"),
   std::make_pair(NbParticles::P260K, "260k")
+};
+
+static const std::map<int, std::string> ALL_PARTS {
+  { NbParticles::P512, "512" },
+  { NbParticles::P1K, "1k" },
+  { NbParticles::P4K, "4k" },
+  { NbParticles::P65K, "65k" },
+  { NbParticles::P130K, "130k" },
+  { NbParticles::P260K, "260k" }
 };
 
 // Length of one side of the bounding box where the particles evolve

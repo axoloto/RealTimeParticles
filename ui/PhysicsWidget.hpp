@@ -1,7 +1,10 @@
 
 #pragma once
 
+#include "Boids.hpp"
+#include "Fluids.hpp"
 #include "Physics.hpp"
+
 #include <memory>
 
 namespace UI
@@ -9,13 +12,16 @@ namespace UI
 class PhysicsWidget
 {
   public:
-  explicit PhysicsWidget(Core::Physics& physicsEngine)
+  explicit PhysicsWidget(std::shared_ptr<Core::Physics> physicsEngine)
       : m_physicsEngine(physicsEngine) {};
   virtual ~PhysicsWidget() = default;
 
-  virtual void display() = 0;
+  void display();
 
-  protected:
-  Core::Physics& m_physicsEngine;
+  private:
+  void displayBoidsParameters(Core::Boids* boids);
+  void displayFluidsParameters(Core::Fluids* engine);
+
+  std::shared_ptr<Core::Physics> m_physicsEngine;
 };
 }
