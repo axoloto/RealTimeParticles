@@ -1,12 +1,12 @@
 
+#include "Shader.hpp"
 #include "GLSL.hpp"
-#include "OGLShader.hpp"
 #include <iostream>
 #include <spdlog/spdlog.h>
 
 using namespace Render;
 
-OGLShader::OGLShader(const char* vert, const char* frag)
+Shader::Shader(const char* vert, const char* frag)
 {
   m_programID = glCreateProgram();
 
@@ -25,13 +25,13 @@ OGLShader::OGLShader(const char* vert, const char* frag)
   }
 }
 
-OGLShader::~OGLShader()
+Shader::~Shader()
 {
   if (m_programID != 0)
     glDeleteProgram(m_programID);
 }
 
-void OGLShader::compileShader(GLenum type, const char* source)
+void Shader::compileShader(GLenum type, const char* source)
 {
   GLuint shaderID = glCreateShader(type);
 
@@ -51,37 +51,37 @@ void OGLShader::compileShader(GLenum type, const char* source)
   glDeleteShader(shaderID);
 }
 
-void OGLShader::activate()
+void Shader::activate()
 {
   glUseProgram(m_programID);
 }
 
-void OGLShader::deactivate()
+void Shader::deactivate()
 {
   glUseProgram(0);
 }
 
-GLint OGLShader::getUniformLocation(const std::string& name) const
+GLint Shader::getUniformLocation(const std::string& name) const
 {
   return glGetUniformLocation(m_programID, name.c_str());
 }
 
-void OGLShader::setUniform(const std::string& name, int value) const
+void Shader::setUniform(const std::string& name, int value) const
 {
   glUniform1i(getUniformLocation(name), value);
 }
 
-void OGLShader::setUniform(const std::string& name, float value) const
+void Shader::setUniform(const std::string& name, float value) const
 {
   glUniform1f(getUniformLocation(name), value);
 }
 
-void OGLShader::setUniform(const std::string& name, const Math::float4x4& mat) const
+void Shader::setUniform(const std::string& name, const Math::float4x4& mat) const
 {
   glUniformMatrix4fv(getUniformLocation(name), 1, GL_FALSE, &mat[0][0]);
 }
 
-void OGLShader::setUniform(const std::string& name, const Math::float3& vec) const
+void Shader::setUniform(const std::string& name, const Math::float3& vec) const
 {
   glUniform3f(getUniformLocation(name), vec[0], vec[1], vec[2]);
 }

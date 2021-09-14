@@ -212,14 +212,14 @@ ParticleSystemApp::ParticleSystemApp()
 
 bool ParticleSystemApp::initGraphicsEngine()
 {
-  Render::OGLRenderParams params;
+  Render::EngineParams params;
   params.currNbParticles = ALL_NB_PARTICLES.cbegin()->first;
   params.maxNbParticles = ALL_NB_PARTICLES.crbegin()->first;
   params.boxSize = BOX_SIZE;
   params.gridRes = GRID_RES;
   params.aspectRatio = (float)m_windowSize.x / m_windowSize.y;
 
-  m_graphicsEngine = std::make_unique<Render::OGLRender>(params);
+  m_graphicsEngine = std::make_unique<Render::Engine>(params);
 
   return (m_graphicsEngine.get() != nullptr);
 }

@@ -1,11 +1,11 @@
-#include "OGLRender.hpp"
+#include "Engine.hpp"
 #include "GLSL.hpp"
 #include "Math.hpp"
 #include <spdlog/spdlog.h>
 
 using namespace Render;
 
-OGLRender::OGLRender(OGLRenderParams params)
+Engine::Engine(EngineParams params)
     : m_maxNbParticles(params.maxNbParticles)
     , m_nbParticles(params.currNbParticles)
     , m_boxSize(params.boxSize)
@@ -37,7 +37,7 @@ OGLRender::OGLRender(OGLRenderParams params)
   initTarget();
 }
 
-OGLRender::~OGLRender()
+Engine::~Engine()
 {
   glDeleteBuffers(1, &m_pointCloudCoordVBO);
   glDeleteBuffers(1, &m_pointCloudColorVBO);
@@ -46,15 +46,15 @@ OGLRender::~OGLRender()
   glDeleteBuffers(1, &m_targetVBO);
 }
 
-void OGLRender::buildShaders()
+void Engine::buildShaders()
 {
-  m_pointCloudShader = std::make_unique<OGLShader>(Render::PointCloudVertShader, Render::PointCloudFragShader);
-  m_boxShader = std::make_unique<OGLShader>(Render::BoxVertShader, Render::FragShader);
-  m_gridShader = std::make_unique<OGLShader>(Render::GridVertShader, Render::FragShader);
-  m_targetShader = std::make_unique<OGLShader>(Render::TargetVertShader, Render::FragShader);
+  m_pointCloudShader = std::make_unique<Shader>(Render::PointCloudVertShader, Render::PointCloudFragShader);
+  m_boxShader = std::make_unique<Shader>(Render::BoxVertShader, Render::FragShader);
+  m_gridShader = std::make_unique<Shader>(Render::GridVertShader, Render::FragShader);
+  m_targetShader = std::make_unique<Shader>(Render::TargetVertShader, Render::FragShader);
 }
 
-void OGLRender::initCamera(float sceneAspectRatio)
+void Engine::initCamera(float sceneAspectRatio)
 {
   m_camera = std::make_unique<Camera>(sceneAspectRatio);
 
@@ -63,7 +63,7 @@ void OGLRender::initCamera(float sceneAspectRatio)
   loadCameraPos();
 }
 
-void OGLRender::initPointCloud()
+void Engine::initPointCloud()
 {
   // Filled by OpenCL
   glGenBuffers(1, &m_pointCloudCoordVBO);
@@ -82,7 +82,7 @@ void OGLRender::initPointCloud()
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void OGLRender::draw()
+void Engine::draw()
 {
   loadCameraPos();
 
@@ -98,7 +98,7 @@ void OGLRender::draw()
     drawTarget();
 }
 
-void OGLRender::loadCameraPos()
+void Engine::loadCameraPos()
 {
   if (!m_camera)
     return;
@@ -110,7 +110,7 @@ void OGLRender::loadCameraPos()
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void OGLRender::drawPointCloud()
+void Engine::drawPointCloud()
 {
   m_pointCloudShader->activate();
 
@@ -123,7 +123,7 @@ void OGLRender::drawPointCloud()
   m_pointCloudShader->deactivate();
 }
 
-void OGLRender::drawBox()
+void Engine::drawBox()
 {
   m_boxShader->activate();
 
@@ -136,7 +136,7 @@ void OGLRender::drawBox()
   m_boxShader->deactivate();
 }
 
-void OGLRender::drawGrid()
+void Engine::drawGrid()
 {
   m_gridShader->activate();
 
@@ -150,7 +150,7 @@ void OGLRender::drawGrid()
   m_gridShader->deactivate();
 }
 
-void OGLRender::drawTarget()
+void Engine::drawTarget()
 {
   m_targetShader->activate();
 
@@ -165,7 +165,7 @@ void OGLRender::drawTarget()
   m_targetShader->deactivate();
 }
 
-void OGLRender::initBox()
+void Engine::initBox()
 {
   std::array<Vertex, 8> boxVertices = m_refCubeVertices;
   for (auto& vertex : boxVertices)
@@ -189,7 +189,7 @@ void OGLRender::initBox()
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-void OGLRender::initGrid()
+void Engine::initGrid()
 {
   float cellSize = 1.0f * m_boxSize / m_gridRes;
   std::array<Vertex, 8> localCellCoords = m_refCubeVertices;
@@ -266,7 +266,7 @@ void OGLRender::initGrid()
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-void OGLRender::initTarget()
+void Engine::initTarget()
 {
   const std::array<float, 3> targetCoord = { m_targetPos[0], m_targetPos[1], m_targetPos[2] };
   glGenBuffers(1, &m_targetVBO);
@@ -277,7 +277,7 @@ void OGLRender::initTarget()
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void OGLRender::checkMouseEvents(UserAction action, Math::float2 delta)
+void Engine::checkMouseEvents(UserAction action, Math::float2 delta)
 {
   switch (action)
   {

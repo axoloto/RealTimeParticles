@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Camera.hpp"
-#include "OGLShader.hpp"
+#include "Shader.hpp"
 #include <array>
 #include <glad/glad.h>
 #include <memory>
@@ -16,7 +16,7 @@ enum class UserAction
   ZOOM
 };
 
-struct OGLRenderParams
+struct EngineParams
 {
   size_t currNbParticles = 0;
   size_t maxNbParticles = 0;
@@ -25,11 +25,11 @@ struct OGLRenderParams
   float aspectRatio = 0.0f;
 };
 
-class OGLRender
+class Engine
 {
   public:
-  OGLRender(OGLRenderParams params);
-  ~OGLRender();
+  Engine(EngineParams params);
+  ~Engine();
 
   void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);
   void draw();
@@ -93,10 +93,10 @@ class OGLRender
   GLuint m_targetVBO;
   GLuint m_cameraVBO;
 
-  std::unique_ptr<OGLShader> m_pointCloudShader;
-  std::unique_ptr<OGLShader> m_boxShader;
-  std::unique_ptr<OGLShader> m_gridShader;
-  std::unique_ptr<OGLShader> m_targetShader;
+  std::unique_ptr<Shader> m_pointCloudShader;
+  std::unique_ptr<Shader> m_boxShader;
+  std::unique_ptr<Shader> m_gridShader;
+  std::unique_ptr<Shader> m_targetShader;
 
   size_t m_boxSize;
   size_t m_gridRes;

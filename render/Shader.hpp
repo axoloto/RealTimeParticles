@@ -6,11 +6,11 @@
 
 namespace Render
 {
-class OGLShader
+class Shader
 {
   public:
-  OGLShader(const char* vert, const char* frag);
-  ~OGLShader();
+  Shader(const char* vert, const char* frag);
+  ~Shader();
 
   void activate();
   void deactivate();
