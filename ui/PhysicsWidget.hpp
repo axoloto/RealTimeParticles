@@ -3,7 +3,7 @@
 
 #include "Boids.hpp"
 #include "Fluids.hpp"
-#include "Physics.hpp"
+#include "Model.hpp"
 
 #include <memory>
 

@@ -4,7 +4,7 @@
 #include <chrono>
 #include <vector>
 
-#include "Physics.hpp"
+#include "Model.hpp"
 #include "ocl/Context.hpp"
 #include "utils/RadixSort.hpp"
 #include "utils/Target.hpp"

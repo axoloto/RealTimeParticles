@@ -4,8 +4,9 @@
 #include <vector>
 
 #include "Math.hpp"
+#include "Model.hpp"
 #include "PerlinNoise.hpp"
-#include "Physics.hpp"
+
 
 namespace Physics
 {

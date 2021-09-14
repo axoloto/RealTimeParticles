@@ -193,7 +193,7 @@ ParticleSystemApp::ParticleSystemApp()
     return;
   }
 
-  if (!initPhysicsEngine(PhysicsModel::FLUIDS))
+  if (!initPhysicsEngine(Physics::ModelType::BOIDS))
   {
     spdlog::error("Failed to initialize physics engine");
     return;
@@ -224,7 +224,7 @@ bool ParticleSystemApp::initGraphicsEngine()
   return (m_graphicsEngine.get() != nullptr);
 }
 
-bool ParticleSystemApp::initPhysicsEngine(PhysicsModel model)
+bool ParticleSystemApp::initPhysicsEngine(Physics::ModelType model)
 {
   Physics::ModelParams params;
   params.currNbParticles = ALL_NB_PARTICLES.cbegin()->first;
@@ -238,10 +238,10 @@ bool ParticleSystemApp::initPhysicsEngine(PhysicsModel model)
 
   switch ((int)model)
   {
-  case PhysicsModel::BOIDS:
+  case Physics::ModelType::BOIDS:
     m_physicsEngine = std::make_unique<Physics::Boids>(params);
     break;
-  case PhysicsModel::FLUIDS:
+  case Physics::ModelType::FLUIDS:
     m_physicsEngine = std::make_unique<Physics::Fluids>(params);
     break;
   }
@@ -311,15 +311,15 @@ void ParticleSystemApp::displayMainWidget()
     return;
 
   // Selection of the physical model
-  static PhysicsModel selModelType = ALL_PHYSICS_MODELS.cbegin()->first;
+  static Physics::ModelType selModelType = Physics::ALL_MODELS.cbegin()->first;
 
-  const auto& selModelName = (ALL_PHYSICS_MODELS.find(selModelType) != ALL_PHYSICS_MODELS.end())
-      ? ALL_PHYSICS_MODELS.find(selModelType)->second
-      : ALL_PHYSICS_MODELS.cbegin()->second;
+  const auto& selModelName = (Physics::ALL_MODELS.find(selModelType) != Physics::ALL_MODELS.end())
+      ? Physics::ALL_MODELS.find(selModelType)->second
+      : Physics::ALL_MODELS.cbegin()->second;
 
   if (ImGui::BeginCombo("Physical Model", selModelName.c_str()))
   {
-    for (const auto& model : ALL_PHYSICS_MODELS)
+    for (const auto& model : Physics::ALL_MODELS)
     {
       if (ImGui::Selectable(model.second.c_str(), selModelType == model.first))
       {
@@ -335,7 +335,7 @@ void ParticleSystemApp::displayMainWidget()
           return;
         }
 
-        spdlog::info("Application correctly switched to {}", ALL_PHYSICS_MODELS.find(selModelType)->second);
+        spdlog::info("Application correctly switched to {}", Physics::ALL_MODELS.find(selModelType)->second);
 
         selModelType = model.first;
       }
@@ -357,16 +357,6 @@ void ParticleSystemApp::displayMainWidget()
     m_physicsEngine->reset();
   }
 
-  /*
-  static int currNbPartsIndex = FindNbPartsIndex((int)m_physicsEngine->nbParticles());
-  if (ImGui::Combo("Particles", &currNbPartsIndex, AllPossibleNbParts().c_str()))
-  {
-    int nbParts = FindNbPartsByIndex((size_t)currNbPartsIndex);
-    m_physicsEngine->setNbParticles(nbParts);
-    m_physicsEngine->reset();
-    m_graphicsEngine->setNbParticles(nbParts);
-  }
-*/
   // Selection of the number of particles in the model
   static NbParticles selNbParticles = ALL_NB_PARTICLES.cbegin()->first;
 

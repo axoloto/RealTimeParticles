@@ -2,9 +2,9 @@
 #pragma once
 
 #include "Math.hpp"
+#include "Model.hpp"
 #include "OGLRender.hpp"
 #include "Parameters.hpp"
-#include "Physics.hpp"
 #include "PhysicsWidget.hpp"
 #include <SDL.h>
 #include <imgui.h>
@@ -22,7 +22,7 @@ class ParticleSystemApp
   private:
   bool initWindow();
   bool initGraphicsEngine();
-  bool initPhysicsEngine(PhysicsModel model);
+  bool initPhysicsEngine(Physics::ModelType model);
   bool initPhysicsWidget();
   bool closeWindow();
   bool checkSDLStatus();

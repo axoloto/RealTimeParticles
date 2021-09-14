@@ -3,7 +3,7 @@
 #include <array>
 #include <vector>
 
-#include "Physics.hpp"
+#include "Model.hpp"
 #include "ocl/Context.hpp"
 
 #include <algorithm>
