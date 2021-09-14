@@ -12,7 +12,7 @@ namespace UI
 class PhysicsWidget
 {
   public:
-  explicit PhysicsWidget(std::shared_ptr<Physics::Model> physicsEngine)
+  explicit PhysicsWidget(Physics::Model* physicsEngine)
       : m_physicsEngine(physicsEngine) {};
   virtual ~PhysicsWidget() = default;
 
@@ -22,6 +22,6 @@ class PhysicsWidget
   void displayBoidsParameters(Physics::Boids* boids);
   void displayFluidsParameters(Physics::Fluids* engine);
 
-  std::shared_ptr<Physics::Model> m_physicsEngine;
+  Physics::Model* m_physicsEngine;
 };
 }

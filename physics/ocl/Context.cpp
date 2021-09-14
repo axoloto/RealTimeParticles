@@ -176,6 +176,21 @@ bool Physics::CL::Context::createCommandQueue()
     spdlog::error("Cannot create OpenCL queue");
     return false;
   }
+  return true;
+}
+
+bool Physics::CL::Context::release()
+{
+  if (!m_init)
+    return true;
+
+  spdlog::debug("Physics::CL::Context::release - Context has been cleaned");
+
+  m_programsMap.clear();
+  m_kernelsMap.clear();
+  m_buffersMap.clear();
+  m_GLBuffersMap.clear();
+  m_imagesMap.clear();
 
   return true;
 }

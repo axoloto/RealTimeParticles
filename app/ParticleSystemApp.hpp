@@ -9,7 +9,6 @@
 #include <SDL.h>
 #include <imgui.h>
 
-
 namespace App
 {
 class ParticleSystemApp
@@ -31,7 +30,7 @@ class ParticleSystemApp
   void displayMainWidget();
   bool popUpErrorMessage(std::string errorMessage);
 
-  std::shared_ptr<Physics::Model> m_physicsEngine;
+  std::unique_ptr<Physics::Model> m_physicsEngine;
   std::unique_ptr<Render::Engine> m_graphicsEngine;
   std::unique_ptr<UI::PhysicsWidget> m_physicsWidget;
 

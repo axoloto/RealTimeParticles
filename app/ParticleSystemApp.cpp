@@ -14,6 +14,8 @@
 #include <sdl2/SDL.h>
 #include <spdlog/spdlog.h>
 
+#include "Logging.hpp"
+
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
 #else
@@ -236,6 +238,12 @@ bool ParticleSystemApp::initPhysicsEngine(Physics::ModelType model)
   params.cameraVBO = (unsigned int)m_graphicsEngine->cameraCoordVBO();
   params.gridVBO = (unsigned int)m_graphicsEngine->gridDetectorVBO();
 
+  if (m_physicsEngine)
+  {
+    spdlog::debug("Physics engine already existing, removing it");
+    m_physicsEngine.reset();
+  }
+
   switch ((int)model)
   {
   case Physics::ModelType::BOIDS:
@@ -251,7 +259,7 @@ bool ParticleSystemApp::initPhysicsEngine(Physics::ModelType model)
 
 bool ParticleSystemApp::initPhysicsWidget()
 {
-  m_physicsWidget = std::make_unique<UI::PhysicsWidget>(m_physicsEngine);
+  m_physicsWidget = std::make_unique<UI::PhysicsWidget>(m_physicsEngine.get());
 
   return (m_physicsWidget.get() != nullptr);
 }
@@ -474,11 +482,13 @@ bool ParticleSystemApp::popUpErrorMessage(std::string errorMessage)
 auto initializeLogger()
 {
   spdlog::set_level(spdlog::level::debug);
+  spdlog::set_pattern("[%H:%M:%S] [thread %t] [%!] %v");
 }
 
 int main(int, char**)
 {
   initializeLogger();
+  LOG_DEBUG("Render: Shader linking failed {}, {}", 1, 2);
 
   App::ParticleSystemApp app;
 

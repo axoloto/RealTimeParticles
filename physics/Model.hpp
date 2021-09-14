@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Math.hpp"
+#include "ocl/Context.hpp"
+
 #include <array>
 #include <map>
 #include <string>
@@ -69,7 +71,10 @@ class Model
       , m_init(false)
       , m_pause(false) {};
 
-  virtual ~Model() = default;
+  virtual ~Model()
+  {
+    CL::Context::Get().release();
+  };
 
   size_t maxNbParticles() const { return m_maxNbParticles; }
 

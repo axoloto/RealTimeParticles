@@ -26,7 +26,10 @@ class Context
   public:
   static Context& Get();
 
+  // Check if the context has been instantiated
   bool isInit() const { return m_init; }
+  // Release every programs and kernels/buffers/datas on GPU side
+  bool release();
 
   bool isProfiling() const { return m_isKernelProfilingEnabled; }
   void enableProfiler(bool enable) { m_isKernelProfilingEnabled = enable; }

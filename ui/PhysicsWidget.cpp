@@ -4,8 +4,8 @@
 
 void UI::PhysicsWidget::display()
 {
-  auto* boidsEngine = dynamic_cast<Physics::Boids*>(m_physicsEngine.get());
-  auto* fluidsEngine = dynamic_cast<Physics::Fluids*>(m_physicsEngine.get());
+  auto* boidsEngine = dynamic_cast<Physics::Boids*>(m_physicsEngine);
+  auto* fluidsEngine = dynamic_cast<Physics::Fluids*>(m_physicsEngine);
 
   if (boidsEngine)
     displayBoidsParameters(boidsEngine);
@@ -25,7 +25,7 @@ void UI::PhysicsWidget::displayBoidsParameters(Physics::Boids* boidsEngine)
     return;
 
   // First default pos
-  ImGui::SetNextWindowPos(ImVec2(60, 330), ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowPos(ImVec2(60, 430), ImGuiCond_FirstUseEver);
 
   ImGui::Begin("Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);
