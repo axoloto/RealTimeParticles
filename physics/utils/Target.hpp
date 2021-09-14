@@ -7,7 +7,7 @@
 #include "PerlinNoise.hpp"
 #include "Physics.hpp"
 
-namespace Core
+namespace Physics
 {
 class Target
 {

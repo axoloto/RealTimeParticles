@@ -3,7 +3,7 @@
 #include "Math.hpp"
 #include <array>
 
-namespace Core
+namespace Physics
 {
 enum class Dimension
 {

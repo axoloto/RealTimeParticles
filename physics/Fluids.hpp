@@ -9,7 +9,7 @@
 #include "utils/RadixSort.hpp"
 #include "utils/Target.hpp"
 
-namespace Core
+namespace Physics
 {
 using clock = std::chrono::high_resolution_clock;
 class Fluids : public Model

@@ -7,7 +7,7 @@
 #include <spdlog/spdlog.h>
 #include <sstream>
 
-using namespace Core;
+using namespace Physics;
 
 #define PROGRAM_RADIXSORT "RadixSort"
 

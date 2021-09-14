@@ -14,13 +14,13 @@
 #include <spdlog/spdlog.h>
 #include <vector>
 
-Core::CL::Context& Core::CL::Context::Get()
+Physics::CL::Context& Physics::CL::Context::Get()
 {
   static Context context;
   return context;
 }
 
-Core::CL::Context::Context()
+Physics::CL::Context::Context()
     : m_isKernelProfilingEnabled(false)
     , m_init(false)
 {
@@ -39,7 +39,7 @@ Core::CL::Context::Context()
   m_init = true;
 }
 
-bool Core::CL::Context::findPlatforms()
+bool Physics::CL::Context::findPlatforms()
 {
   spdlog::info("Searching for OpenCL platforms");
 
@@ -61,7 +61,7 @@ bool Core::CL::Context::findPlatforms()
   return true;
 }
 
-bool Core::CL::Context::findGPUDevices()
+bool Physics::CL::Context::findGPUDevices()
 {
   spdlog::info("Searching for GPUs able to Interop OpenGL-OpenCL");
 
@@ -106,7 +106,7 @@ bool Core::CL::Context::findGPUDevices()
   return true;
 }
 
-bool Core::CL::Context::createContext()
+bool Physics::CL::Context::createContext()
 {
   // Looping to find the platform and the device used to display the application
   // We need to create our OpenCL context on those ones in order to
@@ -162,7 +162,7 @@ bool Core::CL::Context::createContext()
   return false;
 }
 
-bool Core::CL::Context::createCommandQueue()
+bool Physics::CL::Context::createCommandQueue()
 {
   if (cl_context() == 0 || cl_device() == 0)
     return false;
@@ -180,7 +180,7 @@ bool Core::CL::Context::createCommandQueue()
   return true;
 }
 
-bool Core::CL::Context::createProgram(std::string programName, std::string sourcePath, std::string specificBuildOptions)
+bool Physics::CL::Context::createProgram(std::string programName, std::string sourcePath, std::string specificBuildOptions)
 {
   if (!m_init)
     return false;
@@ -205,7 +205,7 @@ bool Core::CL::Context::createProgram(std::string programName, std::string sourc
   return true;
 }
 
-bool Core::CL::Context::createBuffer(std::string bufferName, size_t bufferSize, cl_mem_flags memoryFlags)
+bool Physics::CL::Context::createBuffer(std::string bufferName, size_t bufferSize, cl_mem_flags memoryFlags)
 {
   if (!m_init)
     return false;
@@ -231,7 +231,7 @@ bool Core::CL::Context::createBuffer(std::string bufferName, size_t bufferSize, 
   return true;
 }
 
-bool Core::CL::Context::createImage2D(std::string name, imageSpecs specs, cl_mem_flags memoryFlags)
+bool Physics::CL::Context::createImage2D(std::string name, imageSpecs specs, cl_mem_flags memoryFlags)
 {
   if (!m_init)
     return false;
@@ -259,7 +259,7 @@ bool Core::CL::Context::createImage2D(std::string name, imageSpecs specs, cl_mem
   return true;
 }
 
-bool Core::CL::Context::loadBufferFromHost(std::string bufferName, size_t offset, size_t sizeToFill, const void* hostPtr)
+bool Physics::CL::Context::loadBufferFromHost(std::string bufferName, size_t offset, size_t sizeToFill, const void* hostPtr)
 {
   if (!m_init)
     return false;
@@ -284,7 +284,7 @@ bool Core::CL::Context::loadBufferFromHost(std::string bufferName, size_t offset
   return true;
 }
 
-bool Core::CL::Context::unloadBufferFromDevice(std::string bufferName, size_t offset, size_t sizeToFill, void* hostPtr)
+bool Physics::CL::Context::unloadBufferFromDevice(std::string bufferName, size_t offset, size_t sizeToFill, void* hostPtr)
 {
   if (!m_init)
     return false;
@@ -322,7 +322,7 @@ bool Core::CL::Context::unloadBufferFromDevice(std::string bufferName, size_t of
   return true;
 }
 
-bool Core::CL::Context::swapBuffers(std::string bufferNameA, std::string bufferNameB)
+bool Physics::CL::Context::swapBuffers(std::string bufferNameA, std::string bufferNameB)
 {
   if (!m_init)
     return false;
@@ -348,7 +348,7 @@ bool Core::CL::Context::swapBuffers(std::string bufferNameA, std::string bufferN
   return true;
 }
 
-bool Core::CL::Context::copyBuffer(std::string srcBufferName, std::string dstBufferName)
+bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dstBufferName)
 {
   if (!m_init)
     return false;
@@ -428,7 +428,7 @@ bool Core::CL::Context::copyBuffer(std::string srcBufferName, std::string dstBuf
   return true;
 }
 
-bool Core::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int VBOIndex, cl_mem_flags memoryFlags)
+bool Physics::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int VBOIndex, cl_mem_flags memoryFlags)
 {
   if (!m_init)
     return false;
@@ -454,7 +454,7 @@ bool Core::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int VB
   return true;
 }
 
-bool Core::CL::Context::createKernel(std::string programName, std::string kernelName, std::vector<std::string> argNames)
+bool Physics::CL::Context::createKernel(std::string programName, std::string kernelName, std::vector<std::string> argNames)
 {
   // WIP Only taking buffer as args for now
 
@@ -515,7 +515,7 @@ bool Core::CL::Context::createKernel(std::string programName, std::string kernel
   return true;
 }
 
-bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, size_t argSize, const void* value)
+bool Physics::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, size_t argSize, const void* value)
 {
   if (!m_init)
     return false;
@@ -539,7 +539,7 @@ bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, s
   return true;
 }
 
-bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, const std::string& argName)
+bool Physics::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, const std::string& argName)
 {
   if (!m_init)
     return false;
@@ -578,7 +578,7 @@ bool Core::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex, c
   return true;
 }
 
-bool Core::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkItems, size_t numLocalWorkItems)
+bool Physics::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkItems, size_t numLocalWorkItems)
 {
   if (!m_init)
     return false;
@@ -626,7 +626,7 @@ bool Core::CL::Context::runKernel(std::string kernelName, size_t numGlobalWorkIt
   return true;
 }
 
-bool Core::CL::Context::interactWithGLBuffers(const std::vector<std::string>& GLBufferNames, interOpCLGL interaction)
+bool Physics::CL::Context::interactWithGLBuffers(const std::vector<std::string>& GLBufferNames, interOpCLGL interaction)
 {
   if (!m_init)
     return false;
@@ -657,7 +657,7 @@ bool Core::CL::Context::interactWithGLBuffers(const std::vector<std::string>& GL
   return true;
 }
 
-bool Core::CL::Context::mapAndSendBufferToDevice(std::string bufferName, const void* bufferPtr, size_t bufferSize)
+bool Physics::CL::Context::mapAndSendBufferToDevice(std::string bufferName, const void* bufferPtr, size_t bufferSize)
 {
   if (!m_init || bufferPtr == nullptr)
     return false;

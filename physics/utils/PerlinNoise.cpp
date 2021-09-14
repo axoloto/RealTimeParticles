@@ -4,7 +4,7 @@
 #include <numeric>
 #include <random>
 
-using namespace Core;
+using namespace Physics;
 
 PerlinNoise::PerlinNoise(int seed)
 {

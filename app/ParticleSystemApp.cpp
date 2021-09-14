@@ -226,7 +226,7 @@ bool ParticleSystemApp::initGraphicsEngine()
 
 bool ParticleSystemApp::initPhysicsEngine(PhysicsModel model)
 {
-  Core::ModelParams params;
+  Physics::ModelParams params;
   params.currNbParticles = ALL_NB_PARTICLES.cbegin()->first;
   params.maxNbParticles = ALL_NB_PARTICLES.crbegin()->first;
   params.boxSize = BOX_SIZE;
@@ -239,10 +239,10 @@ bool ParticleSystemApp::initPhysicsEngine(PhysicsModel model)
   switch ((int)model)
   {
   case PhysicsModel::BOIDS:
-    m_physicsEngine = std::make_unique<Core::Boids>(params);
+    m_physicsEngine = std::make_unique<Physics::Boids>(params);
     break;
   case PhysicsModel::FLUIDS:
-    m_physicsEngine = std::make_unique<Core::Fluids>(params);
+    m_physicsEngine = std::make_unique<Physics::Fluids>(params);
     break;
   }
 
@@ -389,18 +389,18 @@ void ParticleSystemApp::displayMainWidget()
     ImGui::EndCombo();
   }
 
-  bool isSystemDim2D = (m_physicsEngine->dimension() == Core::Dimension::dim2D);
+  bool isSystemDim2D = (m_physicsEngine->dimension() == Physics::Dimension::dim2D);
   if (ImGui::Checkbox("2D", &isSystemDim2D))
   {
-    m_physicsEngine->setDimension(isSystemDim2D ? Core::Dimension::dim2D : Core::Dimension::dim3D);
+    m_physicsEngine->setDimension(isSystemDim2D ? Physics::Dimension::dim2D : Physics::Dimension::dim3D);
   }
 
   ImGui::SameLine();
 
-  bool isSystemDim3D = (m_physicsEngine->dimension() == Core::Dimension::dim3D);
+  bool isSystemDim3D = (m_physicsEngine->dimension() == Physics::Dimension::dim3D);
   if (ImGui::Checkbox("3D", &isSystemDim3D))
   {
-    m_physicsEngine->setDimension(isSystemDim3D ? Core::Dimension::dim3D : Core::Dimension::dim2D);
+    m_physicsEngine->setDimension(isSystemDim3D ? Physics::Dimension::dim3D : Physics::Dimension::dim2D);
   }
 
   ImGui::SameLine();
@@ -449,7 +449,7 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Spacing();
   ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
-  Core::CL::Context& clContext = Core::CL::Context::Get();
+  Physics::CL::Context& clContext = Physics::CL::Context::Get();
   bool isProfiling = clContext.isProfiling();
   if (ImGui::Checkbox(" GPU Profiler ", &isProfiling))
   {

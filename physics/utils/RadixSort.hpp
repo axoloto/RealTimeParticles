@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <chrono>
 #include <random>
-namespace Core
+namespace Physics
 {
 template <typename T, typename U>
 bool checkPermutation(const std::vector<T>& keysAfterSort,

@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace Core
+namespace Physics
 {
 namespace CL
 {

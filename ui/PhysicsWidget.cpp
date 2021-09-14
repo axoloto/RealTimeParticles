@@ -4,8 +4,8 @@
 
 void UI::PhysicsWidget::display()
 {
-  auto* boidsEngine = dynamic_cast<Core::Boids*>(m_physicsEngine.get());
-  auto* fluidsEngine = dynamic_cast<Core::Fluids*>(m_physicsEngine.get());
+  auto* boidsEngine = dynamic_cast<Physics::Boids*>(m_physicsEngine.get());
+  auto* fluidsEngine = dynamic_cast<Physics::Fluids*>(m_physicsEngine.get());
 
   if (boidsEngine)
     displayBoidsParameters(boidsEngine);
@@ -13,13 +13,13 @@ void UI::PhysicsWidget::display()
     displayFluidsParameters(fluidsEngine);
 }
 
-void UI::PhysicsWidget::displayFluidsParameters(Core::Fluids* fluidsEngine)
+void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
 {
   if (!fluidsEngine)
     return;
 }
 
-void UI::PhysicsWidget::displayBoidsParameters(Core::Boids* boidsEngine)
+void UI::PhysicsWidget::displayBoidsParameters(Physics::Boids* boidsEngine)
 {
   if (!boidsEngine)
     return;
@@ -140,24 +140,24 @@ void UI::PhysicsWidget::displayBoidsParameters(Core::Boids* boidsEngine)
   ImGui::Text(" Boundary ");
   ImGui::Spacing();
 
-  bool isBouncingWall = (boidsEngine->boundary() == Core::Boundary::BouncingWall);
+  bool isBouncingWall = (boidsEngine->boundary() == Physics::Boundary::BouncingWall);
   if (ImGui::Checkbox("Bouncing Wall", &isBouncingWall))
   {
     if (isBouncingWall)
-      boidsEngine->setBoundary(Core::Boundary::BouncingWall);
+      boidsEngine->setBoundary(Physics::Boundary::BouncingWall);
     else
-      boidsEngine->setBoundary(Core::Boundary::CyclicWall);
+      boidsEngine->setBoundary(Physics::Boundary::CyclicWall);
   }
 
   ImGui::SameLine();
 
-  bool isCyclicWall = (boidsEngine->boundary() == Core::Boundary::CyclicWall);
+  bool isCyclicWall = (boidsEngine->boundary() == Physics::Boundary::CyclicWall);
   if (ImGui::Checkbox("Cyclic Wall", &isCyclicWall))
   {
     if (isCyclicWall)
-      boidsEngine->setBoundary(Core::Boundary::CyclicWall);
+      boidsEngine->setBoundary(Physics::Boundary::CyclicWall);
     else
-      boidsEngine->setBoundary(Core::Boundary::BouncingWall);
+      boidsEngine->setBoundary(Physics::Boundary::BouncingWall);
   }
 
   ImGui::End();

@@ -4,7 +4,7 @@
 #include <math.h>
 #include <spdlog/spdlog.h>
 
-using namespace Core;
+using namespace Physics;
 
 Target::Target(size_t boxSize, Math::float3 initPos)
     : m_pNoiseTheta(PerlinNoise(1))
