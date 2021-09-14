@@ -1,11 +1,12 @@
 #include "Boids.hpp"
 #include "FileUtils.hpp"
 
+#include "Logging.hpp"
 #include <ctime>
 #include <iomanip>
 #include <iostream>
-#include <spdlog/spdlog.h>
 #include <sstream>
+
 
 using namespace Physics;
 

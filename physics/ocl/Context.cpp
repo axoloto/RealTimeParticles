@@ -9,10 +9,11 @@
 #endif
 
 #include "Context.hpp"
+#include "Logging.hpp"
 #include <fstream>
 #include <iostream>
-#include <spdlog/spdlog.h>
 #include <vector>
+
 
 Physics::CL::Context& Physics::CL::Context::Get()
 {
@@ -41,13 +42,13 @@ Physics::CL::Context::Context()
 
 bool Physics::CL::Context::findPlatforms()
 {
-  spdlog::info("Searching for OpenCL platforms");
+  LOG_INFO("Searching for OpenCL platforms");
 
   cl::Platform::get(&m_allPlatforms);
 
   if (m_allPlatforms.empty())
   {
-    spdlog::error("No OpenCL platform found");
+    LOG_ERROR("No OpenCL platform found");
     return false;
   }
 
@@ -55,7 +56,7 @@ bool Physics::CL::Context::findPlatforms()
   {
     std::string platformName;
     platform.getInfo(CL_PLATFORM_NAME, &platformName);
-    spdlog::info("Found OpenCL platform : {}", platformName);
+    LOG_INFO("Found OpenCL platform : {}", platformName);
   }
 
   return true;
@@ -63,7 +64,7 @@ bool Physics::CL::Context::findPlatforms()
 
 bool Physics::CL::Context::findGPUDevices()
 {
-  spdlog::info("Searching for GPUs able to Interop OpenGL-OpenCL");
+  LOG_INFO("Searching for GPUs able to Interop OpenGL-OpenCL");
 
   for (const auto& platform : m_allPlatforms)
   {
@@ -88,7 +89,7 @@ bool Physics::CL::Context::findGPUDevices()
 
       if (extensions.find("cl_khr_gl_sharing") != std::string::npos)
       {
-        spdlog::info("Found GPU {} on platform {}", deviceName, platformName);
+        LOG_INFO("Found GPU {} on platform {}", deviceName, platformName);
         GPUsOnPlatformWithInteropCLGL.push_back(GPU);
       }
     }
@@ -99,7 +100,7 @@ bool Physics::CL::Context::findGPUDevices()
 
   if (m_allGPUsWithInteropCLGL.empty())
   {
-    spdlog::error("No GPU found with Interop OpenCL-OpenGL extension");
+    LOG_ERROR("No GPU found with Interop OpenCL-OpenGL extension");
     return false;
   }
 
@@ -112,7 +113,7 @@ bool Physics::CL::Context::createContext()
   // We need to create our OpenCL context on those ones in order to
   // have InterOp OpenGL-OpenCL and share GPU memory buffers without transfers
 
-  spdlog::info("Trying to create an OpenCL context");
+  LOG_INFO("Trying to create an OpenCL context");
 
   for (const auto& platformGPU : m_allGPUsWithInteropCLGL)
   {
@@ -152,13 +153,13 @@ bool Physics::CL::Context::createContext()
         GPU.getInfo(CL_DEVICE_NAME, &deviceName);
         cl_device = GPU;
 
-        spdlog::info("Success! Created an OpenCL context with platform {} and GPU {}", platformName, deviceName);
+        LOG_INFO("Success! Created an OpenCL context with platform {} and GPU {}", platformName, deviceName);
         return true;
       }
     }
   }
 
-  spdlog::error("Error while creating OpenCL context");
+  LOG_ERROR("Error while creating OpenCL context");
   return false;
 }
 
@@ -173,7 +174,7 @@ bool Physics::CL::Context::createCommandQueue()
   cl_queue = cl::CommandQueue(cl_context, cl_device, properties, &err);
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot create OpenCL queue");
+    LOG_ERROR("Cannot create OpenCL queue");
     return false;
   }
   return true;
@@ -184,7 +185,7 @@ bool Physics::CL::Context::release()
   if (!m_init)
     return true;
 
-  spdlog::debug("Physics::CL::Context::release - Context has been cleaned");
+  LOG_DEBUG("Physics::CL::Context::release - Context has been cleaned");
 
   m_programsMap.clear();
   m_kernelsMap.clear();
@@ -210,7 +211,7 @@ bool Physics::CL::Context::createProgram(std::string programName, std::string so
   cl_int err = program.build({ cl_device }, options.c_str());
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Error while building OpenCL program : {}", program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
+    LOG_ERROR("Error while building OpenCL program : {}", program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
     throw std::runtime_error(" Exiting Program ");
     return false;
   }
@@ -229,7 +230,7 @@ bool Physics::CL::Context::createBuffer(std::string bufferName, size_t bufferSiz
 
   if (m_buffersMap.find(bufferName) != m_buffersMap.end())
   {
-    spdlog::error("Buffer {} already existing", bufferName);
+    LOG_ERROR("Buffer {} already existing", bufferName);
     return false;
   }
 
@@ -237,7 +238,7 @@ bool Physics::CL::Context::createBuffer(std::string bufferName, size_t bufferSiz
 
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot create buffer {}", bufferName);
+    LOG_ERROR("Cannot create buffer {}", bufferName);
     return false;
   }
 
@@ -255,7 +256,7 @@ bool Physics::CL::Context::createImage2D(std::string name, imageSpecs specs, cl_
 
   if (m_imagesMap.find(name) != m_imagesMap.end())
   {
-    spdlog::error("Image {} already existing", name);
+    LOG_ERROR("Image {} already existing", name);
     return false;
   }
 
@@ -265,7 +266,7 @@ bool Physics::CL::Context::createImage2D(std::string name, imageSpecs specs, cl_
 
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot create image {}", name);
+    LOG_ERROR("Cannot create image {}", name);
     return false;
   }
 
@@ -284,7 +285,7 @@ bool Physics::CL::Context::loadBufferFromHost(std::string bufferName, size_t off
   auto it = m_buffersMap.find(bufferName);
   if (it == m_buffersMap.end())
   {
-    spdlog::error("Buffer {} not existing", bufferName);
+    LOG_ERROR("Buffer {} not existing", bufferName);
     return false;
   }
 
@@ -292,7 +293,7 @@ bool Physics::CL::Context::loadBufferFromHost(std::string bufferName, size_t off
 
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot load buffer {}", bufferName);
+    LOG_ERROR("Cannot load buffer {}", bufferName);
     return false;
   }
 
@@ -315,7 +316,7 @@ bool Physics::CL::Context::unloadBufferFromDevice(std::string bufferName, size_t
 
     if (itSrcGL == m_GLBuffersMap.end())
     {
-      spdlog::error("Buffer {} not existing", bufferName);
+      LOG_ERROR("Buffer {} not existing", bufferName);
       return false;
     }
     else
@@ -330,7 +331,7 @@ bool Physics::CL::Context::unloadBufferFromDevice(std::string bufferName, size_t
 
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot unload buffer {}", bufferName);
+    LOG_ERROR("Cannot unload buffer {}", bufferName);
     return false;
   }
 
@@ -345,14 +346,14 @@ bool Physics::CL::Context::swapBuffers(std::string bufferNameA, std::string buff
   auto& itA = m_buffersMap.find(bufferNameA);
   if (itA == m_buffersMap.end())
   {
-    spdlog::error("Cannot swap buffers, buffer {} not existing", bufferNameA);
+    LOG_ERROR("Cannot swap buffers, buffer {} not existing", bufferNameA);
     return false;
   }
 
   auto& itB = m_buffersMap.find(bufferNameB);
   if (itB == m_buffersMap.end())
   {
-    spdlog::error("Cannot swap buffers, buffer {} not existing", bufferNameB);
+    LOG_ERROR("Cannot swap buffers, buffer {} not existing", bufferNameB);
     return false;
   }
 
@@ -380,7 +381,7 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
 
     if (itSrcGL == m_GLBuffersMap.end())
     {
-      spdlog::error("Cannot copy buffers, source buffer {} not existing", srcBufferName);
+      LOG_ERROR("Cannot copy buffers, source buffer {} not existing", srcBufferName);
       return false;
     }
     else
@@ -396,7 +397,7 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
   auto& itDst = m_buffersMap.find(dstBufferName);
   if (itDst == m_buffersMap.end())
   {
-    spdlog::error("Cannot copy buffers, destination buffer {} not existing", dstBufferName);
+    LOG_ERROR("Cannot copy buffers, destination buffer {} not existing", dstBufferName);
     return false;
   }
 
@@ -406,7 +407,7 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
 
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot get size from buffer {}", dstBufferName);
+    LOG_ERROR("Cannot get size from buffer {}", dstBufferName);
     return false;
   }
 
@@ -415,20 +416,20 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
 
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot get size from buffer {}", srcBufferName);
+    LOG_ERROR("Cannot get size from buffer {}", srcBufferName);
     return false;
   }
 
   if (dstBufferSize > srcBufferSize)
   {
-    spdlog::error("Source buffer {} with size {} is smaller than destination buffer {} with size {} ", srcBufferName, srcBufferSize, dstBufferName, dstBufferSize);
+    LOG_ERROR("Source buffer {} with size {} is smaller than destination buffer {} with size {} ", srcBufferName, srcBufferSize, dstBufferName, dstBufferSize);
     return false;
   }
 
   err = cl_queue.flush();
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot flush Opencl before copying buffer");
+    LOG_ERROR("Cannot flush Opencl before copying buffer");
   }
 
   // Only copying the amount of data which can fit into the destination buffer
@@ -436,7 +437,7 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
 
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot copy buffer {} to buffer {}", srcBufferName, dstBufferName);
+    LOG_ERROR("Cannot copy buffer {} to buffer {}", srcBufferName, dstBufferName);
     return false;
   }
 
@@ -480,13 +481,13 @@ bool Physics::CL::Context::createKernel(std::string programName, std::string ker
 
   if (m_programsMap.find(programName) == m_programsMap.end())
   {
-    spdlog::error("OpenCL program not existing {}", programName);
+    LOG_ERROR("OpenCL program not existing {}", programName);
     return false;
   }
 
   if (m_kernelsMap.find(kernelName) != m_kernelsMap.end())
   {
-    spdlog::error("OpenCL kernel already existing {}", kernelName);
+    LOG_ERROR("OpenCL kernel already existing {}", kernelName);
     return false;
   }
 
@@ -494,7 +495,7 @@ bool Physics::CL::Context::createKernel(std::string programName, std::string ker
 
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot create OpenCL kernel {} ", kernelName);
+    LOG_ERROR("Cannot create OpenCL kernel {} ", kernelName);
     return false;
   }
 
@@ -520,7 +521,7 @@ bool Physics::CL::Context::createKernel(std::string programName, std::string ker
     }
     else
     {
-      spdlog::error("For kernel {} arg not existing {}", kernelName, argNames[i]);
+      LOG_ERROR("For kernel {} arg not existing {}", kernelName, argNames[i]);
       return false;
     }
   }
@@ -538,7 +539,7 @@ bool Physics::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex
   auto it = m_kernelsMap.find(kernelName);
   if (it == m_kernelsMap.end())
   {
-    spdlog::error("Cannot set arg {} for unexisting Kernel {}", argIndex, kernelName);
+    LOG_ERROR("Cannot set arg {} for unexisting Kernel {}", argIndex, kernelName);
     return false;
   }
 
@@ -547,7 +548,7 @@ bool Physics::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex
 
   if (err != CL_SUCCESS)
   {
-    spdlog::error("Cannot set arg {} for kernel {} ", argIndex, kernelName);
+    LOG_ERROR("Cannot set arg {} for kernel {} ", argIndex, kernelName);
     return false;
   }
 
@@ -562,7 +563,7 @@ bool Physics::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex
   auto itK = m_kernelsMap.find(kernelName);
   if (itK == m_kernelsMap.end())
   {
-    spdlog::error("Cannot set arg {} for unexisting Kernel {}", argName, kernelName);
+    LOG_ERROR("Cannot set arg {} for unexisting Kernel {}", argName, kernelName);
     return false;
   }
 
@@ -586,7 +587,7 @@ bool Physics::CL::Context::setKernelArg(std::string kernelName, cl_uint argIndex
   }
   else
   {
-    spdlog::error("For kernel {} arg not existing {}", kernelName, argName);
+    LOG_ERROR("For kernel {} arg not existing {}", kernelName, argName);
     return false;
   }
 
@@ -601,7 +602,7 @@ bool Physics::CL::Context::runKernel(std::string kernelName, size_t numGlobalWor
   auto it = m_kernelsMap.find(kernelName);
   if (it == m_kernelsMap.end())
   {
-    spdlog::error("Cannot run unexisting Kernel {}", kernelName);
+    LOG_ERROR("Cannot run unexisting Kernel {}", kernelName);
     return false;
   }
 
@@ -618,13 +619,13 @@ bool Physics::CL::Context::runKernel(std::string kernelName, size_t numGlobalWor
     err = cl_queue.flush();
     if (err != CL_SUCCESS)
     {
-      spdlog::error("Cannot flush Opencl run");
+      LOG_ERROR("Cannot flush Opencl run");
     }
 
     err = cl_queue.finish();
     if (err != CL_SUCCESS)
     {
-      spdlog::error("Cannot finish Opencl run");
+      LOG_ERROR("Cannot finish Opencl run");
       throw 1;
     }
 
@@ -635,7 +636,7 @@ bool Physics::CL::Context::runKernel(std::string kernelName, size_t numGlobalWor
     double profilingTimeMs = (double)((cl_double)(end - start) * (1e-06));
 
     if (profilingTimeMs > 1.0)
-      spdlog::info("Profiling kernel {} : {} ms", kernelName, profilingTimeMs);
+      LOG_INFO("Profiling kernel {} : {} ms", kernelName, profilingTimeMs);
   }
 
   return true;

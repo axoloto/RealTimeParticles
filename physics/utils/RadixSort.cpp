@@ -1,11 +1,12 @@
 #include "RadixSort.hpp"
 #include "FileUtils.hpp"
 
+#include "Logging.hpp"
 #include <ctime>
 #include <iostream>
 #include <numeric>
-#include <spdlog/spdlog.h>
 #include <sstream>
+
 
 using namespace Physics;
 
@@ -30,27 +31,27 @@ RadixSort::RadixSort(size_t numEntities)
   m_numRadixPasses = m_numTotalBits / m_numRadixBits;
 
   if (m_numEntities % (m_numGroups * m_numItems) != 0)
-    spdlog::error("Radix sort not supporting arrays of size {}, only ones whose size is multiple of {} ", m_numEntities, m_numGroups * m_numItems);
+    LOG_ERROR("Radix sort not supporting arrays of size {}, only ones whose size is multiple of {} ", m_numEntities, m_numGroups * m_numItems);
 
   if (!createProgram())
   {
-    spdlog::error("Failed to initialize radix sort program");
+    LOG_ERROR("Failed to initialize radix sort program");
     return;
   }
 
   if (!createBuffers())
   {
-    spdlog::error("Failed to initialize radix sort buffers");
+    LOG_ERROR("Failed to initialize radix sort buffers");
     return;
   }
 
   if (!createKernels())
   {
-    spdlog::error("Failed to initialize radix sort kernels");
+    LOG_ERROR("Failed to initialize radix sort kernels");
     return;
   }
 
-  spdlog::info("Radix sort correctly initialized");
+  LOG_INFO("Radix sort correctly initialized");
 }
 
 bool RadixSort::createProgram() const

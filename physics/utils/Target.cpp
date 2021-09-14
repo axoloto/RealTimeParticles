@@ -1,8 +1,9 @@
 #include "Target.hpp"
+#include "Logging.hpp"
 #include <algorithm>
 #include <cmath>
 #include <math.h>
-#include <spdlog/spdlog.h>
+
 
 using namespace Physics;
 

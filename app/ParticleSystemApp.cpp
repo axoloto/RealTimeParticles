@@ -4,6 +4,7 @@
 #include "Boids.hpp"
 #include "Fluids.hpp"
 
+#include "Logging.hpp"
 #include "Parameters.hpp"
 
 #include <imgui.h>
@@ -12,9 +13,6 @@
 
 #include <glad/glad.h>
 #include <sdl2/SDL.h>
-#include <spdlog/spdlog.h>
-
-#include "Logging.hpp"
 
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
@@ -29,7 +27,7 @@ bool ParticleSystemApp::initWindow()
   // Setup SDL
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
   {
-    spdlog::error("Error: {}", SDL_GetError());
+    LOG_ERROR("Error: {}", SDL_GetError());
     return false;
   }
 
@@ -56,7 +54,7 @@ bool ParticleSystemApp::initWindow()
 
   if (err)
   {
-    spdlog::error("Failed to initialize OpenGL loader!");
+    LOG_ERROR("Failed to initialize OpenGL loader!");
     return false;
   }
 
@@ -185,29 +183,29 @@ ParticleSystemApp::ParticleSystemApp()
 {
   if (!initWindow())
   {
-    spdlog::error("Failed to initialize application window");
+    LOG_ERROR("Failed to initialize application window");
     return;
   }
 
   if (!initGraphicsEngine())
   {
-    spdlog::error("Failed to initialize graphics engine");
+    LOG_ERROR("Failed to initialize graphics engine");
     return;
   }
 
   if (!initPhysicsEngine(Physics::ModelType::BOIDS))
   {
-    spdlog::error("Failed to initialize physics engine");
+    LOG_ERROR("Failed to initialize physics engine");
     return;
   }
 
   if (!initPhysicsWidget())
   {
-    spdlog::error("Failed to initialize physics widget");
+    LOG_ERROR("Failed to initialize physics widget");
     return;
   }
 
-  spdlog::info("Application correctly initialized");
+  LOG_INFO("Application correctly initialized");
 
   m_init = true;
 }
@@ -240,7 +238,7 @@ bool ParticleSystemApp::initPhysicsEngine(Physics::ModelType model)
 
   if (m_physicsEngine)
   {
-    spdlog::debug("Physics engine already existing, removing it");
+    LOG_DEBUG("Physics engine already existing, removing it");
     m_physicsEngine.reset();
   }
 
@@ -333,17 +331,17 @@ void ParticleSystemApp::displayMainWidget()
       {
         if (!initPhysicsEngine(model.first))
         {
-          spdlog::error("Failed to change physics engine");
+          LOG_ERROR("Failed to change physics engine");
           return;
         }
 
         if (!initPhysicsWidget())
         {
-          spdlog::error("Failed to change physics widget");
+          LOG_ERROR("Failed to change physics widget");
           return;
         }
 
-        spdlog::info("Application correctly switched to {}", Physics::ALL_MODELS.find(selModelType)->second);
+        LOG_INFO("Application correctly switched to {}", Physics::ALL_MODELS.find(selModelType)->second);
 
         selModelType = model.first;
       }
@@ -479,16 +477,9 @@ bool ParticleSystemApp::popUpErrorMessage(std::string errorMessage)
 
 } // End namespace App
 
-auto initializeLogger()
-{
-  spdlog::set_level(spdlog::level::debug);
-  spdlog::set_pattern("[%H:%M:%S] [thread %t] [%!] %v");
-}
-
 int main(int, char**)
 {
-  initializeLogger();
-  LOG_DEBUG("Render: Shader linking failed {}, {}", 1, 2);
+  Utils::InitializeLogger();
 
   App::ParticleSystemApp app;
 

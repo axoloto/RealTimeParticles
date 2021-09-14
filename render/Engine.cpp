@@ -1,7 +1,8 @@
 #include "Engine.hpp"
 #include "GLSL.hpp"
+#include "Logging.hpp"
 #include "Math.hpp"
-#include <spdlog/spdlog.h>
+
 
 using namespace Render;
 

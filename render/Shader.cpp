@@ -1,8 +1,8 @@
 
 #include "Shader.hpp"
 #include "GLSL.hpp"
+#include "Logging.hpp"
 #include <iostream>
-#include <spdlog/spdlog.h>
 
 using namespace Render;
 
@@ -20,7 +20,7 @@ Shader::Shader(const char* vert, const char* frag)
 
   if (status == GL_FALSE)
   {
-    spdlog::error("Render: Shader linking failed");
+    LOG_ERROR("Render: Shader linking failed");
     return;
   }
 }
@@ -43,7 +43,7 @@ void Shader::compileShader(GLenum type, const char* source)
 
   if (status == GL_FALSE)
   {
-    spdlog::error("Render: Shader creation failed");
+    LOG_ERROR("Render: Shader creation failed");
     return;
   }
 
