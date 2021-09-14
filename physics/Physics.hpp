@@ -29,10 +29,10 @@ struct ModelParams
   unsigned int gridVBO = 0;
 };
 
-class Physics
+class Model
 {
   public:
-  Physics(ModelParams params, Dimension dimension = Dimension::dim2D)
+  Model(ModelParams params, Dimension dimension = Dimension::dim2D)
       : m_maxNbParticles(params.maxNbParticles)
       , m_currNbParticles(params.currNbParticles)
       , m_boxSize(params.boxSize)
@@ -47,7 +47,7 @@ class Physics
       , m_init(false)
       , m_pause(false) {};
 
-  virtual ~Physics() = default;
+  virtual ~Model() = default;
 
   size_t maxNbParticles() const { return m_maxNbParticles; }
 

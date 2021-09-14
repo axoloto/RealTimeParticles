@@ -12,7 +12,7 @@
 namespace Core
 {
 using clock = std::chrono::high_resolution_clock;
-class Fluids : public Physics
+class Fluids : public Model
 {
   public:
   Fluids(ModelParams params);

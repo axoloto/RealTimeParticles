@@ -30,7 +30,7 @@ class ParticleSystemApp
   void displayMainWidget();
   bool popUpErrorMessage(std::string errorMessage);
 
-  std::shared_ptr<Core::Physics> m_physicsEngine;
+  std::shared_ptr<Core::Model> m_physicsEngine;
   std::unique_ptr<Render::OGLRender> m_graphicsEngine;
   std::unique_ptr<UI::PhysicsWidget> m_physicsWidget;
 

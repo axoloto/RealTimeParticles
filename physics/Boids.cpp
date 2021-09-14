@@ -32,7 +32,7 @@ using namespace Core;
 #define KERNEL_ADD_TARGET_RULE "addTargetRule"
 
 Boids::Boids(ModelParams params)
-    : Physics(params)
+    : Model(params)
     , m_scaleAlignment(1.6f)
     , m_scaleCohesion(1.45f)
     , m_scaleSeparation(1.6f)
