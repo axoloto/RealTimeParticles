@@ -11,6 +11,6 @@ namespace Utils
 inline auto InitializeLogger()
 {
   spdlog::set_level(spdlog::level::debug);
-  spdlog::set_pattern("[%H:%M:%S] [thread %t] [%!] %v");
+  spdlog::set_pattern("[%H:%M:%S] [thread %t] [%l] [%!] %v");
 }
 }

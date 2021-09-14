@@ -179,6 +179,7 @@ ParticleSystemApp::ParticleSystemApp()
     , m_buttonRightActivated(false)
     , m_buttonLeftActivated(false)
     , m_windowSize(1280, 720)
+    , m_currNbParticles(ALL_NB_PARTICLES.cbegin()->first)
     , m_init(false)
 {
   if (!initWindow())
@@ -213,7 +214,7 @@ ParticleSystemApp::ParticleSystemApp()
 bool ParticleSystemApp::initGraphicsEngine()
 {
   Render::EngineParams params;
-  params.currNbParticles = ALL_NB_PARTICLES.cbegin()->first;
+  params.currNbParticles = m_currNbParticles;
   params.maxNbParticles = ALL_NB_PARTICLES.crbegin()->first;
   params.boxSize = BOX_SIZE;
   params.gridRes = GRID_RES;
@@ -227,7 +228,7 @@ bool ParticleSystemApp::initGraphicsEngine()
 bool ParticleSystemApp::initPhysicsEngine(Physics::ModelType model)
 {
   Physics::ModelParams params;
-  params.currNbParticles = ALL_NB_PARTICLES.cbegin()->first;
+  params.currNbParticles = m_currNbParticles;
   params.maxNbParticles = ALL_NB_PARTICLES.crbegin()->first;
   params.boxSize = BOX_SIZE;
   params.gridRes = GRID_RES;
@@ -341,6 +342,9 @@ void ParticleSystemApp::displayMainWidget()
           return;
         }
 
+        m_physicsEngine->setNbParticles(m_currNbParticles);
+        m_graphicsEngine->setNbParticles(m_currNbParticles);
+
         LOG_INFO("Application correctly switched to {}", Physics::ALL_MODELS.find(selModelType)->second);
 
         selModelType = model.first;
@@ -364,22 +368,21 @@ void ParticleSystemApp::displayMainWidget()
   }
 
   // Selection of the number of particles in the model
-  static NbParticles selNbParticles = ALL_NB_PARTICLES.cbegin()->first;
-
-  const auto& nbParticlesStr = (ALL_NB_PARTICLES.find(selNbParticles) != ALL_NB_PARTICLES.end())
-      ? ALL_NB_PARTICLES.find(selNbParticles)->second
+  const auto& nbParticlesStr = (ALL_NB_PARTICLES.find(m_currNbParticles) != ALL_NB_PARTICLES.end())
+      ? ALL_NB_PARTICLES.find(m_currNbParticles)->second
       : ALL_NB_PARTICLES.cbegin()->second;
 
   if (ImGui::BeginCombo("Particles", nbParticlesStr.c_str()))
   {
     for (const auto& nbParticlesPair : ALL_NB_PARTICLES)
     {
-      if (ImGui::Selectable(nbParticlesPair.second.c_str(), selNbParticles == nbParticlesPair.first))
+      if (ImGui::Selectable(nbParticlesPair.second.c_str(), m_currNbParticles == nbParticlesPair.first))
       {
         m_physicsEngine->setNbParticles(nbParticlesPair.first);
-        m_physicsEngine->reset();
         m_graphicsEngine->setNbParticles(nbParticlesPair.first);
-        selNbParticles = nbParticlesPair.first;
+        m_physicsEngine->reset();
+
+        m_currNbParticles = nbParticlesPair.first;
       }
     }
     ImGui::EndCombo();

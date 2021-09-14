@@ -38,6 +38,7 @@ class ParticleSystemApp
   SDL_GLContext m_OGLContext;
 
   std::string m_nameApp;
+  NbParticles m_currNbParticles;
   Math::int2 m_windowSize;
   Math::int2 m_mousePrevPos;
   ImVec4 m_backGroundColor;
