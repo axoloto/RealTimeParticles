@@ -34,7 +34,7 @@ class Context
   bool isProfiling() const { return m_isKernelProfilingEnabled; }
   void enableProfiler(bool enable) { m_isKernelProfilingEnabled = enable; }
 
-  bool createProgram(std::string name, std::string sourcePath, std::string specificBuildOptions);
+  bool createProgram(std::string name, std::string sourceName, std::string specificBuildOptions);
   bool createGLBuffer(std::string name, unsigned int VBOIndex, cl_mem_flags memoryFlags);
   bool createBuffer(std::string name, size_t bufferSize, cl_mem_flags memoryFlags);
   bool createImage2D(std::string name, imageSpecs specs, cl_mem_flags memoryFlags);

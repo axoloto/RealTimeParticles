@@ -7,7 +7,6 @@
 #include <iostream>
 #include <sstream>
 
-
 using namespace Physics;
 
 #define PROGRAM_BOIDS "boids"
@@ -68,7 +67,7 @@ bool Boids::createProgram() const
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
 
-  clContext.createProgram(PROGRAM_BOIDS, FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\boids.cl", clBuildOptions.str());
+  clContext.createProgram(PROGRAM_BOIDS, "boids.cl", clBuildOptions.str());
 
   return true;
 }

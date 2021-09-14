@@ -1,12 +1,10 @@
 #include "RadixSort.hpp"
-#include "FileUtils.hpp"
 
 #include "Logging.hpp"
 #include <ctime>
 #include <iostream>
 #include <numeric>
 #include <sstream>
-
 
 using namespace Physics;
 
@@ -68,7 +66,7 @@ bool RadixSort::createProgram() const
     clBuildOptions << " -DHOST_PTR_IS_32bit";
   }
 
-  if (!clContext.createProgram(PROGRAM_RADIXSORT, FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\radixSort.cl", clBuildOptions.str()))
+  if (!clContext.createProgram(PROGRAM_RADIXSORT, "radixSort.cl", clBuildOptions.str()))
     return false;
 
   return true;

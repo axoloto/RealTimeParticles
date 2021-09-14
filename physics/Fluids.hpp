@@ -12,6 +12,7 @@
 namespace Physics
 {
 using clock = std::chrono::high_resolution_clock;
+
 class Fluids : public Model
 {
   public:
