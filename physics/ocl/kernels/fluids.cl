@@ -81,7 +81,7 @@ __kernel void randPosVerts(//Output
   pos[ID].xyz = clamp(randomXYZ, -ABS_WALL_POS, ABS_WALL_POS);
   pos[ID].w = 0.0f;
 
-  vel[ID].xyz = clamp(randomXYZ, -50.0f, 50.0f);
+  vel[ID].xyz = (float3)(0.0f, 0.0f, 0.0f);
   vel[ID].w = 0.0f;
 }
 
@@ -233,15 +233,16 @@ __kernel void adjustEndCell(__global uint2 *cStartEndPartID)
   Predict fluid particle position and update velocity by integrating external forces
 */
 __kernel void predictPosition(//Input
-                              const __global float4 *pos,      // 0
+                              const __global float4 *pos,        // 0
                               //Input/Output
-                                    __global float4 *vel,      // 1
+                                    __global float4 *vel,        // 1
                               //Param
-                              const          float  timeStep,  // 2
+                              const          float  timeStep,    // 2
+                              const          float  maxVelocity, // 3
                               //Output
-                                    __global float4 *predPos)  // 3
+                                    __global float4 *predPos)    // 4
 {
-  vel[ID] += GRAVITY_ACC * timeStep;
+  vel[ID] += maxVelocity * GRAVITY_ACC * timeStep;
 
   predPos[ID] = pos[ID] + vel[ID] * timeStep;
 }
@@ -368,7 +369,7 @@ __kernel void updateVel(//Input
                               __global float4 *vel)        // 3
    
 {
-  vel[ID] = (predPos[ID] - pos[ID]) / timeStep;
+  vel[ID] =  (predPos[ID] - pos[ID]) / timeStep;
 }
 
 /*

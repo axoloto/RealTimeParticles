@@ -123,7 +123,7 @@ bool Fluids::createKernels() const
 
   // Position Based Fluids
   /// Position prediction
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_PREDICT_POS, { "p_pos", "p_vel", "", "p_predPos" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_PREDICT_POS, { "p_pos", "p_vel", "", "", "p_predPos" });
 
   /// Jacobi solver to correct position
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_DENSITY, { "p_predPos", "c_startEndPartID", "p_density" });
@@ -146,8 +146,7 @@ void Fluids::updateFluidsParamsInKernel()
   float dim = (m_dimension == Dimension::dim2D) ? 2.0f : 3.0f;
   clContext.setKernelArg(KERNEL_RANDOM_POS, 2, sizeof(float), &dim);
 
-  float vel = m_velocity;
-  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &vel);
+  clContext.setKernelArg(KERNEL_PREDICT_POS, 3, sizeof(float), &m_velocity);
 
   /*
   std::array<float, 8> boidsParams;
@@ -196,10 +195,11 @@ void Fluids::update()
   {
     auto currentTime = clock::now();
     float timeStep = (float)(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_time).count()) / 16.0f;
-    // Resetting it if pause mode activated for more than 0.5s
-    if (timeStep > 30.0f)
-      timeStep = 0.0f;
     m_time = currentTime;
+
+    // Skipping frame if timeStep is too large, was probably in pause
+    if (timeStep > 30.0f)
+      return;
 
     // Prediction on velocity and correction
     clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(float), &timeStep);
@@ -250,7 +250,7 @@ void Fluids::update()
 
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
 
-  m_radixSort.sort("p_cameraDist", { "p_pos", "p_vel" });
+  m_radixSort.sort("p_cameraDist", { "p_pos", "p_vel", "p_predPos" });
 
   clContext.releaseGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
 }
