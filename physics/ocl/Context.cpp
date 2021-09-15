@@ -196,16 +196,20 @@ bool Physics::CL::Context::release()
   return true;
 }
 
-bool Physics::CL::Context::createProgram(std::string programName, std::string sourceName, std::string specificBuildOptions)
+bool Physics::CL::Context::createProgram(std::string programName, std::vector<std::string> sourceNames, std::string specificBuildOptions)
 {
   if (!m_init)
     return false;
 
-  std::ifstream sourceFile(FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\" + sourceName);
-  std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
-  cl::Program::Sources source({ sourceCode });
+  cl::Program::Sources sources;
+  for (const auto& sourceName : sourceNames)
+  {
+    std::ifstream sourceFile(FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\" + sourceName);
+    std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
+    sources.push_back(sourceCode);
+  }
 
-  auto program = cl::Program(cl_context, source);
+  auto program = cl::Program(cl_context, sources);
 
   std::string options = specificBuildOptions + std::string(" -cl-denorms-are-zero -cl-fast-relaxed-math");
   cl_int err = program.build({ cl_device }, options.c_str());

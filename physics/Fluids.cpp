@@ -11,15 +11,14 @@ using namespace Physics;
 
 #define PROGRAM_FLUIDS "fluids"
 
+// utils.cl
 #define KERNEL_INFINITE_POS "infPosVerts"
-#define KERNEL_RANDOM_POS "randPosVerts"
-#define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
-#define KERNEL_UPDATE_POS_CYCLIC "updatePosWithCyclicWalls"
-#define KERNEL_UPDATE_VEL "updateVel"
-#define KERNEL_FLUSH_GRID_DETECTOR "flushGridDetector"
-#define KERNEL_FILL_GRID_DETECTOR "fillGridDetector"
 #define KERNEL_RESET_CAMERA_DIST "resetCameraDist"
 #define KERNEL_FILL_CAMERA_DIST "fillCameraDist"
+
+// grid.cl
+#define KERNEL_FLUSH_GRID_DETECTOR "flushGridDetector"
+#define KERNEL_FILL_GRID_DETECTOR "fillGridDetector"
 #define KERNEL_RESET_CELL_ID "resetCellIDs"
 #define KERNEL_FILL_CELL_ID "fillCellIDs"
 #define KERNEL_FLUSH_START_END_CELL "flushStartEndCell"
@@ -27,6 +26,11 @@ using namespace Physics;
 #define KERNEL_FILL_END_CELL "fillEndCell"
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
+// fluids.cl
+#define KERNEL_RANDOM_POS "randPosVertsFluid"
+#define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
+#define KERNEL_UPDATE_POS_CYCLIC "updatePosWithCyclicWalls"
+#define KERNEL_UPDATE_VEL "updateVel"
 #define KERNEL_PREDICT_POS "predictPosition"
 #define KERNEL_DENSITY "computeDensity"
 #define KERNEL_CONSTRAINT_FACTOR "computeConstraintFactor"
@@ -72,7 +76,7 @@ bool Fluids::createProgram() const
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
   clBuildOptions << " -DREST_DENSITY" << 1.0f; // TODO
 
-  clContext.createProgram(PROGRAM_FLUIDS, "fluids.cl", clBuildOptions.str());
+  clContext.createProgram(PROGRAM_FLUIDS, std::vector<std::string>({ "fluids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
 
   return true;
 }

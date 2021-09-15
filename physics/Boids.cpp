@@ -11,21 +11,26 @@ using namespace Physics;
 
 #define PROGRAM_BOIDS "boids"
 
+// utils.cl
 #define KERNEL_INFINITE_POS "infPosVerts"
-#define KERNEL_RANDOM_POS "randPosVerts"
-#define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
-#define KERNEL_UPDATE_POS_CYCLIC "updatePosWithCyclicWalls"
-#define KERNEL_UPDATE_VEL "updateVel"
-#define KERNEL_FLUSH_GRID_DETECTOR "flushGridDetector"
-#define KERNEL_FILL_GRID_DETECTOR "fillGridDetector"
 #define KERNEL_RESET_CAMERA_DIST "resetCameraDist"
 #define KERNEL_FILL_CAMERA_DIST "fillCameraDist"
+
+// grid.cl
+#define KERNEL_FLUSH_GRID_DETECTOR "flushGridDetector"
+#define KERNEL_FILL_GRID_DETECTOR "fillGridDetector"
 #define KERNEL_RESET_CELL_ID "resetCellIDs"
 #define KERNEL_FILL_CELL_ID "fillCellIDs"
 #define KERNEL_FLUSH_START_END_CELL "flushStartEndCell"
 #define KERNEL_FILL_START_CELL "fillStartCell"
 #define KERNEL_FILL_END_CELL "fillEndCell"
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
+
+// boids.cl
+#define KERNEL_RANDOM_POS "randPosVertsBoids"
+#define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
+#define KERNEL_UPDATE_POS_CYCLIC "updatePosWithCyclicWalls"
+#define KERNEL_UPDATE_VEL "updateVel"
 #define KERNEL_FILL_TEXT "fillBoidsTexture"
 #define KERNEL_BOIDS_RULES_GRID_2D "applyBoidsRulesWithGrid2D"
 #define KERNEL_BOIDS_RULES_GRID_3D "applyBoidsRulesWithGrid3D"
@@ -67,7 +72,7 @@ bool Boids::createProgram() const
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
 
-  clContext.createProgram(PROGRAM_BOIDS, "boids.cl", clBuildOptions.str());
+  clContext.createProgram(PROGRAM_BOIDS, std::vector<std::string>({ "boids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
 
   return true;
 }

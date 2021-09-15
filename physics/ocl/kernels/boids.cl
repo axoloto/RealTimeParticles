@@ -7,57 +7,28 @@
 
 #define MAX_STEERING  0.5f
 #define FLOAT_EPSILON 0.01f
-#define FAR_DIST      100000000.0f
 #define ID            get_global_id(0)
 
+// Defined in utils.cl
 /*
-  Random number generator
+  Random unsigned integer number generator
 */
-inline unsigned int parallelRNG(unsigned int i)
-{
-  unsigned int value = i;
+inline unsigned int parallelRNG(unsigned int i);
 
-  value = (value ^ 61) ^ (value >> 16);
-  value *= 9;
-  value ^= value << 4;
-  value *= 0x27d4eb2d;
-  value ^= value >> 15;
-
-  return value;
-}
-
+// Defined in grid.cl
 /*
-  Reset camera distance buffer
+  Compute 3D index of the cell containing given position
 */
-__kernel void resetCameraDist(__global uint *cameraDist)
-{
-  cameraDist[ID] = (uint)(FAR_DIST * 2);
-}
-
+inline int3 getCell3DIndexFromPos(float4 pos);
 /*
-  Fill camera distance buffer
+  Compute 1D index of the cell containing given position
 */
-__kernel void fillCameraDist(//Input
-                             const __global float4 *pos,          // 0
-                             const __global float3 *cameraPos,    // 1
-                             //Output
-                                   __global uint   *cameraDist)   // 2
-{
-  cameraDist[ID] = (uint)(FAR_DIST - fast_length(pos[ID].xyz - cameraPos[0].xyz));
-}
-
-/*
-  Fill position buffer with inf positions
-*/
-__kernel void infPosVerts(__global float4 *pos)
-{
-  pos[ID] = (float4)(FAR_DIST, FAR_DIST, FAR_DIST, 0.0f);
-}
+inline uint getCell1DIndexFromPos(float4 pos);
 
 /*
   Fill position buffer with random positions
 */
-__kernel void randPosVerts(//Output
+__kernel void randPosVertsBoids(//Output
                            __global float4 *pos, 
                            __global float4 *vel,
                            //Param
@@ -78,150 +49,6 @@ __kernel void randPosVerts(//Output
 
   vel[ID].xyz = clamp(randomXYZ, -50.0f, 50.0f);
   vel[ID].w = 0.0f;
-}
-
-/*
-  Compute 3D index of the cell containing given position
-*/
-inline int3 getCell3DIndexFromPos(float4 pos)
-{
-  const int cellSize = 2 * ABS_WALL_POS / GRID_RES;
-
-  // Moving particles in [0 - 2 * ABS_WALL_POS] to have coords matching with cellIndices
-  // Adding epsilon to avoid wrong indices if particle exactly on the ABS_WALL_POS
-  const float3 posXYZ = pos.xyz + ABS_WALL_POS - FLOAT_EPSILON;
-
-  const int3 cell3DIndex = convert_int3(posXYZ / cellSize);
-
-  return cell3DIndex;
-}
-
-/*
-  Compute 1D index of the cell containing given position
-*/
-inline uint getCell1DIndexFromPos(float4 pos)
-{
-  const int3 cell3DIndex = getCell3DIndexFromPos(pos);
-
-  const uint cell1DIndex = cell3DIndex.x * GRID_RES * GRID_RES
-                         + cell3DIndex.y * GRID_RES
-                         + cell3DIndex.z;
-
-  return cell1DIndex;
-}
-
-/*
-  Reset grid detector buffer. For rendering purpose only.
-*/
-__kernel void flushGridDetector(__global float8* gridDetector)
-{
-  gridDetector[ID] = 0.0f;
-}
-
-/*
-  Fill grid detector buffer. For rendering purpose only.
-*/
-__kernel void fillGridDetector(__global float4 *pPos,
-                               __global float8 *gridDetector)
-{
-  const float4 pos = pPos[ID];
-
-  const uint gridDetectorIndex = getCell1DIndexFromPos(pos);
-
-  if (gridDetectorIndex < GRID_NUM_CELLS)
-    gridDetector[gridDetectorIndex] = 1.0f;
-}
-
-/*
-  Reset cellID buffer. For radix sort purpose.
-*/
-__kernel void resetCellIDs(__global uint *pCellID)
-{
-  // For all particles, giving cell ID above any available one
-  // the ones not filled later (i.e not processed because index > nbParticles displayed)
-  // will be sorted at the end and not considered after sorting
-  pCellID[ID] = GRID_NUM_CELLS * 2 + ID;
-}
-
-/*
-  Fill cellID buffer. For radix sort purpose.
-*/
-__kernel void fillCellIDs(//Input
-                          const __global float4 *pPos,
-                          //Output
-                                __global uint   *pCellID)
-{
-  const float4 pos = pPos[ID];
-
-  const uint cell1DIndex = getCell1DIndexFromPos(pos);
-
-  pCellID[ID] = cell1DIndex;
-}
-
-/*
-  Flush startEndPartID buffer for each cell.
-*/
-__kernel void flushStartEndCell(__global uint2 *cStartEndPartID)
-{
-  // Flushing with 1 as starting index and 0 as ending index
-  // Little hack to bypass empty cell further in the boids algo
-  cStartEndPartID[ID] = (uint2)(1, 0);
-}
-
-/*
-  Find first partID for each cell.
-*/
-__kernel void fillStartCell(//Input
-                            const __global uint  *pCellID,
-                            //Output
-                                  __global uint2 *cStartEndPartID)
-{
-  const uint currentCellID = pCellID[ID];
-
-  if (ID > 0 && currentCellID < GRID_NUM_CELLS)
-  {
-    uint leftCellID = pCellID[ID - 1];
-    if (currentCellID != leftCellID)
-    {
-      // Found start
-      cStartEndPartID[currentCellID].x = ID;
-    }
-  }
-}
-
-/*
-  Find last partID for each cell.
-*/
-__kernel void fillEndCell(//Input
-                          const __global uint  *pCellID,
-                          //Output
-                                __global uint2 *cStartEndPartID)
-{
-  const uint currentCellID = pCellID[ID];
-
-  if (ID != get_global_size(0) && currentCellID < GRID_NUM_CELLS)
-  {
-    const uint rightCellID = pCellID[ID + 1];
-    if (currentCellID != rightCellID)
-    {
-      // Found end
-      cStartEndPartID[currentCellID].y = ID;
-    }
-  }
-}
-
-/* 
-  Adjust last partID for each cell, capping it with max number of parts in cell in simplified mode.
-*/
-__kernel void adjustEndCell(__global uint2 *cStartEndPartID)
-{
-  const uint2 startEnd = cStartEndPartID[ID];
-
-  if (startEnd.y > startEnd.x)
-  {
-    const uint newEnd = startEnd.x + min(startEnd.y - startEnd.x, (uint)NUM_MAX_PARTS_IN_CELL);
-    cStartEndPartID[ID] = (uint2)(startEnd.x, newEnd);
-  }
 }
 
 /*
