@@ -2,6 +2,7 @@
 #include "Logging.hpp"
 #include "Utils.hpp"
 
+#include <array>
 #include <ctime>
 #include <iomanip>
 #include <iostream>
@@ -76,9 +77,9 @@ bool Fluids::createProgram() const
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
-  clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * pow(effectRadius, 9))); //9
-  clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * pow(effectRadius, 6))); //6
-  clBuildOptions << " -DREST_DENSITY=" << Utils::FloatToStr(6000.0f); // TODO
+  clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9)));
+  clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * std::powf(effectRadius, 6)));
+  clBuildOptions << " -DREST_DENSITY=" << Utils::FloatToStr(3.0f); // TODO
   clBuildOptions << " -DRELAX_CFM=" << Utils::FloatToStr(600.0f); // TODO
 
   LOG_INFO(clBuildOptions.str());
@@ -181,8 +182,37 @@ void Fluids::reset()
   CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
-  clContext.runKernel(KERNEL_INFINITE_POS, m_maxNbParticles);
-  clContext.runKernel(KERNEL_RANDOM_POS, m_currNbParticles);
+
+  // WIP
+  //clContext.runKernel(KERNEL_INFINITE_POS, m_maxNbParticles);
+  //clContext.runKernel(KERNEL_RANDOM_POS, m_currNbParticles);
+
+  // Dam setup
+  float effectRadius = ((float)m_boxSize) / m_gridRes;
+  std::vector<std::array<float, 4>> pos;
+  pos.resize(m_maxNbParticles);
+  std::fill(pos.begin(), pos.end(), std::array<float, 4>({ -799999990.0f, 0.0f, 0.0f, 0.0f }));
+  int i = 0;
+  for (int ix = 0; ix < 8; ++ix)
+  {
+    for (int iy = 0; iy < 32; ++iy)
+    {
+      for (int iz = 0; iz < 16; ++iz)
+      {
+        pos[i++] = { ix * effectRadius / 2.0f - m_boxSize / 2.0f,
+          iy * effectRadius / 2.0f - m_boxSize / 2.0f,
+          iz * effectRadius / 2.0f - m_boxSize / 4.0f,
+          0.0f };
+      }
+    }
+  }
+
+  clContext.loadBufferFromHost("p_pos", 0, sizeof(float) * pos.size(), pos.data());
+
+  std::vector<std::array<float, 4>> posi(m_maxNbParticles, { 0, 0, 0, 0 });
+  clContext.unloadBufferFromDevice("p_pos", 0, sizeof(float) * posi.size(), posi.data());
+  // WIP
+
   clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_nbCells);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
 
@@ -238,6 +268,31 @@ void Fluids::update()
       clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION, m_currNbParticles);
       // Correcting predicted position
       clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
+
+      // WIP
+      if (1)
+      {
+        std::vector<float> density(m_maxNbParticles, 0);
+        clContext.unloadBufferFromDevice("p_density", 0, sizeof(float) * density.size(), density.data());
+
+        std::vector<unsigned int> cellIDs(m_maxNbParticles, 0);
+        clContext.unloadBufferFromDevice("p_cellID", 0, sizeof(unsigned int) * cellIDs.size(), cellIDs.data());
+
+        std::vector<std::array<float, 4>> pos(m_maxNbParticles, { 0, 0, 0, 0 });
+        clContext.unloadBufferFromDevice("p_pos", 0, sizeof(float) * pos.size(), pos.data());
+        std::vector<std::array<float, 4>> predPos(m_maxNbParticles, { 0, 0, 0, 0 });
+        clContext.unloadBufferFromDevice("p_predPos", 0, sizeof(float) * predPos.size(), predPos.data());
+        std::vector<std::array<float, 4>> corrPos(m_maxNbParticles, { 0, 0, 0, 0 });
+        clContext.unloadBufferFromDevice("p_corrPos", 0, sizeof(float) * corrPos.size(), corrPos.data());
+
+        std::vector<float> constFactor(m_maxNbParticles, 0);
+        clContext.unloadBufferFromDevice("p_constFactor", 0, sizeof(float) * constFactor.size(), constFactor.data());
+
+        std::vector<unsigned int> cameraDist(m_maxNbParticles, 0);
+        clContext.unloadBufferFromDevice("p_cameraDist", 0, sizeof(unsigned int) * cameraDist.size(), cameraDist.data());
+
+        int i = 0;
+      }
     }
 
     // Update velocity and position

@@ -12,8 +12,6 @@
 // POLY6_COEFF             - coefficient of the Poly6 kernel, depending on EFFECT_RADIUS
 // SPIKY_COEFF             - coefficient of the Spiky kernel, depending on EFFECT_RADIUS
 
-#define MAX_STEERING  0.5f
-#define FLOAT_EPSILON 0.01f
 #define ID            get_global_id(0)
 #define GRAVITY_ACC   (float4)(0.0f, -9.81f, 0.0f, 0.0f)
 
@@ -41,7 +39,7 @@ inline uint getCell1DIndexFromPos(float4 pos);
 inline float poly6(const float4 vec, const float effectRadius)
 {
   float vecLength = fast_length(vec);
-  return step(effectRadius, vecLength) * POLY6_COEFF * pow((effectRadius * effectRadius - vecLength * vecLength),3);
+  return (1.0f - step(effectRadius, vecLength)) * POLY6_COEFF * pow((effectRadius * effectRadius - vecLength * vecLength),3);
 }
 
 /*
@@ -52,17 +50,17 @@ inline float poly6(const float4 vec, const float effectRadius)
 inline float4 gradSpiky(const float4 vec, const float effectRadius)
 {
   float vecLength = fast_length(vec);
-  return vec * step(effectRadius, vecLength) * SPIKY_COEFF * -3 * pow((effectRadius - vecLength), 2);
+  return vec * (1.0f-step(effectRadius, vecLength)) * SPIKY_COEFF * -3 * pow((effectRadius - vecLength), 2);
 }
 
 /*
   Fill position buffer with random positions
 */
 __kernel void randPosVertsFluid(//Output
-                                __global float4 *pos, 
-                                __global float4 *vel,
+                                __global float4 *pos, // 0
+                                __global float4 *vel, // 1
                                 //Param
-                                         float  dim)
+                                         float  dim)  // 2
 {
   const unsigned int randomIntX = parallelRNG(ID);
   const unsigned int randomIntY = parallelRNG(ID + 1);
@@ -94,11 +92,9 @@ __kernel void predictPosition(//Input
                               //Output
                                     __global float4 *predPos)    // 4
 {
-  vel[ID] += maxVelocity/20.0f * GRAVITY_ACC * timeStep;
+  vel[ID] += maxVelocity / 20.0f * GRAVITY_ACC * timeStep;
 
   predPos[ID] = pos[ID] + vel[ID] * timeStep;
-  //predPos[ID] = pos[ID];
-  //predPos[ID].y = -2 * ABS_WALL_POS;
 }
 
 /*
@@ -288,7 +284,7 @@ __kernel void computeConstraintCorrection(//Input
   Correction position using Constraint correction value
 */
 __kernel void correctPosition(//Input
-                              const __global float4 *corrPos,  // 0
+                              const __global float4 *corrPos, // 0
                               //Input/Output
                                     __global float4 *predPos) // 2
 {
@@ -331,7 +327,7 @@ __kernel void updatePosWithCyclicWalls(//Input
                                             __global float4 *pos)     // 2
 {
   const float4 newPos = predPos[ID];
-  const float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
+  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
 
   if (!isequal(clampedNewPos.x, newPos.x))
   {

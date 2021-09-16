@@ -3,7 +3,6 @@
 #include "Logging.hpp"
 #include "Math.hpp"
 
-
 using namespace Render;
 
 Engine::Engine(EngineParams params)
@@ -115,7 +114,10 @@ void Engine::drawPointCloud()
 {
   m_pointCloudShader->activate();
 
-  m_pointCloudShader->setUniform("u_pointSize", (m_nbParticles < 10000) ? 3 : 1);
+  // WIP
+  //m_pointCloudShader->setUniform("u_pointSize", (m_nbParticles < 10000) ? 3 : 1);
+  m_pointCloudShader->setUniform("u_pointSize", 1);
+
   m_pointCloudShader->setUniform("u_projView", m_camera->getProjViewMat());
   m_pointCloudShader->setUniform("u_cameraPos", m_camera->cameraPos());
 

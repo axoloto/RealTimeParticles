@@ -179,7 +179,7 @@ ParticleSystemApp::ParticleSystemApp()
     , m_buttonRightActivated(false)
     , m_buttonLeftActivated(false)
     , m_windowSize(1280, 720)
-    , m_nbParticles(ALL_NB_PARTICLES.cbegin()->first)
+    , m_nbParticles(NbParticles::P4K)
     , m_modelType(Physics::ModelType::FLUIDS)
     , m_init(false)
 {
@@ -240,7 +240,7 @@ bool ParticleSystemApp::initPhysicsEngine()
 
   if (m_physicsEngine)
   {
-    LOG_DEBUG("Physics engine already existing, removing it");
+    LOG_DEBUG("Physics engine already existing, resetting it");
     m_physicsEngine.reset();
   }
 

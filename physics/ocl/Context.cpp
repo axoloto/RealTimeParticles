@@ -15,7 +15,6 @@
 #include <iostream>
 #include <vector>
 
-
 Physics::CL::Context& Physics::CL::Context::Get()
 {
   static Context context;
@@ -239,7 +238,7 @@ bool Physics::CL::Context::createBuffer(std::string bufferName, size_t bufferSiz
     return false;
   }
 
-  auto buffer = cl::Buffer(cl_context, memoryFlags, bufferSize, nullptr, &err); //WIP device-only buffer for now
+  auto buffer = cl::Buffer(cl_context, memoryFlags, bufferSize, nullptr, &err);
 
   if (err != CL_SUCCESS)
   {
@@ -287,14 +286,27 @@ bool Physics::CL::Context::loadBufferFromHost(std::string bufferName, size_t off
 
   cl_int err;
 
-  auto it = m_buffersMap.find(bufferName);
-  if (it == m_buffersMap.end())
-  {
-    LOG_ERROR("Buffer {} not existing", bufferName);
-    return false;
-  }
+  cl::Buffer destBuffer;
 
-  err = cl_queue.enqueueWriteBuffer(it->second, CL_TRUE, offset, sizeToFill, hostPtr);
+  auto itSrc = m_buffersMap.find(bufferName);
+  if (itSrc == m_buffersMap.end())
+  {
+    auto itSrcGL = m_GLBuffersMap.find(bufferName);
+
+    if (itSrcGL == m_GLBuffersMap.end())
+    {
+      LOG_ERROR("Buffer {} not existing", bufferName);
+      return false;
+    }
+    else
+    {
+      destBuffer = itSrcGL->second;
+    }
+  }
+  else
+    destBuffer = itSrc->second;
+
+  err = cl_queue.enqueueWriteBuffer(destBuffer, CL_TRUE, offset, sizeToFill, hostPtr);
 
   if (err != CL_SUCCESS)
   {

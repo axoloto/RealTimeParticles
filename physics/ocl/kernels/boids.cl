@@ -317,7 +317,7 @@ __kernel void updatePosWithCyclicWalls(//Input
                                             __global float4 *pos)     // 2
 {
   const float4 newPos = pos[ID] + vel[ID] * timeStep;
-  const float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
+  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
 
   if (!isequal(clampedNewPos.x, newPos.x))
   {
