@@ -45,14 +45,14 @@ inline float poly6(const float4 vec, const float effectRadius)
 }
 
 /*
-  Spiky kernel introduced in
+  Jacobian (on vec) of Spiky kernel introduced in
   Muller and al. 2003. "Particle-based fluid simulation for interactive applications"
-  Return null value if vec length is superior to effectRadius
+  Return null vector if vec length is superior to effectRadius
 */
-inline float gradSpiky(const float4 vec, const float effectRadius)
+inline float4 gradSpiky(const float4 vec, const float effectRadius)
 {
   float vecLength = fast_length(vec);
-  return step(effectRadius, vecLength) * SPIKY_COEFF * -3 * pow((effectRadius - vecLength), 2);
+  return vec * step(effectRadius, vecLength) * SPIKY_COEFF * -3 * pow((effectRadius - vecLength), 2);
 }
 
 /*
@@ -94,9 +94,11 @@ __kernel void predictPosition(//Input
                               //Output
                                     __global float4 *predPos)    // 4
 {
-  vel[ID] += maxVelocity * GRAVITY_ACC * timeStep;
+  vel[ID] += maxVelocity/20.0f * GRAVITY_ACC * timeStep;
 
   predPos[ID] = pos[ID] + vel[ID] * timeStep;
+  //predPos[ID] = pos[ID];
+  //predPos[ID].y = -2 * ABS_WALL_POS;
 }
 
 /*
@@ -154,16 +156,73 @@ __kernel void computeDensity(//Input
 }
 
 /*
-  Compute Constraint Factor (Lambda)
+  Compute Constraint Factor (Lambda), coefficient along jacobian
 */
 __kernel void computeConstraintFactor(//Input
-                                      const __global float  *density,       // 0
                                       const __global float4 *predPos,       // 1
+                                      const __global float  *density,       // 2
+                                      const __global float  *startEndCell,  // 3
                                       //Output
-                                            __global float  *constFactor)   // 2
+                                            __global float  *constFactor)   // 4
 {
-  //constFactor[ID] = 0.0f;
-  constFactor[ID] = density[ID];
+  const float4 pos = predPos[ID];
+  const uint currCell1DIndex = getCell1DIndexFromPos(pos);
+  const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
+  const uint2 startEnd = startEndCell[currCell1DIndex];
+
+  int x = 0;
+  int y = 0;
+  int z = 0;
+  uint  cellIndex = 0;
+  uint2 startEndN = (uint2)(0, 0);
+
+  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+
+  float4 grad = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 sumGradCi = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float sumSqGradC = 0.0f;
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        x = currCell3DIndex.x + iX;
+        y = currCell3DIndex.y + iY;
+        z = currCell3DIndex.z + iZ;
+
+        if (x < 0 || x >= GRID_RES
+         || y < 0 || y >= GRID_RES
+         || z < 0 || z >= GRID_RES)
+          continue;
+
+        cellIndex = (x * GRID_RES + y) * GRID_RES + z;
+
+        startEndN = startEndCell[cellIndex];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          vec = pos - predPos[e];
+
+          // Supposed to be null if vec = 0.0f;
+          grad = gradSpiky(vec, (float)EFFECT_RADIUS);
+          // Contribution from the ID particle
+          sumGradCi += grad;
+          // Contribution from its neighbors
+          sumSqGradC += dot(grad, grad);
+        }
+      }
+    }
+  }
+
+  sumSqGradC += dot(sumGradCi, sumGradCi);
+  sumSqGradC /= REST_DENSITY * REST_DENSITY;
+
+  float densityC = density[ID] / REST_DENSITY - 1.0f;
+
+  constFactor[ID] = - densityC / (sumSqGradC + RELAX_CFM);
 }
 
 /*
@@ -176,9 +235,53 @@ __kernel void computeConstraintCorrection(//Input
                                           //Output
                                                 __global float4 *corrPos)      // 3
 {
-  // Poly6 and spiky kernel for gradient
-  corrPos[ID] = (float4)(0.0f,0.0f,0.0f,0.0f);
- // corrPos[ID] = (float4)(constFactor[ID], 0.0f,0.0f,0.0f);
+  const float4 pos = predPos[ID];
+  const uint currCell1DIndex = getCell1DIndexFromPos(pos);
+  const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
+  const uint2 startEnd = startEndCell[currCell1DIndex];
+
+  const float lambdaI = constFactor[ID];
+
+  int x = 0;
+  int y = 0;
+  int z = 0;
+  uint  cellIndex = 0;
+  uint2 startEndN = (uint2)(0, 0);
+
+  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 corr = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        x = currCell3DIndex.x + iX;
+        y = currCell3DIndex.y + iY;
+        z = currCell3DIndex.z + iZ;
+
+        if (x < 0 || x >= GRID_RES
+         || y < 0 || y >= GRID_RES
+         || z < 0 || z >= GRID_RES)
+          continue;
+
+        cellIndex = (x * GRID_RES + y) * GRID_RES + z;
+
+        startEndN = startEndCell[cellIndex];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          vec = pos - predPos[e];
+
+          corr += (lambdaI + constFactor[e]) * gradSpiky(vec, EFFECT_RADIUS);
+        }
+      }
+    }
+  }
+
+  corrPos[ID] = corr / REST_DENSITY;
 }
 
 /*
@@ -189,7 +292,7 @@ __kernel void correctPosition(//Input
                               //Input/Output
                                     __global float4 *predPos) // 2
 {
-  //predPos[ID] += 0.0f* corrPos[ID];
+  predPos[ID] += corrPos[ID];
 }
 
 /*

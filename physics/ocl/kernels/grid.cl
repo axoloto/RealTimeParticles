@@ -12,11 +12,10 @@
 */
 inline int3 getCell3DIndexFromPos(float4 pos)
 {
-  const int cellSize = 2 * ABS_WALL_POS / GRID_RES;
-
   // Moving particles in [0 - 2 * ABS_WALL_POS] to have coords matching with cellIndices
-  // Adding epsilon to avoid wrong indices if particle exactly on the ABS_WALL_POS
-  const float3 posXYZ = pos.xyz + ABS_WALL_POS - FLOAT_EPSILON;
+  const float3 posXYZ = clamp(pos.xyz, -ABS_WALL_POS, ABS_WALL_POS) + (float3)(ABS_WALL_POS, ABS_WALL_POS, ABS_WALL_POS);
+
+  const int cellSize = 2 * ABS_WALL_POS / GRID_RES;
 
   const int3 cell3DIndex = convert_int3(posXYZ / cellSize);
 
