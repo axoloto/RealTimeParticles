@@ -1,6 +1,6 @@
 #include "Fluids.hpp"
-#include "FileUtils.hpp"
 #include "Logging.hpp"
+#include "Utils.hpp"
 
 #include <ctime>
 #include <iomanip>
@@ -67,15 +67,20 @@ bool Fluids::createProgram() const
 {
   CL::Context& clContext = CL::Context::Get();
 
+  float effectRadius = ((float)m_boxSize) / m_gridRes;
+
   std::ostringstream clBuildOptions;
-  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << (int)(m_boxSize * m_boxSize / (m_gridRes * m_gridRes));
-  clBuildOptions << " -DABS_WALL_POS=" << std::fixed << std::setprecision(2)
-                 << std::setfill('0') << m_boxSize / 2.0f << "f";
+  clBuildOptions << "-DEFFECT_RADIUS=" << Utils::FloatToStr(effectRadius);
+  //clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << (int)(effectRadius * effectRadius);
+  clBuildOptions << " -DABS_WALL_POS=" << Utils::FloatToStr(m_boxSize / 2.0f);
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
-  clBuildOptions << " -DREST_DENSITY" << 1.0f; // TODO
+  clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * pow(effectRadius, 9)));
+  clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * pow(effectRadius, 6)));
+  clBuildOptions << " -DREST_DENSITY" << Utils::FloatToStr(15.0f); // TODO
 
+  LOG_INFO(clBuildOptions.str());
   clContext.createProgram(PROGRAM_FLUIDS, std::vector<std::string>({ "fluids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
 
   return true;

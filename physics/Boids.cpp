@@ -1,5 +1,5 @@
 #include "Boids.hpp"
-#include "FileUtils.hpp"
+#include "Utils.hpp"
 
 #include "Logging.hpp"
 #include <ctime>
@@ -66,8 +66,7 @@ bool Boids::createProgram() const
 
   std::ostringstream clBuildOptions;
   clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << (int)(m_boxSize * m_boxSize / (m_gridRes * m_gridRes));
-  clBuildOptions << " -DABS_WALL_POS=" << std::fixed << std::setprecision(2)
-                 << std::setfill('0') << m_boxSize / 2.0f << "f";
+  clBuildOptions << " -DABS_WALL_POS=" << Utils::FloatToStr(m_boxSize / 2.0f);
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;

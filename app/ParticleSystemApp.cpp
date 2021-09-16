@@ -179,7 +179,8 @@ ParticleSystemApp::ParticleSystemApp()
     , m_buttonRightActivated(false)
     , m_buttonLeftActivated(false)
     , m_windowSize(1280, 720)
-    , m_currNbParticles(ALL_NB_PARTICLES.cbegin()->first)
+    , m_nbParticles(ALL_NB_PARTICLES.cbegin()->first)
+    , m_modelType(Physics::ModelType::FLUIDS)
     , m_init(false)
 {
   if (!initWindow())
@@ -194,7 +195,7 @@ ParticleSystemApp::ParticleSystemApp()
     return;
   }
 
-  if (!initPhysicsEngine(Physics::ModelType::BOIDS))
+  if (!initPhysicsEngine())
   {
     LOG_ERROR("Failed to initialize physics engine");
     return;
@@ -214,7 +215,7 @@ ParticleSystemApp::ParticleSystemApp()
 bool ParticleSystemApp::initGraphicsEngine()
 {
   Render::EngineParams params;
-  params.currNbParticles = m_currNbParticles;
+  params.currNbParticles = m_nbParticles;
   params.maxNbParticles = ALL_NB_PARTICLES.crbegin()->first;
   params.boxSize = BOX_SIZE;
   params.gridRes = GRID_RES;
@@ -225,10 +226,10 @@ bool ParticleSystemApp::initGraphicsEngine()
   return (m_graphicsEngine.get() != nullptr);
 }
 
-bool ParticleSystemApp::initPhysicsEngine(Physics::ModelType model)
+bool ParticleSystemApp::initPhysicsEngine()
 {
   Physics::ModelParams params;
-  params.currNbParticles = m_currNbParticles;
+  params.currNbParticles = m_nbParticles;
   params.maxNbParticles = ALL_NB_PARTICLES.crbegin()->first;
   params.boxSize = BOX_SIZE;
   params.gridRes = GRID_RES;
@@ -243,7 +244,7 @@ bool ParticleSystemApp::initPhysicsEngine(Physics::ModelType model)
     m_physicsEngine.reset();
   }
 
-  switch ((int)model)
+  switch ((int)m_modelType)
   {
   case Physics::ModelType::BOIDS:
     m_physicsEngine = std::make_unique<Physics::Boids>(params);
@@ -318,19 +319,19 @@ void ParticleSystemApp::displayMainWidget()
     return;
 
   // Selection of the physical model
-  static Physics::ModelType selModelType = Physics::ALL_MODELS.cbegin()->first;
-
-  const auto& selModelName = (Physics::ALL_MODELS.find(selModelType) != Physics::ALL_MODELS.end())
-      ? Physics::ALL_MODELS.find(selModelType)->second
+  const auto& selModelName = (Physics::ALL_MODELS.find(m_modelType) != Physics::ALL_MODELS.end())
+      ? Physics::ALL_MODELS.find(m_modelType)->second
       : Physics::ALL_MODELS.cbegin()->second;
 
   if (ImGui::BeginCombo("Physical Model", selModelName.c_str()))
   {
     for (const auto& model : Physics::ALL_MODELS)
     {
-      if (ImGui::Selectable(model.second.c_str(), selModelType == model.first))
+      if (ImGui::Selectable(model.second.c_str(), m_modelType == model.first))
       {
-        if (!initPhysicsEngine(model.first))
+        m_modelType = model.first;
+
+        if (!initPhysicsEngine())
         {
           LOG_ERROR("Failed to change physics engine");
           return;
@@ -342,12 +343,10 @@ void ParticleSystemApp::displayMainWidget()
           return;
         }
 
-        m_physicsEngine->setNbParticles(m_currNbParticles);
-        m_graphicsEngine->setNbParticles(m_currNbParticles);
+        m_physicsEngine->setNbParticles(m_nbParticles);
+        m_graphicsEngine->setNbParticles(m_nbParticles);
 
-        LOG_INFO("Application correctly switched to {}", Physics::ALL_MODELS.find(selModelType)->second);
-
-        selModelType = model.first;
+        LOG_INFO("Application correctly switched to {}", Physics::ALL_MODELS.find(m_modelType)->second);
       }
     }
     ImGui::EndCombo();
@@ -368,21 +367,21 @@ void ParticleSystemApp::displayMainWidget()
   }
 
   // Selection of the number of particles in the model
-  const auto& nbParticlesStr = (ALL_NB_PARTICLES.find(m_currNbParticles) != ALL_NB_PARTICLES.end())
-      ? ALL_NB_PARTICLES.find(m_currNbParticles)->second
+  const auto& nbParticlesStr = (ALL_NB_PARTICLES.find(m_nbParticles) != ALL_NB_PARTICLES.end())
+      ? ALL_NB_PARTICLES.find(m_nbParticles)->second
       : ALL_NB_PARTICLES.cbegin()->second;
 
   if (ImGui::BeginCombo("Particles", nbParticlesStr.c_str()))
   {
     for (const auto& nbParticlesPair : ALL_NB_PARTICLES)
     {
-      if (ImGui::Selectable(nbParticlesPair.second.c_str(), m_currNbParticles == nbParticlesPair.first))
+      if (ImGui::Selectable(nbParticlesPair.second.c_str(), m_nbParticles == nbParticlesPair.first))
       {
         m_physicsEngine->setNbParticles(nbParticlesPair.first);
         m_graphicsEngine->setNbParticles(nbParticlesPair.first);
         m_physicsEngine->reset();
 
-        m_currNbParticles = nbParticlesPair.first;
+        m_nbParticles = nbParticlesPair.first;
       }
     }
     ImGui::EndCombo();

@@ -22,7 +22,7 @@ class ParticleSystemApp
   private:
   bool initWindow();
   bool initGraphicsEngine();
-  bool initPhysicsEngine(Physics::ModelType model);
+  bool initPhysicsEngine();
   bool initPhysicsWidget();
   bool closeWindow();
   bool checkSDLStatus();
@@ -38,7 +38,10 @@ class ParticleSystemApp
   SDL_GLContext m_OGLContext;
 
   std::string m_nameApp;
-  NbParticles m_currNbParticles;
+
+  Physics::ModelType m_modelType;
+  NbParticles m_nbParticles;
+
   Math::int2 m_windowSize;
   Math::int2 m_mousePrevPos;
   ImVec4 m_backGroundColor;

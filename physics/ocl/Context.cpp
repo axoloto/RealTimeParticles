@@ -9,11 +9,12 @@
 #endif
 
 #include "Context.hpp"
-#include "FileUtils.hpp"
 #include "Logging.hpp"
+#include "Utils.hpp"
 #include <fstream>
 #include <iostream>
 #include <vector>
+
 
 Physics::CL::Context& Physics::CL::Context::Get()
 {
@@ -204,7 +205,7 @@ bool Physics::CL::Context::createProgram(std::string programName, std::vector<st
   cl::Program::Sources sources;
   for (const auto& sourceName : sourceNames)
   {
-    std::ifstream sourceFile(FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\" + sourceName);
+    std::ifstream sourceFile(Utils::GetSrcDir() + "\\physics\\ocl\\kernels\\" + sourceName);
     std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
     sources.push_back(sourceCode);
   }
