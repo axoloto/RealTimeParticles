@@ -9,6 +9,7 @@
 #endif
 
 #include "Context.hpp"
+#include "ErrorCode.hpp"
 #include "Logging.hpp"
 #include "Utils.hpp"
 #include <fstream>
@@ -185,6 +186,8 @@ bool Physics::CL::Context::release()
   if (!m_init)
     return true;
 
+  finishTasks();
+
   LOG_DEBUG("Physics::CL::Context::release - Context has been cleaned");
 
   m_programsMap.clear();
@@ -193,6 +196,24 @@ bool Physics::CL::Context::release()
   m_GLBuffersMap.clear();
   m_imagesMap.clear();
 
+  return true;
+}
+
+bool Physics::CL::Context::finishTasks()
+{
+  cl_int err = cl_queue.flush();
+  if (err != CL_SUCCESS)
+  {
+    CL_ERROR(err);
+    return false;
+  }
+
+  err = cl_queue.finish();
+  if (err != CL_SUCCESS)
+  {
+    CL_ERROR(err);
+    return false;
+  }
   return true;
 }
 
@@ -215,7 +236,8 @@ bool Physics::CL::Context::createProgram(std::string programName, std::vector<st
   cl_int err = program.build({ cl_device }, options.c_str());
   if (err != CL_SUCCESS)
   {
-    LOG_ERROR("Error while building OpenCL program : {}", program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
+    CL_ERROR(err);
+    LOG_ERROR(program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
     throw std::runtime_error(" Exiting Program ");
     return false;
   }
@@ -443,12 +465,6 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
     return false;
   }
 
-  err = cl_queue.flush();
-  if (err != CL_SUCCESS)
-  {
-    LOG_ERROR("Cannot flush Opencl before copying buffer");
-  }
-
   // Only copying the amount of data which can fit into the destination buffer
   err = cl_queue.enqueueCopyBuffer(srcBuffer, dstBuffer, 0, 0, dstBufferSize);
 
@@ -470,7 +486,7 @@ bool Physics::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int
 
   if (m_GLBuffersMap.find(GLBufferName) != m_GLBuffersMap.end())
   {
-    printf("error GL buffer already existing");
+    LOG_ERROR("GL buffer {} already existing", GLBufferName);
     return false;
   }
 
@@ -478,7 +494,8 @@ bool Physics::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int
 
   if (err != CL_SUCCESS)
   {
-    printf("error when creating GL buffer");
+    CL_ERROR(err);
+    LOG_ERROR("Cannot create GL buffer {}", GLBufferName);
     return false;
   }
 

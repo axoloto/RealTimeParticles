@@ -6,6 +6,7 @@
 #include <ctime>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <sstream>
 
 using namespace Physics;
@@ -30,7 +31,6 @@ using namespace Physics;
 // fluids.cl
 #define KERNEL_RANDOM_POS "randPosVertsFluid"
 #define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
-#define KERNEL_UPDATE_POS_CYCLIC "updatePosWithCyclicWalls"
 #define KERNEL_UPDATE_VEL "updateVel"
 #define KERNEL_PREDICT_POS "predictPosition"
 #define KERNEL_DENSITY "computeDensity"
@@ -72,7 +72,6 @@ bool Fluids::createProgram() const
 
   std::ostringstream clBuildOptions;
   clBuildOptions << "-DEFFECT_RADIUS=" << Utils::FloatToStr(effectRadius);
-  //clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << (int)(effectRadius * effectRadius);
   clBuildOptions << " -DABS_WALL_POS=" << Utils::FloatToStr(m_boxSize / 2.0f);
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
@@ -145,7 +144,6 @@ bool Fluids::createKernels() const
   /// Velocity and position update
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_VEL, { "p_predPos", "p_pos", "", "p_vel" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_POS_BOUNCING, { "p_predPos", "p_pos" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_POS_CYCLIC, { "p_predPos", "p_pos" });
 
   return true;
 }
@@ -176,10 +174,11 @@ void Fluids::reset()
   if (!m_init)
     return;
 
-  updateFluidsParamsInKernel();
-
-  m_time = clock::now();
   CL::Context& clContext = CL::Context::Get();
+
+  clContext.finishTasks();
+
+  updateFluidsParamsInKernel();
 
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
 
@@ -188,16 +187,16 @@ void Fluids::reset()
   //clContext.runKernel(KERNEL_RANDOM_POS, m_currNbParticles);
 
   // Dam setup
-  float effectRadius = ((float)m_boxSize) / m_gridRes;
-  std::vector<std::array<float, 4>> pos;
-  pos.resize(m_maxNbParticles);
-  std::fill(pos.begin(), pos.end(), std::array<float, 4>({ -799999990.0f, 0.0f, 0.0f, 0.0f }));
+  float inf = std::numeric_limits<float>::infinity();
+  std::vector<std::array<float, 4>> pos(m_maxNbParticles, std::array<float, 4>({ inf, inf, inf, 0.0f }));
+
   int i = 0;
-  for (int ix = 0; ix < 8; ++ix)
+  float effectRadius = ((float)m_boxSize) / m_gridRes;
+  for (int ix = 0; ix < 64; ++ix)
   {
     for (int iy = 0; iy < 32; ++iy)
     {
-      for (int iz = 0; iz < 16; ++iz)
+      for (int iz = 0; iz < 32; ++iz)
       {
         pos[i++] = { ix * effectRadius / 2.0f - m_boxSize / 2.0f,
           iy * effectRadius / 2.0f - m_boxSize / 2.0f,
@@ -206,12 +205,10 @@ void Fluids::reset()
       }
     }
   }
+  clContext.loadBufferFromHost("p_pos", 0, 4 * sizeof(float) * pos.size(), pos.data());
 
-  clContext.loadBufferFromHost("p_pos", 0, sizeof(float) * pos.size(), pos.data());
-
-  std::vector<std::array<float, 4>> posi(m_maxNbParticles, { 0, 0, 0, 0 });
-  clContext.unloadBufferFromDevice("p_pos", 0, sizeof(float) * posi.size(), posi.data());
-  // WIP
+  std::vector<std::array<float, 4>> vel(m_maxNbParticles, std::array<float, 4>({ 0.0f, 0.0f, 0.0f, 0.0f }));
+  clContext.loadBufferFromHost("p_vel", 0, 4 * sizeof(float) * vel.size(), vel.data());
 
   clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_nbCells);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
@@ -234,12 +231,15 @@ void Fluids::update()
   if (!m_pause)
   {
     auto currentTime = clock::now();
-    float timeStep = (float)(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_time).count()) / 16.0f;
+    float timeStep = (float)(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_time).count());
     m_time = currentTime;
 
     // Skipping frame if timeStep is too large, was probably in pause
     if (timeStep > 30.0f)
       return;
+
+    // Put timeStep in seconds, easier to figure out physics
+    timeStep /= 1000.0f;
 
     // Prediction on velocity and correction
     clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(float), &timeStep);
@@ -260,17 +260,17 @@ void Fluids::update()
     for (int iter = 0; iter < MAX_NB_JACOBI_ITERS; ++iter)
     {
       // Computing density using SPH method
-      clContext.runKernel(KERNEL_DENSITY, m_currNbParticles);
+      //clContext.runKernel(KERNEL_DENSITY, m_currNbParticles);
 
       // Computing constraint factor Lambda
-      clContext.runKernel(KERNEL_CONSTRAINT_FACTOR, m_currNbParticles);
+      //clContext.runKernel(KERNEL_CONSTRAINT_FACTOR, m_currNbParticles);
       // Computing position correction
-      clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION, m_currNbParticles);
+      //clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION, m_currNbParticles);
       // Correcting predicted position
-      clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
+      //clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
 
       // WIP
-      if (1)
+      if (0)
       {
         std::vector<float> density(m_maxNbParticles, 0);
         clContext.unloadBufferFromDevice("p_density", 0, sizeof(float) * density.size(), density.data());
@@ -299,15 +299,7 @@ void Fluids::update()
     clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &timeStep);
     clContext.runKernel(KERNEL_UPDATE_VEL, m_currNbParticles);
 
-    //  switch (m_boundary)
-    //   {
-    //   case Boundary::CyclicWall:
-    //     clContext.runKernel(KERNEL_UPDATE_POS_CYCLIC, m_currNbParticles);
-    //     break;
-    //    case Boundary::BouncingWall:
     clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_currNbParticles);
-    //      break;
-    //   }
 
     clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_nbCells);
     clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);

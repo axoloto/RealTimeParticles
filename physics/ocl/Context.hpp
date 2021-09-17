@@ -31,6 +31,9 @@ class Context
   // Release every programs and kernels/buffers/datas on GPU side
   bool release();
 
+  // Send all the tasks to device queue and wait for them to be complete
+  bool finishTasks();
+
   bool isProfiling() const { return m_isKernelProfilingEnabled; }
   void enableProfiler(bool enable) { m_isKernelProfilingEnabled = enable; }
 

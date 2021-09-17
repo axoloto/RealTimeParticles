@@ -179,7 +179,7 @@ ParticleSystemApp::ParticleSystemApp()
     , m_buttonRightActivated(false)
     , m_buttonLeftActivated(false)
     , m_windowSize(1280, 720)
-    , m_nbParticles(NbParticles::P4K)
+    , m_nbParticles(NbParticles::P65K)
     , m_modelType(Physics::ModelType::FLUIDS)
     , m_init(false)
 {

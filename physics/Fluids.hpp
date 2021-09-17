@@ -29,7 +29,7 @@ class Fluids : public Model
   void setVelocity(float velocity) override
   {
     m_velocity = velocity;
-    //updateFluidsParamsInKernel();
+    updateFluidsParamsInKernel();
   }
 
   private:

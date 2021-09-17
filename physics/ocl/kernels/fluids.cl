@@ -14,6 +14,7 @@
 
 #define ID            get_global_id(0)
 #define GRAVITY_ACC   (float4)(0.0f, -9.81f, 0.0f, 0.0f)
+#define FLOAT_EPS     0.00000001f
 
 // Defined in utils.cl
 /*
@@ -50,7 +51,7 @@ inline float poly6(const float4 vec, const float effectRadius)
 inline float4 gradSpiky(const float4 vec, const float effectRadius)
 {
   float vecLength = fast_length(vec);
-  return vec * (1.0f-step(effectRadius, vecLength)) * SPIKY_COEFF * -3 * pow((effectRadius - vecLength), 2);
+  return vec * (1.0f - step(effectRadius, vecLength)) * SPIKY_COEFF * -3 * pow((effectRadius - vecLength), 2);
 }
 
 /*
@@ -92,7 +93,7 @@ __kernel void predictPosition(//Input
                               //Output
                                     __global float4 *predPos)    // 4
 {
-  vel[ID] += maxVelocity / 20.0f * GRAVITY_ACC * timeStep;
+  vel[ID] += maxVelocity * GRAVITY_ACC * timeStep;
 
   predPos[ID] = pos[ID] + vel[ID] * timeStep;
 }
@@ -227,7 +228,7 @@ __kernel void computeConstraintFactor(//Input
 __kernel void computeConstraintCorrection(//Input
                                           const __global float  *constFactor,  // 0
                                           const __global uint2  *startEndCell, // 1
-                                          const __global float  *predPos,      // 2
+                                          const __global float4 *predPos,      // 2
                                           //Output
                                                 __global float4 *corrPos)      // 3
 {
@@ -303,44 +304,18 @@ __kernel void updateVel(//Input
                               __global float4 *vel)        // 3
    
 {
-  vel[ID] =  (predPos[ID] - pos[ID]) / timeStep;
+  // Preventing division by 0
+  vel[ID] = (predPos[ID] - pos[ID]) / (timeStep + FLOAT_EPS);
 }
 
 /*
   Apply Bouncing wall boundary conditions on position and velocity buffers.
 */
-__kernel void updatePosWithBouncingWalls(//Input/output
-                                               __global float4 *predPos, // 0
+__kernel void updatePosWithBouncingWalls(//Input
+                                         const  __global float4 *predPos, // 0
                                          //Output
-                                               __global float4 *pos)     // 1
+                                                __global float4 *pos)     // 1
 
 {
   pos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS);
-}
-
-/*
-  Apply Cyclic wall boundary conditions on position and velocity buffers.
-*/
-__kernel void updatePosWithCyclicWalls(//Input
-                                      const __global float4 *predPos, // 0
-                                      //Input/output
-                                            __global float4 *pos)     // 2
-{
-  const float4 newPos = predPos[ID];
-  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
-
-  if (!isequal(clampedNewPos.x, newPos.x))
-  {
-    clampedNewPos.x *= -1;
-  }
-  if (!isequal(clampedNewPos.y, newPos.y))
-  {
-    clampedNewPos.y *= -1;
-  }
-  if (!isequal(clampedNewPos.z, newPos.z))
-  {
-    clampedNewPos.z *= -1;
-  }
-
-  pos[ID] = clampedNewPos;
 }
