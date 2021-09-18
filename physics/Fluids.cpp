@@ -174,6 +174,8 @@ void Fluids::reset()
   if (!m_init)
     return;
 
+  m_time = clock::now();
+
   CL::Context& clContext = CL::Context::Get();
 
   clContext.finishTasks();
