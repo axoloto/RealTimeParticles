@@ -90,7 +90,7 @@ __kernel void fillCellIDs(//Input
 __kernel void flushStartEndCell(__global uint2 *cStartEndPartID)
 {
   // Flushing with 1 as starting index and 0 as ending index
-  // Little hack to bypass empty cell further in the boids algo
+  // Little hack to bypass empty cell further
   cStartEndPartID[ID] = (uint2)(1, 0);
 }
 

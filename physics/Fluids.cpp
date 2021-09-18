@@ -9,6 +9,9 @@
 #include <limits>
 #include <sstream>
 
+#include <chrono>
+#include <thread>
+
 using namespace Physics;
 
 #define PROGRAM_FLUIDS "fluids"
@@ -243,6 +246,10 @@ void Fluids::update()
     // Put timeStep in seconds, easier to figure out physics
     timeStep /= 1000.0f;
 
+    LOG_INFO("timeStep {}", timeStep);
+
+    //std::this_thread::sleep_for(std::chrono::milliseconds(20));
+
     // Prediction on velocity and correction
     clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(float), &timeStep);
     clContext.runKernel(KERNEL_PREDICT_POS, m_currNbParticles);
@@ -262,14 +269,14 @@ void Fluids::update()
     for (int iter = 0; iter < MAX_NB_JACOBI_ITERS; ++iter)
     {
       // Computing density using SPH method
-      //clContext.runKernel(KERNEL_DENSITY, m_currNbParticles);
+      clContext.runKernel(KERNEL_DENSITY, m_currNbParticles);
 
       // Computing constraint factor Lambda
-      //clContext.runKernel(KERNEL_CONSTRAINT_FACTOR, m_currNbParticles);
+      clContext.runKernel(KERNEL_CONSTRAINT_FACTOR, m_currNbParticles);
       // Computing position correction
-      //clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION, m_currNbParticles);
+      clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION, m_currNbParticles);
       // Correcting predicted position
-      //clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
+      clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
 
       // WIP
       if (0)

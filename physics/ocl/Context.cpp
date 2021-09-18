@@ -644,23 +644,29 @@ bool Physics::CL::Context::runKernel(std::string kernelName, size_t numGlobalWor
   cl::NDRange global(numGlobalWorkItems);
   cl::NDRange local = (numLocalWorkItems > 0) ? cl::NDRange(numLocalWorkItems) : cl::NullRange;
 
-  cl_queue.enqueueNDRangeKernel(it->second, cl::NullRange, global, local, nullptr, &event);
+  cl_int err;
+
+  err = cl_queue.enqueueNDRangeKernel(it->second, cl::NullRange, global, local, nullptr, &event);
+  if (err != CL_SUCCESS)
+  {
+    CL_ERROR(err);
+    LOG_ERROR("Failure of kernel {} while running", kernelName);
+  }
 
   if (m_isKernelProfilingEnabled)
   {
-    cl_int err;
-
     err = cl_queue.flush();
     if (err != CL_SUCCESS)
     {
+      CL_ERROR(err);
       LOG_ERROR("Cannot flush Opencl run");
     }
 
     err = cl_queue.finish();
     if (err != CL_SUCCESS)
     {
+      CL_ERROR(err);
       LOG_ERROR("Cannot finish Opencl run");
-      throw 1;
     }
 
     cl_ulong start = 0, end = 0;
@@ -669,8 +675,8 @@ bool Physics::CL::Context::runKernel(std::string kernelName, size_t numGlobalWor
     //the resolution of the events is 1e-09 sec
     double profilingTimeMs = (double)((cl_double)(end - start) * (1e-06));
 
-    if (profilingTimeMs > 1.0)
-      LOG_INFO("Profiling kernel {} : {} ms", kernelName, profilingTimeMs);
+    //if (profilingTimeMs > 1.0)
+    LOG_INFO("Profiling kernel {} : {} ms", kernelName, profilingTimeMs);
   }
 
   return true;
@@ -688,7 +694,7 @@ bool Physics::CL::Context::interactWithGLBuffers(const std::vector<std::string>&
     auto it = m_GLBuffersMap.find(GLBufferName);
     if (it == m_GLBuffersMap.end())
     {
-      printf("error GL buffer not existing");
+      LOG_ERROR("error GL buffer not existing");
       return false;
     }
     else
@@ -700,7 +706,8 @@ bool Physics::CL::Context::interactWithGLBuffers(const std::vector<std::string>&
   cl_int err = (interaction == interOpCLGL::ACQUIRE) ? cl_queue.enqueueAcquireGLObjects(&GLBuffers) : cl_queue.enqueueReleaseGLObjects(&GLBuffers);
   if (err != CL_SUCCESS)
   {
-    printf("error when interacting with GL buffers");
+    CL_ERROR(err);
+    LOG_ERROR("error when interacting with GL buffers");
     return false;
   }
 
@@ -715,7 +722,7 @@ bool Physics::CL::Context::mapAndSendBufferToDevice(std::string bufferName, cons
   auto it = m_buffersMap.find(bufferName);
   if (it == m_buffersMap.end())
   {
-    printf("error buffer not existing");
+    LOG_ERROR("error buffer not existing");
     return false;
   }
 
@@ -723,14 +730,16 @@ bool Physics::CL::Context::mapAndSendBufferToDevice(std::string bufferName, cons
   void* mappedMemory = cl_queue.enqueueMapBuffer(it->second, CL_TRUE, CL_MAP_WRITE, 0, bufferSize, nullptr, nullptr, &err);
   if (err < 0)
   {
-    printf("Couldn't map the buffer to host memory");
+    CL_ERROR(err);
+    LOG_ERROR("Couldn't map the buffer to host memory");
     return false;
   }
   memcpy(mappedMemory, bufferPtr, bufferSize);
   err = cl_queue.enqueueUnmapMemObject(it->second, mappedMemory);
   if (err < 0)
   {
-    printf("Couldn't unmap the buffer");
+    CL_ERROR(err);
+    LOG_ERROR("Couldn't unmap the buffer");
     return false;
   }
 

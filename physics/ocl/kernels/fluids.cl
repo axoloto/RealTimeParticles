@@ -50,7 +50,7 @@ inline float poly6(const float4 vec, const float effectRadius)
 */
 inline float4 gradSpiky(const float4 vec, const float effectRadius)
 {
-  float vecLength = fast_length(vec);
+  const float vecLength = fast_length(vec);
   return vec * (1.0f - step(effectRadius, vecLength)) * SPIKY_COEFF * -3 * pow((effectRadius - vecLength), 2);
 }
 
@@ -111,7 +111,6 @@ __kernel void computeDensity(//Input
   const float4 pos = predPos[ID];
   const uint currCell1DIndex = getCell1DIndexFromPos(pos);
   const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
-  const uint2 startEnd = startEndCell[currCell1DIndex];
 
   float fluidDensity = 0.0f;
 
@@ -143,7 +142,7 @@ __kernel void computeDensity(//Input
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
-          fluidDensity += poly6(pos - predPos[e], (float)EFFECT_RADIUS);
+          fluidDensity += poly6(pos - predPos[e], EFFECT_RADIUS);
         }
       }
     }
@@ -158,25 +157,25 @@ __kernel void computeDensity(//Input
 __kernel void computeConstraintFactor(//Input
                                       const __global float4 *predPos,       // 1
                                       const __global float  *density,       // 2
-                                      const __global float  *startEndCell,  // 3
+                                      const __global uint2  *startEndCell,  // 3
                                       //Output
                                             __global float  *constFactor)   // 4
 {
   const float4 pos = predPos[ID];
   const uint currCell1DIndex = getCell1DIndexFromPos(pos);
   const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
-  const uint2 startEnd = startEndCell[currCell1DIndex];
+  const float currDensityC = density[ID] / REST_DENSITY - 1.0f;
 
   int x = 0;
   int y = 0;
   int z = 0;
-  uint  cellIndex = 0;
-  uint2 startEndN = (uint2)(0, 0);
+  uint  cellIndexN = 0;
+  uint2 startEndN = (uint2)(0);
 
-  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 vec = (float4)(0.0f);
 
-  float4 grad = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
-  float4 sumGradCi = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 grad = (float4)(0.0f);
+  float4 sumGradCi = (float4)(0.0f);
   float sumSqGradC = 0.0f;
 
   // 27 cells to visit, current one + 3D neighbors
@@ -195,16 +194,16 @@ __kernel void computeConstraintFactor(//Input
          || z < 0 || z >= GRID_RES)
           continue;
 
-        cellIndex = (x * GRID_RES + y) * GRID_RES + z;
+        cellIndexN = (x * GRID_RES + y) * GRID_RES + z;
 
-        startEndN = startEndCell[cellIndex];
+        startEndN = startEndCell[cellIndexN];
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
           vec = pos - predPos[e];
 
           // Supposed to be null if vec = 0.0f;
-          grad = gradSpiky(vec, (float)EFFECT_RADIUS);
+          grad = gradSpiky(vec, EFFECT_RADIUS);
           // Contribution from the ID particle
           sumGradCi += grad;
           // Contribution from its neighbors
@@ -217,9 +216,7 @@ __kernel void computeConstraintFactor(//Input
   sumSqGradC += dot(sumGradCi, sumGradCi);
   sumSqGradC /= REST_DENSITY * REST_DENSITY;
 
-  float densityC = density[ID] / REST_DENSITY - 1.0f;
-
-  constFactor[ID] = - densityC / (sumSqGradC + RELAX_CFM);
+  constFactor[ID] = - currDensityC / (sumSqGradC + RELAX_CFM);
 }
 
 /*
