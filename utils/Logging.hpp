@@ -10,7 +10,7 @@ namespace Utils
 {
 inline auto InitializeLogger()
 {
-  spdlog::set_level(spdlog::level::debug);
+  spdlog::set_level(std::string(BUILD_TYPE) == "Debug" ? spdlog::level::debug : spdlog::level::info);
   spdlog::set_pattern("[%H:%M:%S] [thread %t] [%l] [%!] %v");
 }
 }

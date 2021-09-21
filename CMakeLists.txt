@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.12)
 project(boids VERSION 0.1)
 
 message(STATUS "version 0.1")
+add_definitions(-DBUILD_TYPE="${CMAKE_BUILD_TYPE}")
 message(STATUS "build type ${CMAKE_BUILD_TYPE}")
 message(STATUS "build dir ${CMAKE_BUILD_DIR}")
 

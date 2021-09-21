@@ -253,7 +253,7 @@ void Fluids::update()
     // Put timeStep in seconds, easier to figure out physics
     timeStep /= 1000.0f;
 
-    LOG_INFO("timeStep {}", timeStep);
+    LOG_DEBUG("TimeStep: {} s", timeStep);
 
     // Prediction on velocity and correction
     clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(float), &timeStep);
