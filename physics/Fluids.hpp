@@ -33,6 +33,8 @@ class Fluids : public Model
   }
 
   private:
+  void print(const std::string& name, int nbItems);
+
   bool createProgram() const;
   bool createBuffers() const;
   bool createKernels() const;

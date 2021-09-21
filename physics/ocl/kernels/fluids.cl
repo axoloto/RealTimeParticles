@@ -93,9 +93,11 @@ __kernel void predictPosition(//Input
                               //Output
                                     __global float4 *predPos)    // 4
 {
-  vel[ID] += maxVelocity * GRAVITY_ACC * timeStep;
+  const float4 newVel = vel[ID] + GRAVITY_ACC * maxVelocity * timeStep;
 
-  predPos[ID] = pos[ID] + vel[ID] * timeStep;
+  predPos[ID] = pos[ID] + newVel * timeStep;
+
+  vel[ID] = newVel;
 }
 
 /*
@@ -147,7 +149,6 @@ __kernel void computeDensity(//Input
       }
     }
   }
-
   density[ID] = fluidDensity;
 }
 
@@ -162,7 +163,6 @@ __kernel void computeConstraintFactor(//Input
                                             __global float  *constFactor)   // 4
 {
   const float4 pos = predPos[ID];
-  const uint currCell1DIndex = getCell1DIndexFromPos(pos);
   const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
   const float currDensityC = density[ID] / REST_DENSITY - 1.0f;
 
@@ -230,20 +230,17 @@ __kernel void computeConstraintCorrection(//Input
                                                 __global float4 *corrPos)      // 3
 {
   const float4 pos = predPos[ID];
-  const uint currCell1DIndex = getCell1DIndexFromPos(pos);
   const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
-  const uint2 startEnd = startEndCell[currCell1DIndex];
-
   const float lambdaI = constFactor[ID];
 
   int x = 0;
   int y = 0;
   int z = 0;
-  uint  cellIndex = 0;
-  uint2 startEndN = (uint2)(0, 0);
+  uint  cellIndexN = 0;
+  uint2 startEndN = (uint2)(0);
 
-  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
-  float4 corr = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 vec = (float4)(0.0f);
+  float4 corr = (float4)(0.0f);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -261,9 +258,9 @@ __kernel void computeConstraintCorrection(//Input
          || z < 0 || z >= GRID_RES)
           continue;
 
-        cellIndex = (x * GRID_RES + y) * GRID_RES + z;
+        cellIndexN = (x * GRID_RES + y) * GRID_RES + z;
 
-        startEndN = startEndCell[cellIndex];
+        startEndN = startEndCell[cellIndexN];
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {

@@ -41,7 +41,7 @@ inline uint getCell1DIndexFromPos(float4 pos)
 */
 __kernel void flushGridDetector(__global float8* gridDetector)
 {
-  gridDetector[ID] = 0.0f;
+  gridDetector[ID] = (float8)(0.0f);
 }
 
 /*

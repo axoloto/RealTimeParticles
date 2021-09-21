@@ -204,16 +204,18 @@ bool Physics::CL::Context::finishTasks()
   cl_int err = cl_queue.flush();
   if (err != CL_SUCCESS)
   {
-    CL_ERROR(err);
+    CL_ERROR(err, "Cannot flush queue");
     return false;
   }
 
   err = cl_queue.finish();
   if (err != CL_SUCCESS)
   {
-    CL_ERROR(err);
+    CL_ERROR(err, "Cannot finish queue");
     return false;
   }
+
+  LOG_DEBUG("Explicitly flushed and finished OpenCL device queue");
   return true;
 }
 
@@ -236,7 +238,7 @@ bool Physics::CL::Context::createProgram(std::string programName, std::vector<st
   cl_int err = program.build({ cl_device }, options.c_str());
   if (err != CL_SUCCESS)
   {
-    CL_ERROR(err);
+    CL_ERROR(err, "Cannot build program");
     LOG_ERROR(program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
     throw std::runtime_error(" Exiting Program ");
     return false;
@@ -446,7 +448,7 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
 
   if (err != CL_SUCCESS)
   {
-    LOG_ERROR("Cannot get size from buffer {}", dstBufferName);
+    CL_ERROR(err, "Cannot get size from buffer " + dstBufferName);
     return false;
   }
 
@@ -455,7 +457,7 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
 
   if (err != CL_SUCCESS)
   {
-    LOG_ERROR("Cannot get size from buffer {}", srcBufferName);
+    CL_ERROR(err, "Cannot get size from buffer" + srcBufferName);
     return false;
   }
 
@@ -470,7 +472,7 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
 
   if (err != CL_SUCCESS)
   {
-    LOG_ERROR("Cannot copy buffer {} to buffer {}", srcBufferName, dstBufferName);
+    CL_ERROR(err, "Cannot copy buffer " + srcBufferName + " to buffer " + dstBufferName);
     return false;
   }
 
@@ -494,8 +496,7 @@ bool Physics::CL::Context::createGLBuffer(std::string GLBufferName, unsigned int
 
   if (err != CL_SUCCESS)
   {
-    CL_ERROR(err);
-    LOG_ERROR("Cannot create GL buffer {}", GLBufferName);
+    CL_ERROR(err, "Cannot create GL buffer " + GLBufferName);
     return false;
   }
 
@@ -529,7 +530,7 @@ bool Physics::CL::Context::createKernel(std::string programName, std::string ker
 
   if (err != CL_SUCCESS)
   {
-    LOG_ERROR("Cannot create OpenCL kernel {} ", kernelName);
+    CL_ERROR(err, "Cannot create kernel " + kernelName);
     return false;
   }
 
@@ -649,25 +650,14 @@ bool Physics::CL::Context::runKernel(std::string kernelName, size_t numGlobalWor
   err = cl_queue.enqueueNDRangeKernel(it->second, cl::NullRange, global, local, nullptr, &event);
   if (err != CL_SUCCESS)
   {
-    CL_ERROR(err);
-    LOG_ERROR("Failure of kernel {} while running", kernelName);
+    CL_ERROR(err, "Failure of kernel " + kernelName + " while running");
+    return false;
   }
 
   if (m_isKernelProfilingEnabled)
   {
-    err = cl_queue.flush();
-    if (err != CL_SUCCESS)
-    {
-      CL_ERROR(err);
-      LOG_ERROR("Cannot flush Opencl run");
-    }
-
-    err = cl_queue.finish();
-    if (err != CL_SUCCESS)
-    {
-      CL_ERROR(err);
-      LOG_ERROR("Cannot finish Opencl run");
-    }
+    if (!finishTasks())
+      return false;
 
     cl_ulong start = 0, end = 0;
     event.getProfilingInfo(CL_PROFILING_COMMAND_START, &start);
@@ -706,10 +696,20 @@ bool Physics::CL::Context::interactWithGLBuffers(const std::vector<std::string>&
   cl_int err = (interaction == interOpCLGL::ACQUIRE) ? cl_queue.enqueueAcquireGLObjects(&GLBuffers) : cl_queue.enqueueReleaseGLObjects(&GLBuffers);
   if (err != CL_SUCCESS)
   {
-    CL_ERROR(err);
-    LOG_ERROR("error when interacting with GL buffers");
+    CL_ERROR(err, "Cannot interact with GL buffers");
     return false;
   }
+  else
+  {
+    std::string allNames;
+    std::for_each(GLBufferNames.cbegin(), GLBufferNames.cend(), [&](const std::string& name)
+        { return allNames += name + " "; });
+    LOG_DEBUG(interaction == interOpCLGL::ACQUIRE ? "GL buffers acquired {}" : "GL buffers released {}", allNames);
+  }
+
+  // Must flush and finish queue to make sure GL buffers have been released
+  if (interaction == interOpCLGL::RELEASE)
+    finishTasks();
 
   return true;
 }
@@ -730,16 +730,14 @@ bool Physics::CL::Context::mapAndSendBufferToDevice(std::string bufferName, cons
   void* mappedMemory = cl_queue.enqueueMapBuffer(it->second, CL_TRUE, CL_MAP_WRITE, 0, bufferSize, nullptr, nullptr, &err);
   if (err < 0)
   {
-    CL_ERROR(err);
-    LOG_ERROR("Couldn't map the buffer to host memory");
+    CL_ERROR(err, "Cannot map buffer " + bufferName + " to host memory");
     return false;
   }
   memcpy(mappedMemory, bufferPtr, bufferSize);
   err = cl_queue.enqueueUnmapMemObject(it->second, mappedMemory);
   if (err < 0)
   {
-    CL_ERROR(err);
-    LOG_ERROR("Couldn't unmap the buffer");
+    CL_ERROR(err, "Cannot unmap buffer" + bufferName);
     return false;
   }
 

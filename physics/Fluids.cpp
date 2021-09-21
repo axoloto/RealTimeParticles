@@ -181,11 +181,9 @@ void Fluids::reset()
 
   CL::Context& clContext = CL::Context::Get();
 
-  clContext.finishTasks();
+  clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
 
   updateFluidsParamsInKernel();
-
-  clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
 
   // WIP
   //clContext.runKernel(KERNEL_INFINITE_POS, m_maxNbParticles);
@@ -224,6 +222,15 @@ void Fluids::reset()
   clContext.releaseGLBuffers({ "p_pos", "c_partDetector" });
 }
 
+void Fluids::print(const std::string& name, int nbItems)
+{
+  CL::Context& clContext = CL::Context::Get();
+  std::vector<std::array<float, 4>> pos(m_maxNbParticles, { 0, 0, 0, 0 });
+  clContext.unloadBufferFromDevice(name, 0, sizeof(float) * pos.size(), pos.data());
+  std::for_each(pos.begin(), pos.begin() + nbItems, [](const std::array<float, 4>& p)
+      { return LOG_INFO("{}, {}, {}, {}", p[0], p[1], p[2], p[3]); });
+}
+
 void Fluids::update()
 {
   if (!m_init)
@@ -240,15 +247,13 @@ void Fluids::update()
     m_time = currentTime;
 
     // Skipping frame if timeStep is too large, was probably in pause
-    if (timeStep > 30.0f)
-      return;
+    //if (timeStep > 30.0f)
+    // return;
 
     // Put timeStep in seconds, easier to figure out physics
     timeStep /= 1000.0f;
 
     LOG_INFO("timeStep {}", timeStep);
-
-    //std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     // Prediction on velocity and correction
     clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(float), &timeStep);
@@ -270,7 +275,6 @@ void Fluids::update()
     {
       // Computing density using SPH method
       clContext.runKernel(KERNEL_DENSITY, m_currNbParticles);
-
       // Computing constraint factor Lambda
       clContext.runKernel(KERNEL_CONSTRAINT_FACTOR, m_currNbParticles);
       // Computing position correction
@@ -279,7 +283,7 @@ void Fluids::update()
       clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
 
       // WIP
-      if (0)
+      /*if (0)
       {
         std::vector<float> density(m_maxNbParticles, 0);
         clContext.unloadBufferFromDevice("p_density", 0, sizeof(float) * density.size(), density.data());
@@ -301,7 +305,7 @@ void Fluids::update()
         clContext.unloadBufferFromDevice("p_cameraDist", 0, sizeof(unsigned int) * cameraDist.size(), cameraDist.data());
 
         int i = 0;
-      }
+      }*/
     }
 
     // Update velocity and position

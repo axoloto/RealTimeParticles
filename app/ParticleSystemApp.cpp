@@ -363,6 +363,8 @@ void ParticleSystemApp::displayMainWidget()
 
   if (ImGui::Button("  Reset  "))
   {
+    glFinish(); //wip
+    LOG_INFO("Finish OpenGL - reset");
     m_physicsEngine->reset();
   }
 
