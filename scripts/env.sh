@@ -11,6 +11,8 @@ then
 elif [[ ( "$1" != "Release" && "$1" != "Debug" ) ]]
 then
     echo "$1 is not a supported build type, using Release instead"
+    DEV_BUILD_TYPE="Release"
+else
     DEV_BUILD_TYPE="$1"
 fi
 

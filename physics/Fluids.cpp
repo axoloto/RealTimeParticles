@@ -2,6 +2,7 @@
 #include "Logging.hpp"
 #include "Utils.hpp"
 
+#include <algorithm>
 #include <array>
 #include <ctime>
 #include <iomanip>
@@ -195,15 +196,16 @@ void Fluids::reset()
 
   int i = 0;
   float effectRadius = ((float)m_boxSize) / m_gridRes;
+  float gridSpacing = 0.5f * effectRadius;
   for (int ix = 0; ix < 64; ++ix)
   {
     for (int iy = 0; iy < 32; ++iy)
     {
       for (int iz = 0; iz < 32; ++iz)
       {
-        pos[i++] = { ix * effectRadius / 2.0f - m_boxSize / 2.0f,
-          iy * effectRadius / 2.0f - m_boxSize / 2.0f,
-          iz * effectRadius / 2.0f - m_boxSize / 4.0f,
+        pos[i++] = { ix * gridSpacing - m_boxSize / 2.0f,
+          iy * gridSpacing - m_boxSize / 2.0f,
+          iz * gridSpacing - m_boxSize / 4.0f,
           0.0f };
       }
     }
@@ -240,16 +242,16 @@ void Fluids::update()
 
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
 
+  auto currentTime = clock::now();
+
   if (!m_pause)
   {
-    auto currentTime = clock::now();
     float timeStep = (float)(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_time).count());
-    m_time = currentTime;
 
     // Skipping frame if timeStep is too large, was probably in pause
     //if (timeStep > 30.0f)
     // return;
-
+    timeStep = std::clamp(timeStep, 0.01f, 100.f);
     // Put timeStep in seconds, easier to figure out physics
     timeStep /= 1000.0f;
 
@@ -260,6 +262,12 @@ void Fluids::update()
     clContext.runKernel(KERNEL_PREDICT_POS, m_currNbParticles);
 
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
+
+    std::vector<std::array<float, 4>> predPos(m_maxNbParticles, { 0, 0, 0, 0 });
+    clContext.unloadBufferFromDevice("p_predPos", 0, sizeof(float) * predPos.size(), predPos.data());
+
+    std::vector<std::array<float, 4>> vel(m_maxNbParticles, { 0, 0, 0, 0 });
+    clContext.unloadBufferFromDevice("p_vel", 0, sizeof(float) * vel.size(), vel.data());
 
     // NNS
     m_radixSort.sort("p_cellID", { "p_pos", "p_vel", "p_predPos" });
@@ -283,7 +291,7 @@ void Fluids::update()
       clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
 
       // WIP
-      /*if (0)
+      if (1)
       {
         std::vector<float> density(m_maxNbParticles, 0);
         clContext.unloadBufferFromDevice("p_density", 0, sizeof(float) * density.size(), density.data());
@@ -305,7 +313,7 @@ void Fluids::update()
         clContext.unloadBufferFromDevice("p_cameraDist", 0, sizeof(unsigned int) * cameraDist.size(), cameraDist.data());
 
         int i = 0;
-      }*/
+      }
     }
 
     // Update velocity and position
@@ -323,4 +331,6 @@ void Fluids::update()
   m_radixSort.sort("p_cameraDist", { "p_pos", "p_vel", "p_predPos" });
 
   clContext.releaseGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
+
+  m_time = currentTime;
 }

@@ -71,6 +71,7 @@ bool Boids::createProgram() const
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
 
+  LOG_INFO(clBuildOptions.str());
   clContext.createProgram(PROGRAM_BOIDS, std::vector<std::string>({ "boids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
 
   return true;
