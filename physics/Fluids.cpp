@@ -35,12 +35,14 @@ using namespace Physics;
 // fluids.cl
 #define KERNEL_RANDOM_POS "randPosVertsFluid"
 #define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
-#define KERNEL_UPDATE_VEL "updateVel"
 #define KERNEL_PREDICT_POS "predictPosition"
+#define KERNEL_APPLY_BOUNDARY "applyBoundaryCondition"
 #define KERNEL_DENSITY "computeDensity"
 #define KERNEL_CONSTRAINT_FACTOR "computeConstraintFactor"
 #define KERNEL_CONSTRAINT_CORRECTION "computeConstraintCorrection"
 #define KERNEL_CORRECT_POS "correctPosition"
+#define KERNEL_UPDATE_POS "updatePosition"
+#define KERNEL_UPDATE_VEL "updateVel"
 
 #define MAX_NB_JACOBI_ITERS 3
 
@@ -78,11 +80,12 @@ bool Fluids::createProgram() const
   clBuildOptions << "-DEFFECT_RADIUS=" << Utils::FloatToStr(effectRadius);
   clBuildOptions << " -DABS_WALL_POS=" << Utils::FloatToStr(m_boxSize / 2.0f);
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
+  clBuildOptions << " -DGRID_CELL_SIZE=" << Utils::FloatToStr(m_boxSize / m_gridRes);
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
   clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9)));
   clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * std::powf(effectRadius, 6)));
-  clBuildOptions << " -DREST_DENSITY=" << Utils::FloatToStr(3.0f); // TODO
+  clBuildOptions << " -DREST_DENSITY=" << Utils::FloatToStr(10.0f); // TODO
   clBuildOptions << " -DRELAX_CFM=" << Utils::FloatToStr(600.0f); // TODO
 
   LOG_INFO(clBuildOptions.str());
@@ -138,16 +141,18 @@ bool Fluids::createKernels() const
   // Position Based Fluids
   /// Position prediction
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_PREDICT_POS, { "p_pos", "p_vel", "", "", "p_predPos" });
-
+  /// Boundary conditions
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_APPLY_BOUNDARY, { "p_predPos" });
   /// Jacobi solver to correct position
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_DENSITY, { "p_predPos", "c_startEndPartID", "p_density" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_FACTOR, { "p_predPos", "p_density", "c_startEndPartID", "p_constFactor" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_CORRECTION, { "p_constFactor", "c_startEndPartID", "p_predPos", "p_corrPos" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CORRECT_POS, { "p_corrPos", "p_predPos" });
-
   /// Velocity and position update
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_VEL, { "p_predPos", "p_pos", "", "p_vel" });
+  //
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_POS_BOUNCING, { "p_predPos", "p_pos" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_POS, { "p_predPos", "p_pos" });
 
   return true;
 }
@@ -197,15 +202,16 @@ void Fluids::reset()
   int i = 0;
   float effectRadius = ((float)m_boxSize) / m_gridRes;
   float gridSpacing = 0.5f * effectRadius;
+  Math::float3 startFluidPos = { 0.0f, 0.0f, 0.0f };
   for (int ix = 0; ix < 64; ++ix)
   {
     for (int iy = 0; iy < 32; ++iy)
     {
       for (int iz = 0; iz < 32; ++iz)
       {
-        pos[i++] = { ix * gridSpacing - m_boxSize / 2.0f,
-          iy * gridSpacing - m_boxSize / 2.0f,
-          iz * gridSpacing - m_boxSize / 4.0f,
+        pos[i++] = { ix * gridSpacing - startFluidPos.x,
+          iy * gridSpacing - startFluidPos.y,
+          iz * gridSpacing - startFluidPos.z,
           0.0f };
       }
     }
@@ -281,6 +287,8 @@ void Fluids::update()
     // Position Based Fluids
     for (int iter = 0; iter < MAX_NB_JACOBI_ITERS; ++iter)
     {
+      // Taking boundary into account
+      clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
       // Computing density using SPH method
       clContext.runKernel(KERNEL_DENSITY, m_currNbParticles);
       // Computing constraint factor Lambda
@@ -320,7 +328,8 @@ void Fluids::update()
     clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &timeStep);
     clContext.runKernel(KERNEL_UPDATE_VEL, m_currNbParticles);
 
-    clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_currNbParticles);
+    // clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_currNbParticles);
+    clContext.runKernel(KERNEL_UPDATE_POS, m_currNbParticles);
 
     clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_nbCells);
     clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);

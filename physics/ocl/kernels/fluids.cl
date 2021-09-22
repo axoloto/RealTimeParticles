@@ -26,7 +26,7 @@ inline unsigned int parallelRNG(unsigned int i);
 /*
   Compute 3D index of the cell containing given position
 */
-inline int3 getCell3DIndexFromPos(float4 pos);
+inline uint3 getCell3DIndexFromPos(float4 pos);
 /*
   Compute 1D index of the cell containing given position
 */
@@ -112,7 +112,7 @@ __kernel void computeDensity(//Input
 {
   const float4 pos = predPos[ID];
   const uint currCell1DIndex = getCell1DIndexFromPos(pos);
-  const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
+  const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
 
   float fluidDensity = 0.0f;
 
@@ -163,7 +163,7 @@ __kernel void computeConstraintFactor(//Input
                                             __global float  *constFactor)   // 4
 {
   const float4 pos = predPos[ID];
-  const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
+  const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
   const float currDensityC = density[ID] / REST_DENSITY - 1.0f;
 
   int x = 0;
@@ -230,7 +230,7 @@ __kernel void computeConstraintCorrection(//Input
                                                 __global float4 *corrPos)      // 3
 {
   const float4 pos = predPos[ID];
-  const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
+  const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
   const float lambdaI = constFactor[ID];
 
   int x = 0;
@@ -303,13 +303,31 @@ __kernel void updateVel(//Input
 }
 
 /*
-  Apply Bouncing wall boundary conditions on position and velocity buffers.
+  Apply Bouncing wall boundary conditions on position.
 */
 __kernel void updatePosWithBouncingWalls(//Input
                                          const  __global float4 *predPos, // 0
                                          //Output
                                                 __global float4 *pos)     // 1
+{
+  pos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS);
+}
 
+/*
+  Apply Bouncing wall boundary conditions on position
+*/
+__kernel void applyBoundaryCondition(__global float4 *predPos)
+{
+  predPos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS);
+}
+
+/*
+  Update position using predicted one
+*/
+__kernel void updatePosition(//Input
+                              const  __global float4 *predPos, // 0
+                              //Output
+                                     __global float4 *pos)     // 1
 {
   pos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS);
 }

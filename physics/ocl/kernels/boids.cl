@@ -19,7 +19,7 @@ inline unsigned int parallelRNG(unsigned int i);
 /*
   Compute 3D index of the cell containing given position
 */
-inline int3 getCell3DIndexFromPos(float4 pos);
+inline uint3 getCell3DIndexFromPos(float4 pos);
 /*
   Compute 1D index of the cell containing given position
 */
@@ -67,7 +67,7 @@ __kernel void applyBoidsRulesWithGrid3D(//Input
   const float4 vel = velocity[ID];
 
   const uint currCell1DIndex = getCell1DIndexFromPos(pos);
-  const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
+  const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
   const uint2 startEnd = startEndCell[currCell1DIndex];
 
   int count = 0;
@@ -166,7 +166,7 @@ __kernel void applyBoidsRulesWithGrid2D(//Input
   const float4 vel = velocity[ID];
 
   const uint currCell1DIndex = getCell1DIndexFromPos(pos);
-  const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
+  const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
   const uint2 startEnd = startEndCell[currCell1DIndex];
 
   int count = 0;
@@ -463,7 +463,7 @@ __kernel void applyBoidsRulesWithGridAndTex(
   int x = 0;
   int y = 0;
   int z = 0;
-  int3 currentCell3DIndex = getCell3DIndexFromPos(pos);
+  uint3 currentCell3DIndex = getCell3DIndexFromPos(pos);
   uint cellIndex = 0;
 
   sampler_t samp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;
@@ -557,7 +557,7 @@ __kernel void applyBoidsRulesWithGridAndTexLocal(
   sampler_t samp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;
 
   float4 posF = read_imagef(posTex, samp, (int2)(0, cellIndex));
-  int3 cell3DIndex = getCell3DIndexFromPos(posF);
+  uint3 cell3DIndex = getCell3DIndexFromPos(posF);
 
   // local filling for the 27 cells
 
