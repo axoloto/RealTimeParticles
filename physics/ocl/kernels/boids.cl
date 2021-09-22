@@ -95,9 +95,9 @@ __kernel void applyBoidsRulesWithGrid3D(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        x = currCell3DIndex.x + iX;
-        y = currCell3DIndex.y + iY;
-        z = currCell3DIndex.z + iZ;
+        x = convert_int(currCell3DIndex.x) + iX;
+        y = convert_int(currCell3DIndex.y) + iY;
+        z = convert_int(currCell3DIndex.z) + iZ;
 
         if (x < 0 || x >= GRID_RES
          || y < 0 || y >= GRID_RES
@@ -193,8 +193,8 @@ __kernel void applyBoidsRulesWithGrid2D(//Input
   {
     for (int iZ = -1; iZ <= 1; ++iZ)
     {
-      y = currCell3DIndex.y + iY;
-      z = currCell3DIndex.z + iZ;
+      x = convert_int(currCell3DIndex.x) + iX;
+      y = convert_int(currCell3DIndex.y) + iY;
 
       if ( y < 0 || y >= GRID_RES
         || z < 0 || z >= GRID_RES)

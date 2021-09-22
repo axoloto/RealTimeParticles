@@ -1,7 +1,7 @@
 // Preprocessor defines following constant variables in Boids.cpp
 // ABS_WALL_POS            - absolute position of the walls in x,y,z
 // GRID_RES                - resolution of the grid
-// GRID_CELL_SIZE               - size of a cell, size / res of grid
+// GRID_CELL_SIZE          - size of a cell, size / res of grid
 // GRID_NUM_CELLS          - total number of cells in the grid
 // NUM_MAX_PARTS_IN_CELL   - maximum number of particles taking into account in a single cell in simplified mode
 #define FLOAT_EPSILON 0.01f
