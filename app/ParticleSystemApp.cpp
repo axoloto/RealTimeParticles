@@ -234,7 +234,8 @@ bool ParticleSystemApp::initPhysicsEngine()
   params.boxSize = BOX_SIZE;
   params.gridRes = GRID_RES;
   params.velocity = 5.0f;
-  params.particleVBO = (unsigned int)m_graphicsEngine->pointCloudCoordVBO();
+  params.particlePosVBO = (unsigned int)m_graphicsEngine->pointCloudCoordVBO();
+  params.particleColVBO = (unsigned int)m_graphicsEngine->pointCloudColorVBO();
   params.cameraVBO = (unsigned int)m_graphicsEngine->cameraCoordVBO();
   params.gridVBO = (unsigned int)m_graphicsEngine->gridDetectorVBO();
 

@@ -48,7 +48,8 @@ struct ModelParams
   size_t boxSize = 0;
   size_t gridRes = 0;
   float velocity = 0.0f;
-  unsigned int particleVBO = 0;
+  unsigned int particlePosVBO = 0;
+  unsigned int particleColVBO = 0;
   unsigned int cameraVBO = 0;
   unsigned int gridVBO = 0;
 };
@@ -63,7 +64,8 @@ class Model
       , m_gridRes(params.gridRes)
       , m_nbCells(params.gridRes * params.gridRes * params.gridRes)
       , m_velocity(params.velocity)
-      , m_particleVBO(params.particleVBO)
+      , m_particlePosVBO(params.particlePosVBO)
+      , m_particleColVBO(params.particleColVBO)
       , m_cameraVBO(params.cameraVBO)
       , m_gridVBO(params.gridVBO)
       , m_dimension(dimension)
@@ -128,7 +130,8 @@ class Model
   Boundary m_boundary;
 
   // Gate to graphics
-  unsigned int m_particleVBO;
+  unsigned int m_particlePosVBO;
+  unsigned int m_particleColVBO;
   unsigned int m_cameraVBO;
   unsigned int m_gridVBO;
 };

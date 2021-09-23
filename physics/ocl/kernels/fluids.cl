@@ -333,3 +333,21 @@ __kernel void updatePosition(//Input
 {
   pos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS);
 }
+
+/*
+  Fill fluid color buffer with constraint value for real-time analysis
+  R = 1 by default
+  G = 0 => constraint = 0, i.e density is close from rest density
+  G > 0 => constraint > 0, i.e density is either bigger or smaller than rest density
+
+  Reddish particles means the system has found an equilibrium
+  Yellowish (R + G) means the density is either too high or too low and the system is not stabilized
+*/
+__kernel void fillFluidColor(//Input
+                              const  __global float *density, // 0
+                              //Output
+                                     __global float4 *col)    // 1
+{
+  float constraint = fabs(1.0f - density[ID] / REST_DENSITY);
+  col[ID] = (float4)(1.0f, constraint, 0.0f, 1.0f);
+}

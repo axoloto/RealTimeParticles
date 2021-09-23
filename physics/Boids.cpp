@@ -28,6 +28,7 @@ using namespace Physics;
 
 // boids.cl
 #define KERNEL_RANDOM_POS "randPosVertsBoids"
+#define KERNEL_FILL_COLOR "fillBoidsColor"
 #define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
 #define KERNEL_UPDATE_POS_CYCLIC "updatePosWithCyclicWalls"
 #define KERNEL_UPDATE_VEL "updateVel"
@@ -83,7 +84,8 @@ bool Boids::createBuffers() const
   CL::Context& clContext = CL::Context::Get();
 
   clContext.createGLBuffer("u_cameraPos", m_cameraVBO, CL_MEM_READ_ONLY);
-  clContext.createGLBuffer("p_pos", m_particleVBO, CL_MEM_READ_WRITE);
+  clContext.createGLBuffer("p_pos", m_particlePosVBO, CL_MEM_READ_WRITE);
+  clContext.createGLBuffer("p_col", m_particleColVBO, CL_MEM_READ_WRITE);
   clContext.createGLBuffer("c_partDetector", m_gridVBO, CL_MEM_READ_WRITE);
 
   clContext.createBuffer("p_vel", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
@@ -103,6 +105,7 @@ bool Boids::createKernels() const
   // Init only
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_INFINITE_POS, { "p_pos" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_RANDOM_POS, { "p_pos", "p_vel" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_COLOR, { "p_col" });
 
   // For rendering purpose only
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_RESET_GRID_DETECTOR, { "c_partDetector" });
@@ -170,8 +173,10 @@ void Boids::reset()
   m_time = clock::now();
   CL::Context& clContext = CL::Context::Get();
 
-  clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
+  clContext.acquireGLBuffers({ "p_pos", "p_col", "c_partDetector" });
+
   clContext.runKernel(KERNEL_INFINITE_POS, m_maxNbParticles);
+  clContext.runKernel(KERNEL_FILL_COLOR, m_maxNbParticles);
   clContext.runKernel(KERNEL_RANDOM_POS, m_currNbParticles);
   clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
@@ -179,7 +184,7 @@ void Boids::reset()
   clContext.runKernel(KERNEL_RESET_CELL_ID, m_maxNbParticles);
   clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
 
-  clContext.releaseGLBuffers({ "p_pos", "c_partDetector" });
+  clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector" });
 }
 
 void Boids::update()
@@ -189,7 +194,7 @@ void Boids::update()
 
   CL::Context& clContext = CL::Context::Get();
 
-  clContext.acquireGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
+  clContext.acquireGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 
   if (!m_pause)
   {
@@ -202,7 +207,7 @@ void Boids::update()
 
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
-    m_radixSort.sort("p_cellID", { "p_pos", "p_vel", "p_acc" });
+    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_acc" });
 
     clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
@@ -246,7 +251,7 @@ void Boids::update()
 
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
 
-  m_radixSort.sort("p_cameraDist", { "p_pos", "p_vel", "p_acc" });
+  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_acc" });
 
-  clContext.releaseGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
+  clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }

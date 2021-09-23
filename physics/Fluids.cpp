@@ -43,6 +43,7 @@ using namespace Physics;
 #define KERNEL_CORRECT_POS "correctPosition"
 #define KERNEL_UPDATE_POS "updatePosition"
 #define KERNEL_UPDATE_VEL "updateVel"
+#define KERNEL_FILL_COLOR "fillFluidColor"
 
 #define MAX_NB_JACOBI_ITERS 3
 
@@ -101,7 +102,8 @@ bool Fluids::createBuffers() const
   CL::Context& clContext = CL::Context::Get();
 
   clContext.createGLBuffer("u_cameraPos", m_cameraVBO, CL_MEM_READ_ONLY);
-  clContext.createGLBuffer("p_pos", m_particleVBO, CL_MEM_READ_WRITE);
+  clContext.createGLBuffer("p_pos", m_particlePosVBO, CL_MEM_READ_WRITE);
+  clContext.createGLBuffer("p_col", m_particleColVBO, CL_MEM_READ_WRITE);
   clContext.createGLBuffer("c_partDetector", m_gridVBO, CL_MEM_READ_WRITE);
 
   clContext.createBuffer("p_density", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
@@ -130,6 +132,7 @@ bool Fluids::createKernels() const
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_GRID_DETECTOR, { "p_pos", "c_partDetector" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_CAMERA_DIST, { "p_cameraDist" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_COLOR, { "p_density", "p_col" });
 
   // Radix Sort based on 3D grid, using predicted positions, not corrected ones
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_CELL_ID, { "p_cellID" });
@@ -192,7 +195,7 @@ void Fluids::reset()
 
   CL::Context& clContext = CL::Context::Get();
 
-  clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
+  clContext.acquireGLBuffers({ "p_pos", "p_col", "c_partDetector" });
 
   updateFluidsParamsInKernel();
 
@@ -226,13 +229,16 @@ void Fluids::reset()
   std::vector<std::array<float, 4>> vel(m_maxNbParticles, std::array<float, 4>({ 0.0f, 0.0f, 0.0f, 0.0f }));
   clContext.loadBufferFromHost("p_vel", 0, 4 * sizeof(float) * vel.size(), vel.data());
 
+  std::vector<std::array<float, 4>> col(m_maxNbParticles, std::array<float, 4>({ 1.0f, 1.0f, 0.0f, 0.0f }));
+  clContext.loadBufferFromHost("p_col", 0, 4 * sizeof(float) * col.size(), col.data());
+
   clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
 
   clContext.runKernel(KERNEL_RESET_CELL_ID, m_maxNbParticles);
   clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
 
-  clContext.releaseGLBuffers({ "p_pos", "c_partDetector" });
+  clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector" });
 }
 
 void Fluids::update()
@@ -242,7 +248,7 @@ void Fluids::update()
 
   CL::Context& clContext = CL::Context::Get();
 
-  clContext.acquireGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
+  clContext.acquireGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 
   if (!m_pause)
   {
@@ -252,7 +258,7 @@ void Fluids::update()
     // NNS - spatial partitioning
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
-    m_radixSort.sort("p_cellID", { "p_pos", "p_vel", "p_predPos" });
+    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" });
 
     clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
@@ -283,14 +289,15 @@ void Fluids::update()
     // Rendering purpose
     clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
     clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
+    clContext.runKernel(KERNEL_FILL_COLOR, m_currNbParticles);
   }
 
   // Rendering purpose
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
 
-  m_radixSort.sort("p_cameraDist", { "p_pos", "p_vel", "p_predPos" });
+  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" });
 
-  clContext.releaseGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
+  clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }
 
 /*

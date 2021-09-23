@@ -52,6 +52,14 @@ __kernel void randPosVertsBoids(//Output
 }
 
 /*
+  Fill color buffer with chosen color, could be a physics variable for real-time analysis
+*/
+__kernel void fillBoidsColor(__global float4 *col)
+{
+  col[ID] = (float4)(1.0f);
+}
+
+/*
   Apply 3 boids rules using grid in 3D.
 */
 __kernel void applyBoidsRulesWithGrid3D(//Input

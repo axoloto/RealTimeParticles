@@ -57,6 +57,7 @@ class Engine
   inline void setTargetPos(const Math::float3& pos) { m_targetPos = pos; }
 
   inline GLuint pointCloudCoordVBO() const { return m_pointCloudCoordVBO; }
+  inline GLuint pointCloudColorVBO() const { return m_pointCloudColorVBO; }
   inline GLuint cameraCoordVBO() const { return m_cameraVBO; }
   inline GLuint gridDetectorVBO() const { return m_gridDetectorVBO; }
 
