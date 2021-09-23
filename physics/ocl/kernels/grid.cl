@@ -37,7 +37,7 @@ inline uint getCell1DIndexFromPos(float4 pos)
 /*
   Reset grid detector buffer. For rendering purpose only.
 */
-__kernel void flushGridDetector(__global float8* gridDetector)
+__kernel void resetGridDetector(__global float8* gridDetector)
 {
   gridDetector[ID] = (float8)(0.0f);
 }
@@ -83,11 +83,11 @@ __kernel void fillCellIDs(//Input
 }
 
 /*
-  Flush startEndPartID buffer for each cell.
+  Reset startEndPartID buffer for each cell.
 */
-__kernel void flushStartEndCell(__global uint2 *cStartEndPartID)
+__kernel void resetStartEndCell(__global uint2 *cStartEndPartID)
 {
-  // Flushing with 1 as starting index and 0 as ending index
+  // Resetting with 1 as starting index and 0 as ending index
   // Little hack to bypass empty cell further
   cStartEndPartID[ID] = (uint2)(1, 0);
 }

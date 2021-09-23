@@ -33,7 +33,7 @@ class Fluids : public Model
   }
 
   private:
-  void print(const std::string& name, int nbItems);
+  //void print(const std::string& name, int nbItems);
 
   bool createProgram() const;
   bool createBuffers() const;
@@ -55,6 +55,5 @@ class Fluids : public Model
   std::unique_ptr<Target> m_target;
 
   RadixSort m_radixSort;
-  std::chrono::steady_clock::time_point m_time;
 };
 }

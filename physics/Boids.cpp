@@ -17,11 +17,11 @@ using namespace Physics;
 #define KERNEL_FILL_CAMERA_DIST "fillCameraDist"
 
 // grid.cl
-#define KERNEL_FLUSH_GRID_DETECTOR "flushGridDetector"
+#define KERNEL_RESET_GRID_DETECTOR "resetGridDetector"
 #define KERNEL_FILL_GRID_DETECTOR "fillGridDetector"
 #define KERNEL_RESET_CELL_ID "resetCellIDs"
 #define KERNEL_FILL_CELL_ID "fillCellIDs"
-#define KERNEL_FLUSH_START_END_CELL "flushStartEndCell"
+#define KERNEL_RESET_START_END_CELL "resetStartEndCell"
 #define KERNEL_FILL_START_CELL "fillStartCell"
 #define KERNEL_FILL_END_CELL "fillEndCell"
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
@@ -105,7 +105,7 @@ bool Boids::createKernels() const
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_RANDOM_POS, { "p_pos", "p_vel" });
 
   // For rendering purpose only
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_GRID_DETECTOR, { "c_partDetector" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_RESET_GRID_DETECTOR, { "c_partDetector" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_GRID_DETECTOR, { "p_pos", "c_partDetector" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_RESET_CAMERA_DIST, { "p_cameraDist" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
@@ -119,7 +119,7 @@ bool Boids::createKernels() const
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_RESET_CELL_ID, { "p_cellID" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_CELL_ID, { "p_pos", "p_cellID" });
 
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FLUSH_START_END_CELL, { "c_startEndPartID" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_RESET_START_END_CELL, { "c_startEndPartID" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_START_CELL, { "p_cellID", "c_startEndPartID" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_END_CELL, { "p_cellID", "c_startEndPartID" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_ADJUST_END_CELL, { "c_startEndPartID" });
@@ -173,7 +173,7 @@ void Boids::reset()
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
   clContext.runKernel(KERNEL_INFINITE_POS, m_maxNbParticles);
   clContext.runKernel(KERNEL_RANDOM_POS, m_currNbParticles);
-  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_nbCells);
+  clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
 
   clContext.runKernel(KERNEL_RESET_CELL_ID, m_maxNbParticles);
@@ -204,7 +204,7 @@ void Boids::update()
 
     m_radixSort.sort("p_cellID", { "p_pos", "p_vel", "p_acc" });
 
-    clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_nbCells);
+    clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
     clContext.runKernel(KERNEL_FILL_END_CELL, m_currNbParticles);
 
@@ -240,7 +240,7 @@ void Boids::update()
       break;
     }
 
-    clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_nbCells);
+    clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
     clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
   }
 

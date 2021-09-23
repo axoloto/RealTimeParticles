@@ -23,11 +23,11 @@ using namespace Physics;
 #define KERNEL_FILL_CAMERA_DIST "fillCameraDist"
 
 // grid.cl
-#define KERNEL_FLUSH_GRID_DETECTOR "flushGridDetector"
+#define KERNEL_RESET_GRID_DETECTOR "resetGridDetector"
 #define KERNEL_FILL_GRID_DETECTOR "fillGridDetector"
 #define KERNEL_RESET_CELL_ID "resetCellIDs"
 #define KERNEL_FILL_CELL_ID "fillCellIDs"
-#define KERNEL_FLUSH_START_END_CELL "flushStartEndCell"
+#define KERNEL_RESET_START_END_CELL "resetStartEndCell"
 #define KERNEL_FILL_START_CELL "fillStartCell"
 #define KERNEL_FILL_END_CELL "fillEndCell"
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
@@ -124,7 +124,7 @@ bool Fluids::createKernels() const
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RANDOM_POS, { "p_pos", "p_vel" });
 
   // For rendering purpose only
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FLUSH_GRID_DETECTOR, { "c_partDetector" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_GRID_DETECTOR, { "c_partDetector" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_GRID_DETECTOR, { "p_pos", "c_partDetector" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_CAMERA_DIST, { "p_cameraDist" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
@@ -133,7 +133,7 @@ bool Fluids::createKernels() const
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_CELL_ID, { "p_cellID" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_CELL_ID, { "p_predPos", "p_cellID" });
 
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FLUSH_START_END_CELL, { "c_startEndPartID" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_START_END_CELL, { "c_startEndPartID" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_START_CELL, { "p_cellID", "c_startEndPartID" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_END_CELL, { "p_cellID", "c_startEndPartID" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_ADJUST_END_CELL, { "c_startEndPartID" });
@@ -166,6 +166,11 @@ void Fluids::updateFluidsParamsInKernel()
 
   clContext.setKernelArg(KERNEL_PREDICT_POS, 3, sizeof(float), &m_velocity);
 
+  float timeStep = 0.008;
+  clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(float), &timeStep);
+
+  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &timeStep);
+
   /*
   std::array<float, 8> boidsParams;
   boidsParams[0] = m_velocity;
@@ -182,8 +187,6 @@ void Fluids::reset()
 {
   if (!m_init)
     return;
-
-  m_time = clock::now();
 
   CL::Context& clContext = CL::Context::Get();
 
@@ -221,22 +224,13 @@ void Fluids::reset()
   std::vector<std::array<float, 4>> vel(m_maxNbParticles, std::array<float, 4>({ 0.0f, 0.0f, 0.0f, 0.0f }));
   clContext.loadBufferFromHost("p_vel", 0, 4 * sizeof(float) * vel.size(), vel.data());
 
-  clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_nbCells);
+  clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
   clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
 
   clContext.runKernel(KERNEL_RESET_CELL_ID, m_maxNbParticles);
   clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
 
   clContext.releaseGLBuffers({ "p_pos", "c_partDetector" });
-}
-
-void Fluids::print(const std::string& name, int nbItems)
-{
-  CL::Context& clContext = CL::Context::Get();
-  std::vector<std::array<float, 4>> pos(m_maxNbParticles, { 0, 0, 0, 0 });
-  clContext.unloadBufferFromDevice(name, 0, sizeof(float) * pos.size(), pos.data());
-  std::for_each(pos.begin(), pos.begin() + nbItems, [](const std::array<float, 4>& p)
-      { return LOG_INFO("{}, {}, {}, {}", p[0], p[1], p[2], p[3]); });
 }
 
 void Fluids::update()
@@ -248,46 +242,27 @@ void Fluids::update()
 
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
 
-  auto currentTime = clock::now();
-
   if (!m_pause)
   {
-    float timeStep = (float)(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_time).count());
-
-    // Skipping frame if timeStep is too large, was probably in pause
-    //if (timeStep > 30.0f)
-    // return;
-    timeStep = std::clamp(timeStep, 0.01f, 100.f);
-    // Put timeStep in seconds, easier to figure out physics
-    timeStep /= 1000.0f;
-
-    LOG_DEBUG("TimeStep: {} s", timeStep);
-
-    // Prediction on velocity and correction
-    clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(float), &timeStep);
+    // Predicting velocity and position
     clContext.runKernel(KERNEL_PREDICT_POS, m_currNbParticles);
 
+    // NNS - spatial partitioning
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
-    std::vector<std::array<float, 4>> predPos(m_maxNbParticles, { 0, 0, 0, 0 });
-    clContext.unloadBufferFromDevice("p_predPos", 0, sizeof(float) * predPos.size(), predPos.data());
-
-    std::vector<std::array<float, 4>> vel(m_maxNbParticles, { 0, 0, 0, 0 });
-    clContext.unloadBufferFromDevice("p_vel", 0, sizeof(float) * vel.size(), vel.data());
-
-    // NNS
     m_radixSort.sort("p_cellID", { "p_pos", "p_vel", "p_predPos" });
-    clContext.runKernel(KERNEL_FLUSH_START_END_CELL, m_nbCells);
+
+    clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
     clContext.runKernel(KERNEL_FILL_END_CELL, m_currNbParticles);
 
     if (m_simplifiedMode)
       clContext.runKernel(KERNEL_ADJUST_END_CELL, m_nbCells);
 
-    // Position Based Fluids
+    // Correcting positions to fit constraints
     for (int iter = 0; iter < MAX_NB_JACOBI_ITERS; ++iter)
     {
-      // Taking boundary into account
+      // Clamping to boundary
       clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
       // Computing density using SPH method
       clContext.runKernel(KERNEL_DENSITY, m_currNbParticles);
@@ -297,9 +272,44 @@ void Fluids::update()
       clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION, m_currNbParticles);
       // Correcting predicted position
       clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
+    }
 
-      // WIP
-      if (1)
+    // Updating velocity and position
+    clContext.runKernel(KERNEL_UPDATE_VEL, m_currNbParticles);
+    clContext.runKernel(KERNEL_UPDATE_POS, m_currNbParticles);
+
+    // Rendering purpose
+    clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
+    clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
+  }
+
+  // Rendering purpose
+  clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
+
+  m_radixSort.sort("p_cameraDist", { "p_pos", "p_vel", "p_predPos" });
+
+  clContext.releaseGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
+}
+
+/*
+
+    //std::vector<std::array<float, 4>> predPos(m_maxNbParticles, { 0, 0, 0, 0 });
+    //clContext.unloadBufferFromDevice("p_predPos", 0, sizeof(float) * predPos.size(), predPos.data());
+
+    //std::vector<std::array<float, 4>> vel(m_maxNbParticles, { 0, 0, 0, 0 });
+    //clContext.unloadBufferFromDevice("p_vel", 0, sizeof(float) * vel.size(), vel.data());
+
+void Fluids::print(const std::string& name, int nbItems)
+{
+  CL::Context& clContext = CL::Context::Get();
+  std::vector<std::array<float, 4>> pos(m_maxNbParticles, { 0, 0, 0, 0 });
+  clContext.unloadBufferFromDevice(name, 0, sizeof(float) * pos.size(), pos.data());
+  std::for_each(pos.begin(), pos.begin() + nbItems, [](const std::array<float, 4>& p)
+      { return LOG_INFO("{}, {}, {}, {}", p[0], p[1], p[2], p[3]); });
+}
+
+// WIP
+      if (0)
       {
         std::vector<float> density(m_maxNbParticles, 0);
         clContext.unloadBufferFromDevice("p_density", 0, sizeof(float) * density.size(), density.data());
@@ -322,24 +332,4 @@ void Fluids::update()
 
         int i = 0;
       }
-    }
-
-    // Update velocity and position
-    clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &timeStep);
-    clContext.runKernel(KERNEL_UPDATE_VEL, m_currNbParticles);
-
-    // clContext.runKernel(KERNEL_UPDATE_POS_BOUNCING, m_currNbParticles);
-    clContext.runKernel(KERNEL_UPDATE_POS, m_currNbParticles);
-
-    clContext.runKernel(KERNEL_FLUSH_GRID_DETECTOR, m_nbCells);
-    clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
-  }
-
-  clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
-
-  m_radixSort.sort("p_cameraDist", { "p_pos", "p_vel", "p_predPos" });
-
-  clContext.releaseGLBuffers({ "p_pos", "c_partDetector", "u_cameraPos" });
-
-  m_time = currentTime;
-}
+    */

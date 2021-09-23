@@ -93,6 +93,7 @@ __kernel void predictPosition(//Input
                               //Output
                                     __global float4 *predPos)    // 4
 {
+  // No need to update vel, as it will reset based on the diff between predPos and Pos at the end
   const float4 newVel = vel[ID] + GRAVITY_ACC * maxVelocity * timeStep;
 
   predPos[ID] = pos[ID] + newVel * timeStep;
@@ -132,7 +133,7 @@ __kernel void computeDensity(//Input
         x = convert_int(currCell3DIndex.x) + iX;
         y = convert_int(currCell3DIndex.y) + iY;
         z = convert_int(currCell3DIndex.z) + iZ;
-        
+
         if (x < 0 || x >= GRID_RES
          || y < 0 || y >= GRID_RES
          || z < 0 || z >= GRID_RES)
