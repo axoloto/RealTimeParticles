@@ -80,11 +80,13 @@ bool Fluids::createProgram() const
   clBuildOptions << "-DEFFECT_RADIUS=" << Utils::FloatToStr(effectRadius);
   clBuildOptions << " -DABS_WALL_POS=" << Utils::FloatToStr(m_boxSize / 2.0f);
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
-  clBuildOptions << " -DGRID_CELL_SIZE=" << Utils::FloatToStr(m_boxSize / m_gridRes);
+  clBuildOptions << " -DGRID_CELL_SIZE=" << Utils::FloatToStr((float)m_boxSize / m_gridRes);
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
   clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9)));
+  // clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(4.0f / (Math::PI_F * std::powf(effectRadius, 8)));// Shallow water
   clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * std::powf(effectRadius, 6)));
+  // clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(4.0f / (Math::PI_F * std::powf(effectRadius, 8)));// Shallow water
   clBuildOptions << " -DREST_DENSITY=" << Utils::FloatToStr(10.0f); // TODO
   clBuildOptions << " -DRELAX_CFM=" << Utils::FloatToStr(600.0f); // TODO
 

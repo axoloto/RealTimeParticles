@@ -40,18 +40,22 @@ inline uint getCell1DIndexFromPos(float4 pos);
 inline float poly6(const float4 vec, const float effectRadius)
 {
   float vecLength = fast_length(vec);
-  return (1.0f - step(effectRadius, vecLength)) * POLY6_COEFF * pow((effectRadius * effectRadius - vecLength * vecLength),3);
+  return (1.0f - step(effectRadius, vecLength)) * POLY6_COEFF * pow((effectRadius * effectRadius - vecLength * vecLength), 3);
 }
 
 /*
-  Jacobian (on vec) of Spiky kernel introduced in
+  Jacobian (on vec coords) of Spiky kernel introduced in
   Muller and al. 2003. "Particle-based fluid simulation for interactive applications"
   Return null vector if vec length is superior to effectRadius
 */
 inline float4 gradSpiky(const float4 vec, const float effectRadius)
 {
   const float vecLength = fast_length(vec);
-  return vec * (1.0f - step(effectRadius, vecLength)) * SPIKY_COEFF * -3 * pow((effectRadius - vecLength), 2);
+
+  if(vecLength <= FLOAT_EPS)
+    return (float4)(0.0f);
+
+  return vec * (1.0f - step(effectRadius, vecLength)) * SPIKY_COEFF * -3 * pow((effectRadius - vecLength), 2) / vecLength;
 }
 
 /*
@@ -85,20 +89,17 @@ __kernel void randPosVertsFluid(//Output
 */
 __kernel void predictPosition(//Input
                               const __global float4 *pos,        // 0
-                              //Input/Output
-                                    __global float4 *vel,        // 1
+                              const __global float4 *vel,        // 1
                               //Param
                               const          float  timeStep,    // 2
                               const          float  maxVelocity, // 3
                               //Output
                                     __global float4 *predPos)    // 4
 {
-  // No need to update vel, as it will reset based on the diff between predPos and Pos at the end
+  // No need to update global vel, as it will be reset later on
   const float4 newVel = vel[ID] + GRAVITY_ACC * maxVelocity * timeStep;
 
   predPos[ID] = pos[ID] + newVel * timeStep;
-
-  vel[ID] = newVel;
 }
 
 /*
