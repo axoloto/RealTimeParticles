@@ -84,12 +84,10 @@ bool Fluids::createProgram() const
   clBuildOptions << " -DGRID_CELL_SIZE=" << Utils::FloatToStr((float)m_boxSize / m_gridRes);
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
-  clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9)));
+  //clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9)));
   // clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(4.0f / (Math::PI_F * std::powf(effectRadius, 8)));// Shallow water
-  clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * std::powf(effectRadius, 6)));
+  //clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * std::powf(effectRadius, 6)));
   // clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(4.0f / (Math::PI_F * std::powf(effectRadius, 8)));// Shallow water
-  clBuildOptions << " -DREST_DENSITY=" << Utils::FloatToStr(10.0f); // TODO
-  clBuildOptions << " -DRELAX_CFM=" << Utils::FloatToStr(600.0f); // TODO
 
   LOG_INFO(clBuildOptions.str());
   clContext.createProgram(PROGRAM_FLUIDS, std::vector<std::string>({ "fluids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
@@ -125,14 +123,14 @@ bool Fluids::createKernels() const
 
   // Init only
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_INFINITE_POS, { "p_pos" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RANDOM_POS, { "p_pos", "p_vel" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RANDOM_POS, { "", "p_pos", "p_vel" });
 
   // For rendering purpose only
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_GRID_DETECTOR, { "c_partDetector" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_GRID_DETECTOR, { "p_pos", "c_partDetector" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_CAMERA_DIST, { "p_cameraDist" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_COLOR, { "p_density", "p_col" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_COLOR, { "p_density", "", "p_col" });
 
   // Radix Sort based on 3D grid, using predicted positions, not corrected ones
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_CELL_ID, { "p_cellID" });
@@ -149,9 +147,9 @@ bool Fluids::createKernels() const
   /// Boundary conditions
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_APPLY_BOUNDARY, { "p_predPos" });
   /// Jacobi solver to correct position
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_DENSITY, { "p_predPos", "c_startEndPartID", "p_density" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_FACTOR, { "p_predPos", "p_density", "c_startEndPartID", "p_constFactor" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_CORRECTION, { "p_constFactor", "c_startEndPartID", "p_predPos", "p_corrPos" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_DENSITY, { "p_predPos", "c_startEndPartID", "", "p_density" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_FACTOR, { "p_predPos", "p_density", "c_startEndPartID", "", "p_constFactor" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_CORRECTION, { "p_constFactor", "c_startEndPartID", "p_predPos", "", "p_corrPos" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CORRECT_POS, { "p_corrPos", "p_predPos" });
   /// Velocity and position update
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_VEL, { "p_predPos", "p_pos", "", "p_vel" });
@@ -166,26 +164,25 @@ void Fluids::updateFluidsParamsInKernel()
 {
   CL::Context& clContext = CL::Context::Get();
 
-  float dim = (m_dimension == Dimension::dim2D) ? 2.0f : 3.0f;
-  clContext.setKernelArg(KERNEL_RANDOM_POS, 2, sizeof(float), &dim);
-
   clContext.setKernelArg(KERNEL_PREDICT_POS, 3, sizeof(float), &m_velocity);
 
-  float timeStep = 0.008;
-  clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(float), &timeStep);
+  const float effectRadius = ((float)m_boxSize) / m_gridRes;
+  m_kernelInputs.effectRadius = effectRadius;
+  m_kernelInputs.restDensity = 10.0f;
+  m_kernelInputs.relaxCFM = 600.0f;
+  m_kernelInputs.timeStep = 0.008f;
+  m_kernelInputs.poly6Coeff = 315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9));
+  m_kernelInputs.spikyCoeff = 15.0f / (Math::PI_F * std::powf(effectRadius, 6));
 
-  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &timeStep);
+  m_kernelInputs.dim = (m_dimension == Dimension::dim2D) ? 2 : 3;
 
-  /*
-  std::array<float, 8> boidsParams;
-  boidsParams[0] = m_velocity;
-  boidsParams[1] = m_activeCohesion ? m_scaleCohesion : 0.0f;
-  boidsParams[2] = m_activeAlignment ? m_scaleAlignment : 0.0f;
-  boidsParams[3] = m_activeSeparation ? m_scaleSeparation : 0.0f;
-  boidsParams[4] = isTargetActivated() ? 1.0f : 0.0f;
-  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_2D, 3, sizeof(boidsParams), &boidsParams);
-  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_3D, 3, sizeof(boidsParams), &boidsParams);
- */
+  clContext.setKernelArg(KERNEL_RANDOM_POS, 0, sizeof(FluidKernelInputs), &m_kernelInputs);
+  clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(FluidKernelInputs), &m_kernelInputs);
+  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), &m_kernelInputs);
+  clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), &m_kernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
+  clContext.setKernelArg(KERNEL_FILL_COLOR, 1, sizeof(FluidKernelInputs), &m_kernelInputs);
 }
 
 void Fluids::reset()

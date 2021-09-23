@@ -16,6 +16,16 @@
 #define GRAVITY_ACC   (float4)(0.0f, -9.81f, 0.0f, 0.0f)
 #define FLOAT_EPS     0.00000001f
 
+// See FluidKernelInputs in Fluids.cpp
+typedef struct defFluidParams{
+  float effectRadius;
+  float restDensity;
+  float relaxCFM;
+  float timeStep;
+  uint  dim;
+} FluidParams;
+
+
 // Defined in utils.cl
 /*
   Random unsigned integer number generator
@@ -61,21 +71,22 @@ inline float4 gradSpiky(const float4 vec, const float effectRadius)
 /*
   Fill position buffer with random positions
 */
-__kernel void randPosVertsFluid(//Output
-                                __global float4 *pos, // 0
-                                __global float4 *vel, // 1
-                                //Param
-                                         float  dim)  // 2
+__kernel void randPosVertsFluid(//Param
+                                const FluidParams fluid, // 0
+                                //Output
+                                __global   float4 *pos,  // 1
+                                __global   float4 *vel)  // 2
+                                
 {
   const unsigned int randomIntX = parallelRNG(ID);
   const unsigned int randomIntY = parallelRNG(ID + 1);
   const unsigned int randomIntZ = parallelRNG(ID + 2);
 
-  const float x = (float)(randomIntX & 0x0ff) * 2.0 - 250.0f;
-  const float y = (float)(randomIntY & 0x0ff) * 2.0 - 250.0f;
-  const float z = (float)(randomIntZ & 0x0ff) * 2.0 - 250.0f;
+  const float x = (float)(randomIntX & 0x0ff) * 2.0 - ABS_WALL_POS;
+  const float y = (float)(randomIntY & 0x0ff) * 2.0 - ABS_WALL_POS;
+  const float z = (float)(randomIntZ & 0x0ff) * 2.0 - ABS_WALL_POS;
 
-  const float3 randomXYZ = (float3)(x * step(3.0f, dim), y, z);
+  const float3 randomXYZ = (float3)(x * convert_float(3 - fluid.dim), y, z);
 
   pos[ID].xyz = clamp(randomXYZ, -ABS_WALL_POS, ABS_WALL_POS);
   pos[ID].w = 0.0f;
@@ -91,15 +102,15 @@ __kernel void predictPosition(//Input
                               const __global float4 *pos,        // 0
                               const __global float4 *vel,        // 1
                               //Param
-                              const          float  timeStep,    // 2
+                              const     FluidParams fluid,       // 2
                               const          float  maxVelocity, // 3
                               //Output
                                     __global float4 *predPos)    // 4
 {
   // No need to update global vel, as it will be reset later on
-  const float4 newVel = vel[ID] + GRAVITY_ACC * maxVelocity * timeStep;
+  const float4 newVel = vel[ID] + GRAVITY_ACC * maxVelocity * fluid.timeStep;
 
-  predPos[ID] = pos[ID] + newVel * timeStep;
+  predPos[ID] = pos[ID] + newVel * fluid.timeStep;
 }
 
 /*
@@ -109,8 +120,10 @@ __kernel void predictPosition(//Input
 __kernel void computeDensity(//Input
                               const __global float4 *predPos,      // 0
                               const __global uint2  *startEndCell, // 1
+                              //Param
+                              const     FluidParams fluid,         // 2
                               //Output
-                                    __global float  *density)      // 2
+                                    __global float  *density)      // 3
 {
   const float4 pos = predPos[ID];
   const uint currCell1DIndex = getCell1DIndexFromPos(pos);
@@ -146,7 +159,7 @@ __kernel void computeDensity(//Input
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
-          fluidDensity += poly6(pos - predPos[e], EFFECT_RADIUS);
+          fluidDensity += poly6(pos - predPos[e], fluid.effectRadius);
         }
       }
     }
@@ -158,15 +171,17 @@ __kernel void computeDensity(//Input
   Compute Constraint Factor (Lambda), coefficient along jacobian
 */
 __kernel void computeConstraintFactor(//Input
-                                      const __global float4 *predPos,       // 1
-                                      const __global float  *density,       // 2
-                                      const __global uint2  *startEndCell,  // 3
+                                      const __global float4 *predPos,       // 0
+                                      const __global float  *density,       // 1
+                                      const __global uint2  *startEndCell,  // 2
+                                      //Param
+                                      const     FluidParams fluid,          // 3
                                       //Output
                                             __global float  *constFactor)   // 4
 {
   const float4 pos = predPos[ID];
   const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
-  const float currDensityC = density[ID] / REST_DENSITY - 1.0f;
+  const float currDensityC = density[ID] / fluid.restDensity - 1.0f;
 
   int x = 0;
   int y = 0;
@@ -205,7 +220,7 @@ __kernel void computeConstraintFactor(//Input
           vec = pos - predPos[e];
 
           // Supposed to be null if vec = 0.0f;
-          grad = gradSpiky(vec, EFFECT_RADIUS);
+          grad = gradSpiky(vec, fluid.effectRadius);
           // Contribution from the ID particle
           sumGradCi += grad;
           // Contribution from its neighbors
@@ -216,9 +231,9 @@ __kernel void computeConstraintFactor(//Input
   }
 
   sumSqGradC += dot(sumGradCi, sumGradCi);
-  sumSqGradC /= REST_DENSITY * REST_DENSITY;
+  sumSqGradC /= fluid.restDensity * fluid.restDensity;
 
-  constFactor[ID] = - currDensityC / (sumSqGradC + RELAX_CFM);
+  constFactor[ID] = - currDensityC / (sumSqGradC + fluid.relaxCFM);
 }
 
 /*
@@ -228,8 +243,10 @@ __kernel void computeConstraintCorrection(//Input
                                           const __global float  *constFactor,  // 0
                                           const __global uint2  *startEndCell, // 1
                                           const __global float4 *predPos,      // 2
+                                          //Param
+                                          const     FluidParams fluid,         // 3
                                           //Output
-                                                __global float4 *corrPos)      // 3
+                                                __global float4 *corrPos)      // 4
 {
   const float4 pos = predPos[ID];
   const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
@@ -268,13 +285,13 @@ __kernel void computeConstraintCorrection(//Input
         {
           vec = pos - predPos[e];
 
-          corr += (lambdaI + constFactor[e]) * gradSpiky(vec, EFFECT_RADIUS);
+          corr += (lambdaI + constFactor[e]) * gradSpiky(vec, fluid.effectRadius);
         }
       }
     }
   }
 
-  corrPos[ID] = corr / REST_DENSITY;
+  corrPos[ID] = corr / fluid.restDensity;
 }
 
 /*
@@ -295,13 +312,13 @@ __kernel void updateVel(//Input
                         const __global float4 *predPos,    // 0
                         const __global float4 *pos,        // 1
                         //Param
-                        const          float  timeStep,    // 2
+                        const     FluidParams fluid,    // 2
                         //Output
                               __global float4 *vel)        // 3
    
 {
   // Preventing division by 0
-  vel[ID] = (predPos[ID] - pos[ID]) / (timeStep + FLOAT_EPS);
+  vel[ID] = (predPos[ID] - pos[ID]) / (fluid.timeStep + FLOAT_EPS);
 }
 
 /*
@@ -344,10 +361,12 @@ __kernel void updatePosition(//Input
   Yellowish (R + G) means the density is either too high or too low and the system is not stabilized
 */
 __kernel void fillFluidColor(//Input
-                              const  __global float *density, // 0
-                              //Output
-                                     __global float4 *col)    // 1
+                             const  __global float  *density, // 0
+                             //Param
+                             const      FluidParams fluid,    // 1
+                             //Output
+                                    __global float4 *col)     // 2
 {
-  float constraint = fabs(1.0f - density[ID] / REST_DENSITY);
+  float constraint = fabs(1.0f - density[ID] / fluid.restDensity);
   col[ID] = (float4)(1.0f, constraint, 0.0f, 1.0f);
 }

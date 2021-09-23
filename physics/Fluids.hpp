@@ -16,6 +16,15 @@ namespace Physics
 {
 using clock = std::chrono::high_resolution_clock;
 
+struct FluidKernelInputs
+{
+  cl_float effectRadius;
+  cl_float restDensity;
+  cl_float relaxCFM;
+  cl_float timeStep;
+  cl_uint dim;
+};
+
 class Fluids : public Model
 {
   public:
@@ -41,19 +50,13 @@ class Fluids : public Model
 
   void updateFluidsParamsInKernel();
 
-  bool m_activeAlignment;
-  bool m_activeCohesion;
-  bool m_activeSeparation;
-
-  float m_scaleAlignment;
-  float m_scaleCohesion;
-  float m_scaleSeparation;
-
   bool m_simplifiedMode;
   size_t m_maxNbPartsInCell;
 
   std::unique_ptr<Target> m_target;
 
   RadixSort m_radixSort;
+
+  FluidKernelInputs m_kernelInputs;
 };
 }
