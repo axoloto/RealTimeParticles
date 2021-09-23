@@ -87,7 +87,7 @@ bool Fluids::createProgram() const
   // clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(4.0f / (Math::PI_F * std::powf(effectRadius, 8)));// Shallow water
   clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * std::powf(effectRadius, 6)));
   // clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(4.0f / (Math::PI_F * std::powf(effectRadius, 8)));// Shallow water
-  clBuildOptions << " -DREST_DENSITY=" << Utils::FloatToStr(100.0f); // TODO
+  clBuildOptions << " -DREST_DENSITY=" << Utils::FloatToStr(10.0f); // TODO
   clBuildOptions << " -DRELAX_CFM=" << Utils::FloatToStr(600.0f); // TODO
 
   LOG_INFO(clBuildOptions.str());
