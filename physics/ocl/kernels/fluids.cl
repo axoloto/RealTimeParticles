@@ -354,11 +354,12 @@ __kernel void updatePosition(//Input
 /*
   Fill fluid color buffer with constraint value for real-time analysis
   R = 1 by default
-  G = 0 => constraint = 0, i.e density is close from rest density
-  G > 0 => constraint > 0, i.e density is either bigger or smaller than rest density
+  G > 0 => constraint > 0, i.e density is smaller than rest density
+  B > 0 => constraint < 0, i.e density is bigger than rest density
 
-  Reddish particles means the system has found an equilibrium
-  Yellowish (R + G) means the density is either too high or too low and the system is not stabilized
+  Red particles have a density close from the rest density, the system has found an equilibrium
+  Yellow (R + G) particles have a density too low and the system is not stabilized
+  Purple (R + B) particles have a density too high and the system is not stabilized
 */
 __kernel void fillFluidColor(//Input
                              const  __global float  *density, // 0
@@ -367,6 +368,8 @@ __kernel void fillFluidColor(//Input
                              //Output
                                     __global float4 *col)     // 2
 {
-  float constraint = fabs(1.0f - density[ID] / fluid.restDensity);
-  col[ID] = (float4)(1.0f, constraint, 0.0f, 1.0f);
+  float constraint = (1.0f - density[ID] / fluid.restDensity);
+  float green = (constraint >= 0) ? constraint : 0.0f;
+  float blue  = (constraint >= 0) ? 0.0f : -constraint;
+  col[ID] = (float4)(1.0f, green, blue, 1.0f);
 }

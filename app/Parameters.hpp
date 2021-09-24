@@ -37,11 +37,11 @@ static const std::map<NbParticles, std::string, CompareNbParticles> ALL_NB_PARTI
 };
 
 // Length of one side of the bounding box where the particles evolve
-static constexpr int BOX_SIZE = 100;
+static constexpr int BOX_SIZE = 10;
 //static constexpr int BOX_SIZE = 1600;
 
 // Length of one side of the cells forming the 3D grid containing all the particles
-static constexpr int GRID_RES = 100;
+static constexpr int GRID_RES = 30;
 //static constexpr int GRID_RES = 30;
 
 }

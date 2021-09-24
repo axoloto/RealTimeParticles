@@ -49,12 +49,6 @@ using namespace Physics;
 
 Fluids::Fluids(ModelParams params)
     : Model(params)
-    , m_scaleAlignment(1.6f)
-    , m_scaleCohesion(1.45f)
-    , m_scaleSeparation(1.6f)
-    , m_activeAlignment(true)
-    , m_activeSeparation(true)
-    , m_activeCohesion(true)
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(1000)
     , m_radixSort(params.maxNbParticles)
@@ -84,9 +78,9 @@ bool Fluids::createProgram() const
   clBuildOptions << " -DGRID_CELL_SIZE=" << Utils::FloatToStr((float)m_boxSize / m_gridRes);
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
-  //clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9)));
+  clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9)));
   // clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(4.0f / (Math::PI_F * std::powf(effectRadius, 8)));// Shallow water
-  //clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * std::powf(effectRadius, 6)));
+  clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * std::powf(effectRadius, 6)));
   // clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(4.0f / (Math::PI_F * std::powf(effectRadius, 8)));// Shallow water
 
   LOG_INFO(clBuildOptions.str());
@@ -168,11 +162,11 @@ void Fluids::updateFluidsParamsInKernel()
 
   const float effectRadius = ((float)m_boxSize) / m_gridRes;
   m_kernelInputs.effectRadius = effectRadius;
-  m_kernelInputs.restDensity = 10.0f;
+  m_kernelInputs.restDensity = 450.0f;
   m_kernelInputs.relaxCFM = 600.0f;
   m_kernelInputs.timeStep = 0.008f;
-  m_kernelInputs.poly6Coeff = 315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9));
-  m_kernelInputs.spikyCoeff = 15.0f / (Math::PI_F * std::powf(effectRadius, 6));
+  //m_kernelInputs.poly6Coeff = 315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9));
+  //m_kernelInputs.spikyCoeff = 15.0f / (Math::PI_F * std::powf(effectRadius, 6));
 
   m_kernelInputs.dim = (m_dimension == Dimension::dim2D) ? 2 : 3;
 
@@ -206,8 +200,8 @@ void Fluids::reset()
 
   int i = 0;
   float effectRadius = ((float)m_boxSize) / m_gridRes;
-  float gridSpacing = 0.5f * effectRadius;
-  Math::float3 startFluidPos = { 0.0f, 0.0f, 0.0f };
+  float gridSpacing = 0.4f * effectRadius;
+  Math::float3 startFluidPos = { 5.0f, 5.0f, 5.0f };
   for (int ix = 0; ix < 64; ++ix)
   {
     for (int iy = 0; iy < 32; ++iy)
