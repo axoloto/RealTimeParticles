@@ -53,6 +53,7 @@ Fluids::Fluids(ModelParams params)
     , m_maxNbPartsInCell(1000)
     , m_radixSort(params.maxNbParticles)
     , m_target(std::make_unique<Target>(params.boxSize))
+    , m_initialCase(CaseType::DAM)
 {
   createProgram();
 
@@ -61,6 +62,10 @@ Fluids::Fluids(ModelParams params)
   createKernels();
 
   m_init = true;
+
+  // WIP
+  const float effectRadius = ((float)m_boxSize) / m_gridRes;
+  m_kernelInputs.effectRadius = effectRadius;
 
   reset();
 }
@@ -137,7 +142,7 @@ bool Fluids::createKernels() const
 
   // Position Based Fluids
   /// Position prediction
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_PREDICT_POS, { "p_pos", "p_vel", "", "", "p_predPos" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_PREDICT_POS, { "p_pos", "p_vel", "", "p_predPos" });
   /// Boundary conditions
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_APPLY_BOUNDARY, { "p_predPos" });
   /// Jacobi solver to correct position
@@ -158,13 +163,6 @@ void Fluids::updateFluidsParamsInKernel()
 {
   CL::Context& clContext = CL::Context::Get();
 
-  clContext.setKernelArg(KERNEL_PREDICT_POS, 3, sizeof(float), &m_velocity);
-
-  const float effectRadius = ((float)m_boxSize) / m_gridRes;
-  m_kernelInputs.effectRadius = effectRadius;
-  m_kernelInputs.restDensity = 450.0f;
-  m_kernelInputs.relaxCFM = 600.0f;
-  m_kernelInputs.timeStep = 0.008f;
   //m_kernelInputs.poly6Coeff = 315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9));
   //m_kernelInputs.spikyCoeff = 15.0f / (Math::PI_F * std::powf(effectRadius, 6));
 
@@ -186,13 +184,28 @@ void Fluids::reset()
 
   CL::Context& clContext = CL::Context::Get();
 
-  clContext.acquireGLBuffers({ "p_pos", "p_col", "c_partDetector" });
-
   updateFluidsParamsInKernel();
 
-  // WIP
-  //clContext.runKernel(KERNEL_INFINITE_POS, m_maxNbParticles);
-  //clContext.runKernel(KERNEL_RANDOM_POS, m_currNbParticles);
+  initFluid();
+
+  clContext.acquireGLBuffers({ "c_partDetector" });
+
+  clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
+  clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
+
+  clContext.releaseGLBuffers({ "c_partDetector" });
+
+  clContext.runKernel(KERNEL_RESET_CELL_ID, m_maxNbParticles);
+  clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
+}
+
+void Fluids::initFluid() const
+{
+  CL::Context& clContext = CL::Context::Get();
+
+  clContext.acquireGLBuffers({ "p_pos", "p_col" });
+
+  //float dim = (m_dimension == Dimension::dim2D) ? 2.0f : 3.0f;
 
   // Dam setup
   float inf = std::numeric_limits<float>::infinity();
@@ -201,7 +214,7 @@ void Fluids::reset()
   int i = 0;
   float effectRadius = ((float)m_boxSize) / m_gridRes;
   float gridSpacing = 0.4f * effectRadius;
-  Math::float3 startFluidPos = { 5.0f, 5.0f, 5.0f };
+  Math::float3 startFluidPos = { 5.0f, 5.0f, 0.0f };
   for (int ix = 0; ix < 64; ++ix)
   {
     for (int iy = 0; iy < 32; ++iy)
@@ -223,13 +236,7 @@ void Fluids::reset()
   std::vector<std::array<float, 4>> col(m_maxNbParticles, std::array<float, 4>({ 1.0f, 1.0f, 0.0f, 0.0f }));
   clContext.loadBufferFromHost("p_col", 0, 4 * sizeof(float) * col.size(), col.data());
 
-  clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
-  clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
-
-  clContext.runKernel(KERNEL_RESET_CELL_ID, m_maxNbParticles);
-  clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
-
-  clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector" });
+  clContext.releaseGLBuffers({ "p_pos", "p_col" });
 }
 
 void Fluids::update()

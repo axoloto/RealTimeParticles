@@ -7,6 +7,9 @@ void UI::PhysicsWidget::display()
   auto* boidsEngine = dynamic_cast<Physics::Boids*>(m_physicsEngine);
   auto* fluidsEngine = dynamic_cast<Physics::Fluids*>(m_physicsEngine);
 
+  // First default pos
+  ImGui::SetNextWindowPos(ImVec2(60, 430), ImGuiCond_FirstUseEver);
+
   if (boidsEngine)
     displayBoidsParameters(boidsEngine);
   else if (fluidsEngine)
@@ -18,16 +21,83 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
   if (!fluidsEngine)
     return;
 
-  displayBoundaryConditions(fluidsEngine);
+  ImGui::Begin("Fluids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+  ImGui::PushItemWidth(150);
+
+  ImGui::Spacing();
+  ImGui::Text("Cases");
+  ImGui::Spacing();
+  /*
+  // Selection of the initial setup
+  const auto& selCaseName = (Physics::Fluids::ALL_CASES.find(m_modelType) != Physics::ALL_CASES.end())
+      ? Physics::ALL_CASES.find(m_modelType)->second
+      : Physics::ALL_CASES.cbegin()->second;
+
+  if (ImGui::BeginCombo("Physical Model", selCaseName.c_str()))
+  {
+    for (const auto& model : Physics::ALL_CASES)
+    {
+      if (ImGui::Selectable(model.second.c_str(), m_modelType == model.first))
+      {
+        m_modelType = model.first;
+
+        if (!initPhysicsEngine())
+        {
+          LOG_ERROR("Failed to change physics engine");
+          return;
+        }
+
+        if (!initPhysicsWidget())
+        {
+          LOG_ERROR("Failed to change physics widget");
+          return;
+        }
+
+        m_physicsEngine->setNbParticles(m_nbParticles);
+        m_graphicsEngine->setNbParticles(m_nbParticles);
+
+        LOG_INFO("Application correctly switched to {}", Physics::ALL_CASES.find(m_modelType)->second);
+      }
+    }
+    ImGui::EndCombo();
+  }
+
+*/
+  ImGui::Spacing();
+  ImGui::Text("Fluid parameters");
+  ImGui::Spacing();
+
+  float effectRadius = fluidsEngine->getEffectRadius();
+  if (ImGui::SliderFloat("Effect Radius", &effectRadius, 0.01f, 0.9f))
+  {
+    fluidsEngine->setEffectRadius(effectRadius);
+  }
+
+  float restDensity = fluidsEngine->getRestDensity();
+  if (ImGui::SliderFloat("Rest Density", &restDensity, 10.0f, 1000.0f))
+  {
+    fluidsEngine->setRestDensity(restDensity);
+  }
+
+  float relaxCFM = fluidsEngine->getRelaxCFM();
+  if (ImGui::SliderFloat("Relax CFM", &relaxCFM, 100.0f, 1000.f))
+  {
+    fluidsEngine->setRelaxCFM(relaxCFM);
+  }
+
+  float timeStep = fluidsEngine->getTimeStep();
+  if (ImGui::SliderFloat("Time Step", &timeStep, 0.0001f, 0.1f))
+  {
+    fluidsEngine->setTimeStep(timeStep);
+  }
+
+  ImGui::End();
 }
 
 void UI::PhysicsWidget::displayBoidsParameters(Physics::Boids* boidsEngine)
 {
   if (!boidsEngine)
     return;
-
-  // First default pos
-  ImGui::SetNextWindowPos(ImVec2(60, 430), ImGuiCond_FirstUseEver);
 
   ImGui::Begin("Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);

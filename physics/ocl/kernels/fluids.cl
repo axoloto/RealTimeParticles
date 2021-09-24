@@ -26,6 +26,8 @@ typedef struct defFluidParams{
 } FluidParams;
 
 
+#define WALL_COEFF 100.0f
+
 // Defined in utils.cl
 /*
   Random unsigned integer number generator
@@ -69,6 +71,18 @@ inline float4 gradSpiky(const float4 vec, const float effectRadius)
 }
 
 /*
+  Wall weight function for the boundary conditions
+  Inspired by Harada et al. 2007 - Smoothed Particle Hydrodynamics on GPUs
+  Based on section sphere volume formula
+*/
+inline float applyWallBoundaryConditions(float distanceFromWall, float effectRadius)
+{
+  return (1.0f - step(effectRadius, distanceFromWall)) * WALL_COEFF * M_PI_F 
+  * ( 2.0f / 3.0f * pow(effectRadius, 3) 
+     + distanceFromWall * (pow(distanceFromWall, 2) / 3.0f - pow(effectRadius, 2)) );
+}
+
+/*
   Fill position buffer with random positions
 */
 __kernel void randPosVertsFluid(//Param
@@ -103,12 +117,11 @@ __kernel void predictPosition(//Input
                               const __global float4 *vel,        // 1
                               //Param
                               const     FluidParams fluid,       // 2
-                              const          float  maxVelocity, // 3
                               //Output
-                                    __global float4 *predPos)    // 4
+                                    __global float4 *predPos)    // 3
 {
   // No need to update global vel, as it will be reset later on
-  const float4 newVel = vel[ID] + GRAVITY_ACC * maxVelocity * fluid.timeStep;
+  const float4 newVel = vel[ID] + GRAVITY_ACC * fluid.timeStep;
 
   predPos[ID] = pos[ID] + newVel * fluid.timeStep;
 }
@@ -164,6 +177,17 @@ __kernel void computeDensity(//Input
       }
     }
   }
+
+  // Boundary walls effect on density
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.x + ABS_WALL_POS), fluid.effectRadius);
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.x - ABS_WALL_POS), fluid.effectRadius);
+  
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.y + ABS_WALL_POS), fluid.effectRadius);
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.y - ABS_WALL_POS), fluid.effectRadius);
+  
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.z + ABS_WALL_POS), fluid.effectRadius);
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.z - ABS_WALL_POS), fluid.effectRadius);
+
   density[ID] = fluidDensity;
 }
 
