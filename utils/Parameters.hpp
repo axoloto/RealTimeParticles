@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-namespace App
+namespace Utils
 {
 // List of supported particles system sizes
 enum NbParticles

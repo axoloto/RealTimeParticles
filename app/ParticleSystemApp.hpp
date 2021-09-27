@@ -40,7 +40,6 @@ class ParticleSystemApp
   std::string m_nameApp;
 
   Physics::ModelType m_modelType;
-  NbParticles m_nbParticles;
 
   Math::int2 m_windowSize;
   Math::int2 m_mousePrevPos;

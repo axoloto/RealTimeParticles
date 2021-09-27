@@ -10,6 +10,7 @@ Camera::Camera(float sceneAspectRatio)
     , m_zFar(6000.f)
     , m_cameraInitPos({ 25.0, -1.0, 0.0 })
     , m_focusInitPos({ 0.0, 0.0, 0.0 })
+    , m_isAutoRotating(false)
 {
   reset();
 }

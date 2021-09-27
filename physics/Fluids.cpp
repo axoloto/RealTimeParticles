@@ -1,5 +1,6 @@
 #include "Fluids.hpp"
 #include "Logging.hpp"
+#include "Parameters.hpp"
 #include "Utils.hpp"
 
 #include <algorithm>
@@ -53,6 +54,8 @@ Fluids::Fluids(ModelParams params)
     , m_initialCase(CaseType::DAM)
     , m_nbJacobiIters(3)
 {
+  m_currNbParticles = Utils::NbParticles::P65K;
+
   createProgram();
 
   createBuffers();

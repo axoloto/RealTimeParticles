@@ -106,6 +106,12 @@ void Engine::loadCameraPos()
   if (!m_camera)
     return;
 
+  if (m_camera->isAutoRotating())
+  {
+    const auto angle = Math::float2(0.5f, 0.0f) * Math::PI_F / 180.0f * 0.5f;
+    m_camera->rotate(angle.y, angle.x);
+  }
+
   auto pos = m_camera->cameraPos();
   const std::array<float, 3> cameraCoord = { pos[0], pos[1], pos[2] };
   glBindBuffer(GL_ARRAY_BUFFER, m_cameraVBO);
@@ -289,7 +295,7 @@ void Engine::checkMouseEvents(UserAction action, Math::float2 delta)
   {
   case UserAction::TRANSLATION:
   {
-    const auto displacement = 0.4f * delta;
+    const auto displacement = 0.06f * delta;
     m_camera->translate(-displacement.x, displacement.y);
     break;
   }

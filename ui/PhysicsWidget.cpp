@@ -1,5 +1,6 @@
 #include "PhysicsWidget.hpp"
 #include "Logging.hpp"
+#include "Parameters.hpp"
 
 #include <imgui.h>
 
@@ -49,6 +50,8 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
     ImGui::EndCombo();
   }
 
+  ImGui::Value("Particles", (int)fluidsEngine->nbParticles());
+
   ImGui::Spacing();
   ImGui::Text("Fluid parameters");
   ImGui::Spacing();
@@ -96,10 +99,39 @@ void UI::PhysicsWidget::displayBoidsParameters(Physics::Boids* boidsEngine)
   ImGui::Begin("Boids Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);
 
+  ImGui::Spacing();
+  ImGui::Text("Speed");
+  ImGui::Spacing();
+
   float velocity = boidsEngine->velocity();
-  if (ImGui::SliderFloat("Speed", &velocity, 0.01f, 5.0f))
+  if (ImGui::SliderFloat("##speed", &velocity, 0.01f, 5.0f))
   {
     boidsEngine->setVelocity(velocity);
+  }
+
+  ImGui::Spacing();
+  ImGui::Separator();
+  ImGui::Text("Particles");
+  ImGui::Spacing();
+
+  // Selection of the number of particles in the model
+  const auto nbParticles = (Utils::NbParticles)m_physicsEngine->nbParticles();
+
+  const auto& nbParticlesStr = (Utils::ALL_NB_PARTICLES.find(nbParticles) != Utils::ALL_NB_PARTICLES.end())
+      ? Utils::ALL_NB_PARTICLES.find(nbParticles)->second
+      : Utils::ALL_NB_PARTICLES.cbegin()->second;
+
+  if (ImGui::BeginCombo("##particles", nbParticlesStr.c_str()))
+  {
+    for (const auto& nbParticlesPair : Utils::ALL_NB_PARTICLES)
+    {
+      if (ImGui::Selectable(nbParticlesPair.second.c_str(), nbParticles == nbParticlesPair.first))
+      {
+        boidsEngine->setNbParticles(nbParticlesPair.first);
+        boidsEngine->reset();
+      }
+    }
+    ImGui::EndCombo();
   }
 
   ImGui::Spacing();

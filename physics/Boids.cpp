@@ -1,7 +1,8 @@
 #include "Boids.hpp"
+#include "Logging.hpp"
+#include "Parameters.hpp"
 #include "Utils.hpp"
 
-#include "Logging.hpp"
 #include <ctime>
 #include <iomanip>
 #include <iostream>
@@ -50,6 +51,8 @@ Boids::Boids(ModelParams params)
     , m_radixSort(params.maxNbParticles)
     , m_target(std::make_unique<Target>(params.boxSize))
 {
+  m_currNbParticles = Utils::NbParticles::P512;
+
   createProgram();
 
   createBuffers();
@@ -219,7 +222,7 @@ void Boids::update()
 
   if (!m_pause)
   {
-    float timeStep = 0.1;
+    float timeStep = 0.1f;
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
     m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_acc" });

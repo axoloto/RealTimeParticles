@@ -34,15 +34,26 @@ class Engine
   void checkMouseEvents(UserAction action, Math::float2 mouseDisplacement);
   void draw();
 
-  inline const Math::float3 cameraPos() const { return m_camera->cameraPos(); }
-  inline const Math::float3 focusPos() const { return m_camera->focusPos(); }
+  inline const Math::float3 cameraPos() const { return m_camera ? m_camera->cameraPos() : Math::float3(0.0f, 0.0f, 0.0f); }
+  inline const Math::float3 focusPos() const { return m_camera ? m_camera->focusPos() : Math::float3(0.0f, 0.0f, 0.0f); }
 
-  inline void resetCamera() { m_camera->reset(); }
+  inline bool isCameraAutoRotating() const { return m_camera ? m_camera->isAutoRotating() : false; }
+  inline void autoRotateCamera(bool autoRotate)
+  {
+    if (m_camera)
+      m_camera->enableAutoRotating(autoRotate);
+  }
+  inline void resetCamera()
+  {
+    if (m_camera)
+      m_camera->reset();
+  }
   inline void setWindowSize(Math::int2 windowSize)
   {
     if (m_camera)
       m_camera->setSceneAspectRatio((float)windowSize.x / windowSize.y);
   }
+
   inline void setNbParticles(int nbParticles) { m_nbParticles = nbParticles; }
 
   inline bool isBoxVisible() const { return m_isBoxVisible; }

@@ -179,7 +179,6 @@ ParticleSystemApp::ParticleSystemApp()
     , m_buttonRightActivated(false)
     , m_buttonLeftActivated(false)
     , m_windowSize(1280, 720)
-    , m_nbParticles(NbParticles::P65K)
     , m_modelType(Physics::ModelType::FLUIDS)
     , m_init(false)
 {
@@ -215,10 +214,9 @@ ParticleSystemApp::ParticleSystemApp()
 bool ParticleSystemApp::initGraphicsEngine()
 {
   Render::EngineParams params;
-  params.currNbParticles = m_nbParticles;
-  params.maxNbParticles = ALL_NB_PARTICLES.crbegin()->first;
-  params.boxSize = BOX_SIZE;
-  params.gridRes = GRID_RES;
+  params.maxNbParticles = Utils::ALL_NB_PARTICLES.crbegin()->first;
+  params.boxSize = Utils::BOX_SIZE;
+  params.gridRes = Utils::GRID_RES;
   params.aspectRatio = (float)m_windowSize.x / m_windowSize.y;
 
   m_graphicsEngine = std::make_unique<Render::Engine>(params);
@@ -229,10 +227,9 @@ bool ParticleSystemApp::initGraphicsEngine()
 bool ParticleSystemApp::initPhysicsEngine()
 {
   Physics::ModelParams params;
-  params.currNbParticles = m_nbParticles;
-  params.maxNbParticles = ALL_NB_PARTICLES.crbegin()->first;
-  params.boxSize = BOX_SIZE;
-  params.gridRes = GRID_RES;
+  params.maxNbParticles = Utils::ALL_NB_PARTICLES.crbegin()->first;
+  params.boxSize = Utils::BOX_SIZE;
+  params.gridRes = Utils::GRID_RES;
   params.velocity = 1.0f;
   params.particlePosVBO = (unsigned int)m_graphicsEngine->pointCloudCoordVBO();
   params.particleColVBO = (unsigned int)m_graphicsEngine->pointCloudColorVBO();
@@ -294,6 +291,7 @@ void ParticleSystemApp::run()
 
     m_physicsEngine->update();
 
+    m_graphicsEngine->setNbParticles((int)m_physicsEngine->nbParticles());
     m_graphicsEngine->setTargetVisibility(m_physicsEngine->isTargetVisible());
     m_graphicsEngine->setTargetPos(m_physicsEngine->targetPos());
 
@@ -344,9 +342,6 @@ void ParticleSystemApp::displayMainWidget()
           return;
         }
 
-        m_physicsEngine->setNbParticles(m_nbParticles);
-        m_graphicsEngine->setNbParticles(m_nbParticles);
-
         LOG_INFO("Application correctly switched to {}", Physics::ALL_MODELS.find(m_modelType)->second);
       }
     }
@@ -365,27 +360,6 @@ void ParticleSystemApp::displayMainWidget()
   if (ImGui::Button("  Reset  "))
   {
     m_physicsEngine->reset();
-  }
-
-  // Selection of the number of particles in the model
-  const auto& nbParticlesStr = (ALL_NB_PARTICLES.find(m_nbParticles) != ALL_NB_PARTICLES.end())
-      ? ALL_NB_PARTICLES.find(m_nbParticles)->second
-      : ALL_NB_PARTICLES.cbegin()->second;
-
-  if (ImGui::BeginCombo("Particles", nbParticlesStr.c_str()))
-  {
-    for (const auto& nbParticlesPair : ALL_NB_PARTICLES)
-    {
-      if (ImGui::Selectable(nbParticlesPair.second.c_str(), m_nbParticles == nbParticlesPair.first))
-      {
-        m_physicsEngine->setNbParticles(nbParticlesPair.first);
-        m_graphicsEngine->setNbParticles(nbParticlesPair.first);
-        m_physicsEngine->reset();
-
-        m_nbParticles = nbParticlesPair.first;
-      }
-    }
-    ImGui::EndCombo();
   }
 
   bool isSystemDim2D = (m_physicsEngine->dimension() == Physics::Dimension::dim2D);
@@ -428,6 +402,13 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Text(" Target (%.1f, %.1f, %.1f)", focusPos.x, focusPos.y, focusPos.z);
   ImGui::Text(" Dist. camera target : %.1f", Math::length(cameraPos - focusPos));
   ImGui::Spacing();
+
+  bool isAutoRotating = m_graphicsEngine->isCameraAutoRotating();
+  if (ImGui::Checkbox(" Auto rotation ", &isAutoRotating))
+  {
+    m_graphicsEngine->autoRotateCamera(isAutoRotating);
+  }
+
   if (ImGui::Button(" Reset Camera "))
   {
     m_graphicsEngine->resetCamera();
