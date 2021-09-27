@@ -118,14 +118,14 @@ void UI::PhysicsWidget::displayBoidsParameters(Physics::Boids* boidsEngine)
   const auto nbParticles = (Utils::NbParticles)m_physicsEngine->nbParticles();
 
   const auto& nbParticlesStr = (Utils::ALL_NB_PARTICLES.find(nbParticles) != Utils::ALL_NB_PARTICLES.end())
-      ? Utils::ALL_NB_PARTICLES.find(nbParticles)->second
-      : Utils::ALL_NB_PARTICLES.cbegin()->second;
+      ? Utils::ALL_NB_PARTICLES.find(nbParticles)->second.name
+      : Utils::ALL_NB_PARTICLES.cbegin()->second.name;
 
   if (ImGui::BeginCombo("##particles", nbParticlesStr.c_str()))
   {
     for (const auto& nbParticlesPair : Utils::ALL_NB_PARTICLES)
     {
-      if (ImGui::Selectable(nbParticlesPair.second.c_str(), nbParticles == nbParticlesPair.first))
+      if (ImGui::Selectable(nbParticlesPair.second.name.c_str(), nbParticles == nbParticlesPair.first))
       {
         boidsEngine->setNbParticles(nbParticlesPair.first);
         boidsEngine->reset();

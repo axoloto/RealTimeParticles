@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <array>
 #include <map>
 #include <string>
 #include <utility>
@@ -27,13 +28,38 @@ struct CompareNbParticles
   }
 };
 
-static const std::map<NbParticles, std::string, CompareNbParticles> ALL_NB_PARTICLES {
-  { NbParticles::P512, "512" },
-  { NbParticles::P1K, "1k" },
-  { NbParticles::P4K, "4k" },
-  { NbParticles::P65K, "65k" },
-  { NbParticles::P130K, "130k" },
-  { NbParticles::P260K, "260k" }
+struct NbParticlesInfo
+{
+  const std::string name;
+  const std::array<int, 2> subdiv2D;
+  const std::array<int, 3> subdiv3D;
+};
+
+static const std::map<NbParticles, NbParticlesInfo, CompareNbParticles> ALL_NB_PARTICLES {
+  { NbParticles::P512, { "512", { 32, 16 }, { 8, 8, 8 } } },
+  { NbParticles::P1K, { "1k", { 32, 32 }, { 16, 8, 8 } } },
+  { NbParticles::P4K, { "4k", { 64, 64 }, { 16, 16, 16 } } },
+  { NbParticles::P65K, { "65k", { 256, 256 }, { 64, 32, 32 } } },
+  { NbParticles::P130K, { "130k", { 256, 512 }, { 64, 64, 32 } } },
+  { NbParticles::P260K, { "260k", { 512, 512 }, { 64, 64, 64 } } }
+};
+
+static std::array<int, 2> GetNbParticlesSubdiv2D(NbParticles nbParts)
+{
+  const auto& it = ALL_NB_PARTICLES.find(nbParts);
+  if (it != ALL_NB_PARTICLES.end())
+    return it->second.subdiv2D;
+  else
+    return { 0, 0 };
+};
+
+static std::array<int, 3> GetNbParticlesSubdiv3D(NbParticles nbParts)
+{
+  const auto& it = ALL_NB_PARTICLES.find(nbParts);
+  if (it != ALL_NB_PARTICLES.end())
+    return it->second.subdiv3D;
+  else
+    return { 0, 0, 0 };
 };
 
 // Length of one side of the bounding box where the particles evolve

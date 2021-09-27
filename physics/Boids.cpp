@@ -1,4 +1,5 @@
 #include "Boids.hpp"
+#include "Geometry.hpp"
 #include "Logging.hpp"
 #include "Parameters.hpp"
 #include "Utils.hpp"
@@ -165,21 +166,7 @@ void Boids::updateBoidsParamsInKernel()
     clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 3, sizeof(int), &signEffect);
   }
 }
-
-void Boids::reset()
-{
-  if (!m_init)
-    return;
-
-  updateBoidsParamsInKernel();
-
-  CL::Context& clContext = CL::Context::Get();
-
-  clContext.acquireGLBuffers({ "p_pos", "p_col", "c_partDetector" });
-
-  float inf = std::numeric_limits<float>::infinity();
-  std::vector<std::array<float, 4>> pos(m_maxNbParticles, std::array<float, 4>({ inf, inf, inf, 0.0f }));
-
+/*
   int i = 0;
   float effectRadius = ((float)m_boxSize) / m_gridRes;
   float gridSpacing = 0.4f * effectRadius;
@@ -196,7 +183,30 @@ void Boids::reset()
           0.0f };
       }
     }
-  }
+  }*/
+
+void Boids::reset()
+{
+  if (!m_init)
+    return;
+
+  updateBoidsParamsInKernel();
+
+  CL::Context& clContext = CL::Context::Get();
+
+  clContext.acquireGLBuffers({ "p_pos", "p_col", "c_partDetector" });
+
+  const auto& subdiv2D = Utils::GetNbParticlesSubdiv2D((Utils::NbParticles)m_currNbParticles);
+  Math::int2 grid2DRes = { subdiv2D[0], subdiv2D[1] };
+  Math::float3 start2D = { 0.0f, -(float)m_boxSize / 2.0f, -(float)m_boxSize / 2.0f };
+  Math::float3 end2D = { 0.0f, m_boxSize / 2.0f, m_boxSize / 2.0f };
+  auto gridVerts = Geometry::Generate2DGrid(Geometry::Shape::Rectangle, Geometry::Plane::YZ,
+      grid2DRes, start2D, end2D);
+
+  const float& inf = std::numeric_limits<float>::infinity();
+  std::vector<std::array<float, 4>> pos(m_maxNbParticles, std::array<float, 4>({ inf, inf, inf, 0.0f }));
+  std::transform(gridVerts.cbegin(), gridVerts.cend(), pos.begin(), [](Math::float3 vertPos) -> std::array<float, 4> { return { vertPos.x, vertPos.y, vertPos.z, 0.0f }; });
+
   clContext.loadBufferFromHost("p_pos", 0, 4 * sizeof(float) * pos.size(), pos.data());
 
   //clContext.runKernel(KERNEL_INFINITE_POS, m_maxNbParticles);
