@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <chrono>
 #include <vector>
 
 #include "Model.hpp"
@@ -11,7 +10,6 @@
 
 namespace Physics
 {
-using clock = std::chrono::high_resolution_clock;
 class Boids : public Model
 {
   public:
@@ -135,7 +133,5 @@ class Boids : public Model
   std::unique_ptr<Target> m_target;
 
   RadixSort m_radixSort;
-
-  std::chrono::steady_clock::time_point m_time;
 };
 }

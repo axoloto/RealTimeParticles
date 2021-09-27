@@ -233,7 +233,7 @@ bool ParticleSystemApp::initPhysicsEngine()
   params.maxNbParticles = ALL_NB_PARTICLES.crbegin()->first;
   params.boxSize = BOX_SIZE;
   params.gridRes = GRID_RES;
-  params.velocity = 5.0f;
+  params.velocity = 1.0f;
   params.particlePosVBO = (unsigned int)m_graphicsEngine->pointCloudCoordVBO();
   params.particleColVBO = (unsigned int)m_graphicsEngine->pointCloudColorVBO();
   params.cameraVBO = (unsigned int)m_graphicsEngine->cameraCoordVBO();
@@ -416,16 +416,6 @@ void ParticleSystemApp::displayMainWidget()
   if (ImGui::Checkbox("Grid", &isGridVisible))
   {
     m_graphicsEngine->setGridVisibility(isGridVisible);
-  }
-
-  ImGui::Spacing();
-  ImGui::Separator();
-  ImGui::Spacing();
-
-  float velocity = m_physicsEngine->velocity();
-  if (ImGui::SliderFloat("Speed", &velocity, 0.01f, 20.0f))
-  {
-    m_physicsEngine->setVelocity(velocity);
   }
 
   const auto cameraPos = m_graphicsEngine->cameraPos();

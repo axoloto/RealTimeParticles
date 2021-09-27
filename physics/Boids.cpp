@@ -17,8 +17,8 @@ using namespace Physics;
 #define KERNEL_FILL_CAMERA_DIST "fillCameraDist"
 
 // grid.cl
-#define KERNEL_RESET_GRID_DETECTOR "resetGridDetector"
-#define KERNEL_FILL_GRID_DETECTOR "fillGridDetector"
+#define KERNEL_RESET_PART_DETECTOR "resetGridDetector"
+#define KERNEL_FILL_PART_DETECTOR "fillGridDetector"
 #define KERNEL_RESET_CELL_ID "resetCellIDs"
 #define KERNEL_FILL_CELL_ID "fillCellIDs"
 #define KERNEL_RESET_START_END_CELL "resetStartEndCell"
@@ -66,10 +66,10 @@ bool Boids::createProgram() const
   CL::Context& clContext = CL::Context::Get();
 
   std::ostringstream clBuildOptions;
-  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << (int)(m_boxSize * m_boxSize / (m_gridRes * m_gridRes));
+  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << Utils::FloatToStr(1.0f * m_boxSize * m_boxSize / (m_gridRes * m_gridRes));
   clBuildOptions << " -DABS_WALL_POS=" << Utils::FloatToStr(m_boxSize / 2.0f);
   clBuildOptions << " -DGRID_RES=" << m_gridRes;
-  clBuildOptions << " -DGRID_CELL_SIZE=" << Utils::FloatToStr(m_boxSize / m_gridRes);
+  clBuildOptions << " -DGRID_CELL_SIZE=" << Utils::FloatToStr(1.0f * m_boxSize / m_gridRes);
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
 
@@ -108,8 +108,8 @@ bool Boids::createKernels() const
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_COLOR, { "p_col" });
 
   // For rendering purpose only
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_RESET_GRID_DETECTOR, { "c_partDetector" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_GRID_DETECTOR, { "p_pos", "c_partDetector" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_RESET_PART_DETECTOR, { "c_partDetector" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_PART_DETECTOR, { "p_pos", "c_partDetector" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_RESET_CAMERA_DIST, { "p_cameraDist" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
 
@@ -170,16 +170,37 @@ void Boids::reset()
 
   updateBoidsParamsInKernel();
 
-  m_time = clock::now();
   CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_pos", "p_col", "c_partDetector" });
 
-  clContext.runKernel(KERNEL_INFINITE_POS, m_maxNbParticles);
+  float inf = std::numeric_limits<float>::infinity();
+  std::vector<std::array<float, 4>> pos(m_maxNbParticles, std::array<float, 4>({ inf, inf, inf, 0.0f }));
+
+  int i = 0;
+  float effectRadius = ((float)m_boxSize) / m_gridRes;
+  float gridSpacing = 0.4f * effectRadius;
+  Math::float3 startFluidPos = { 5.0f, 5.0f, 0.0f };
+  for (int ix = 0; ix < 64; ++ix)
+  {
+    for (int iy = 0; iy < 32; ++iy)
+    {
+      for (int iz = 0; iz < 32; ++iz)
+      {
+        pos[i++] = { ix * gridSpacing - startFluidPos.x,
+          iy * gridSpacing - startFluidPos.y,
+          iz * gridSpacing - startFluidPos.z,
+          0.0f };
+      }
+    }
+  }
+  clContext.loadBufferFromHost("p_pos", 0, 4 * sizeof(float) * pos.size(), pos.data());
+
+  //clContext.runKernel(KERNEL_INFINITE_POS, m_maxNbParticles);
   clContext.runKernel(KERNEL_FILL_COLOR, m_maxNbParticles);
-  clContext.runKernel(KERNEL_RANDOM_POS, m_currNbParticles);
-  clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
-  clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
+  //clContext.runKernel(KERNEL_RANDOM_POS, m_currNbParticles);
+  clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
+  clContext.runKernel(KERNEL_FILL_PART_DETECTOR, m_currNbParticles);
 
   clContext.runKernel(KERNEL_RESET_CELL_ID, m_maxNbParticles);
   clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
@@ -198,13 +219,7 @@ void Boids::update()
 
   if (!m_pause)
   {
-    auto currentTime = clock::now();
-    float timeStep = (float)(std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - m_time).count()) / 16.0f;
-    // Resetting it if pause mode activated for more than 0.5s
-    if (timeStep > 30.0f)
-      timeStep = 0.0f;
-    m_time = currentTime;
-
+    float timeStep = 0.1;
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
     m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_acc" });
@@ -245,8 +260,8 @@ void Boids::update()
       break;
     }
 
-    clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
-    clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
+    clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
+    clContext.runKernel(KERNEL_FILL_PART_DETECTOR, m_currNbParticles);
   }
 
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);

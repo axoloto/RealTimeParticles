@@ -96,6 +96,9 @@ void Engine::draw()
 
   if (m_isTargetVisible)
     drawTarget();
+
+  glFlush();
+  glFinish();
 }
 
 void Engine::loadCameraPos()

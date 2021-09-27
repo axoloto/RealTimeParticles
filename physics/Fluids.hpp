@@ -1,21 +1,17 @@
 #pragma once
 
 #include <array>
-#include <chrono>
 #include <vector>
 
 #include "Model.hpp"
 #include "ocl/Context.hpp"
 #include "utils/RadixSort.hpp"
-#include "utils/Target.hpp"
 
 // Position based fluids model based on NVIDIA paper
 // Muller and al. 2013. "Position Based Fluids"
 
 namespace Physics
 {
-using clock = std::chrono::high_resolution_clock;
-
 // List of implemented cases
 enum CaseType
 {
@@ -31,7 +27,7 @@ struct CompareCaseType
   }
 };
 
-static const std::map<CaseType, std::string, CompareCaseType> ALL_CASES {
+static const std::map<CaseType, std::string, CompareCaseType> ALL_FLUID_CASES {
   { CaseType::DAM, "Dam" },
   { CaseType::DROP, "Drop" },
 };
@@ -54,13 +50,20 @@ class Fluids : public Model
   void update() override;
   void reset() override;
 
-  //
+  void setInitialCase(CaseType caseT) { m_initialCase = caseT; }
+  const CaseType getInitialCase() const { return m_initialCase; }
+
+  // Not giving access to it for now.
+  // Strongly connected to grid resolution which is not available as parameter,
+  // in order to maintain cohesion between boids and fluids models
+  /*
   void setEffectRadius(float effectRadius)
   {
     m_kernelInputs.effectRadius = (cl_float)effectRadius;
     updateFluidsParamsInKernel();
   }
   float getEffectRadius() const { return (float)m_kernelInputs.effectRadius; }
+  */
 
   //
   void setRestDensity(float restDensity)
@@ -86,9 +89,14 @@ class Fluids : public Model
   }
   float getTimeStep() const { return (float)m_kernelInputs.timeStep; }
 
-  private:
-  //void print(const std::string& name, int nbItems);
+  //
+  void setNbJacobiIters(size_t nbIters)
+  {
+    m_nbJacobiIters = nbIters;
+  }
+  size_t getNbJacobiIters() const { return m_nbJacobiIters; }
 
+  private:
   bool createProgram() const;
   bool createBuffers() const;
   bool createKernels() const;
@@ -97,9 +105,10 @@ class Fluids : public Model
   void updateFluidsParamsInKernel();
 
   bool m_simplifiedMode;
+
   size_t m_maxNbPartsInCell;
 
-  std::unique_ptr<Target> m_target;
+  size_t m_nbJacobiIters;
 
   RadixSort m_radixSort;
 

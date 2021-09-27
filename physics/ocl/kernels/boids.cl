@@ -6,7 +6,7 @@
 // NUM_MAX_PARTS_IN_CELL   - maximum number of particles taking into account in a single cell in simplified mode
 
 #define MAX_STEERING  0.5f
-#define FLOAT_EPSILON 0.01f
+#define FLOAT_EPSILON 0.00001f
 #define ID            get_global_id(0)
 
 // Defined in utils.cl
@@ -38,16 +38,16 @@ __kernel void randPosVertsBoids(//Output
   const unsigned int randomIntY = parallelRNG(ID + 1);
   const unsigned int randomIntZ = parallelRNG(ID + 2);
 
-  const float x = (float)(randomIntX & 0x0ff) * 2.0 - 250.0f;
-  const float y = (float)(randomIntY & 0x0ff) * 2.0 - 250.0f;
-  const float z = (float)(randomIntZ & 0x0ff) * 2.0 - 250.0f;
+  const float x = (float)(randomIntX & 0x0ff) / 6.0f - ABS_WALL_POS ;
+  const float y = (float)(randomIntY & 0x0ff) / 6.0f - ABS_WALL_POS ;
+  const float z = (float)(randomIntZ & 0x0ff) / 6.0f - ABS_WALL_POS ;
 
   const float3 randomXYZ = (float3)(x * step(3.0f, dim), y, z);
 
   pos[ID].xyz = clamp(randomXYZ, -ABS_WALL_POS, ABS_WALL_POS);
   pos[ID].w = 0.0f;
 
-  vel[ID].xyz = clamp(randomXYZ, -50.0f, 50.0f);
+  vel[ID].xyz = clamp(randomXYZ, -1.0f, 1.0f);
   vel[ID].w = 0.0f;
 }
 

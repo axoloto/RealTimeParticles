@@ -23,8 +23,8 @@ using namespace Physics;
 #define KERNEL_FILL_CAMERA_DIST "fillCameraDist"
 
 // grid.cl
-#define KERNEL_RESET_GRID_DETECTOR "resetGridDetector"
-#define KERNEL_FILL_GRID_DETECTOR "fillGridDetector"
+#define KERNEL_RESET_PART_DETECTOR "resetGridDetector"
+#define KERNEL_FILL_PART_DETECTOR "fillGridDetector"
 #define KERNEL_RESET_CELL_ID "resetCellIDs"
 #define KERNEL_FILL_CELL_ID "fillCellIDs"
 #define KERNEL_RESET_START_END_CELL "resetStartEndCell"
@@ -45,15 +45,13 @@ using namespace Physics;
 #define KERNEL_UPDATE_VEL "updateVel"
 #define KERNEL_FILL_COLOR "fillFluidColor"
 
-#define MAX_NB_JACOBI_ITERS 3
-
 Fluids::Fluids(ModelParams params)
     : Model(params)
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(1000)
     , m_radixSort(params.maxNbParticles)
-    , m_target(std::make_unique<Target>(params.boxSize))
     , m_initialCase(CaseType::DAM)
+    , m_nbJacobiIters(3)
 {
   createProgram();
 
@@ -62,10 +60,6 @@ Fluids::Fluids(ModelParams params)
   createKernels();
 
   m_init = true;
-
-  // WIP
-  const float effectRadius = ((float)m_boxSize) / m_gridRes;
-  m_kernelInputs.effectRadius = effectRadius;
 
   reset();
 }
@@ -84,9 +78,7 @@ bool Fluids::createProgram() const
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
   clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9)));
-  // clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(4.0f / (Math::PI_F * std::powf(effectRadius, 8)));// Shallow water
   clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * std::powf(effectRadius, 6)));
-  // clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(4.0f / (Math::PI_F * std::powf(effectRadius, 8)));// Shallow water
 
   LOG_INFO(clBuildOptions.str());
   clContext.createProgram(PROGRAM_FLUIDS, std::vector<std::string>({ "fluids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
@@ -125,8 +117,8 @@ bool Fluids::createKernels() const
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RANDOM_POS, { "", "p_pos", "p_vel" });
 
   // For rendering purpose only
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_GRID_DETECTOR, { "c_partDetector" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_GRID_DETECTOR, { "p_pos", "c_partDetector" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_PART_DETECTOR, { "c_partDetector" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_PART_DETECTOR, { "p_pos", "c_partDetector" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_CAMERA_DIST, { "p_cameraDist" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_FILL_COLOR, { "p_density", "", "p_col" });
@@ -168,6 +160,9 @@ void Fluids::updateFluidsParamsInKernel()
 
   m_kernelInputs.dim = (m_dimension == Dimension::dim2D) ? 2 : 3;
 
+  const float effectRadius = ((float)m_boxSize) / m_gridRes;
+  m_kernelInputs.effectRadius = effectRadius;
+
   clContext.setKernelArg(KERNEL_RANDOM_POS, 0, sizeof(FluidKernelInputs), &m_kernelInputs);
   clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(FluidKernelInputs), &m_kernelInputs);
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), &m_kernelInputs);
@@ -188,12 +183,10 @@ void Fluids::reset()
 
   initFluid();
 
-  clContext.acquireGLBuffers({ "c_partDetector" });
-
-  clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
-  clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
-
-  clContext.releaseGLBuffers({ "c_partDetector" });
+  clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
+  clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
+  clContext.runKernel(KERNEL_FILL_PART_DETECTOR, m_currNbParticles);
+  clContext.releaseGLBuffers({ "p_pos", "c_partDetector" });
 
   clContext.runKernel(KERNEL_RESET_CELL_ID, m_maxNbParticles);
   clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
@@ -266,7 +259,7 @@ void Fluids::update()
       clContext.runKernel(KERNEL_ADJUST_END_CELL, m_nbCells);
 
     // Correcting positions to fit constraints
-    for (int iter = 0; iter < MAX_NB_JACOBI_ITERS; ++iter)
+    for (int iter = 0; iter < m_nbJacobiIters; ++iter)
     {
       // Clamping to boundary
       clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
@@ -285,8 +278,8 @@ void Fluids::update()
     clContext.runKernel(KERNEL_UPDATE_POS, m_currNbParticles);
 
     // Rendering purpose
-    clContext.runKernel(KERNEL_RESET_GRID_DETECTOR, m_nbCells);
-    clContext.runKernel(KERNEL_FILL_GRID_DETECTOR, m_currNbParticles);
+    clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
+    clContext.runKernel(KERNEL_FILL_PART_DETECTOR, m_currNbParticles);
     clContext.runKernel(KERNEL_FILL_COLOR, m_currNbParticles);
   }
 
@@ -297,46 +290,3 @@ void Fluids::update()
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }
-
-/*
-
-    //std::vector<std::array<float, 4>> predPos(m_maxNbParticles, { 0, 0, 0, 0 });
-    //clContext.unloadBufferFromDevice("p_predPos", 0, sizeof(float) * predPos.size(), predPos.data());
-
-    //std::vector<std::array<float, 4>> vel(m_maxNbParticles, { 0, 0, 0, 0 });
-    //clContext.unloadBufferFromDevice("p_vel", 0, sizeof(float) * vel.size(), vel.data());
-
-void Fluids::print(const std::string& name, int nbItems)
-{
-  CL::Context& clContext = CL::Context::Get();
-  std::vector<std::array<float, 4>> pos(m_maxNbParticles, { 0, 0, 0, 0 });
-  clContext.unloadBufferFromDevice(name, 0, sizeof(float) * pos.size(), pos.data());
-  std::for_each(pos.begin(), pos.begin() + nbItems, [](const std::array<float, 4>& p)
-      { return LOG_INFO("{}, {}, {}, {}", p[0], p[1], p[2], p[3]); });
-}
-
-// WIP
-      if (0)
-      {
-        std::vector<float> density(m_maxNbParticles, 0);
-        clContext.unloadBufferFromDevice("p_density", 0, sizeof(float) * density.size(), density.data());
-
-        std::vector<unsigned int> cellIDs(m_maxNbParticles, 0);
-        clContext.unloadBufferFromDevice("p_cellID", 0, sizeof(unsigned int) * cellIDs.size(), cellIDs.data());
-
-        std::vector<std::array<float, 4>> pos(m_maxNbParticles, { 0, 0, 0, 0 });
-        clContext.unloadBufferFromDevice("p_pos", 0, sizeof(float) * pos.size(), pos.data());
-        std::vector<std::array<float, 4>> predPos(m_maxNbParticles, { 0, 0, 0, 0 });
-        clContext.unloadBufferFromDevice("p_predPos", 0, sizeof(float) * predPos.size(), predPos.data());
-        std::vector<std::array<float, 4>> corrPos(m_maxNbParticles, { 0, 0, 0, 0 });
-        clContext.unloadBufferFromDevice("p_corrPos", 0, sizeof(float) * corrPos.size(), corrPos.data());
-
-        std::vector<float> constFactor(m_maxNbParticles, 0);
-        clContext.unloadBufferFromDevice("p_constFactor", 0, sizeof(float) * constFactor.size(), constFactor.data());
-
-        std::vector<unsigned int> cameraDist(m_maxNbParticles, 0);
-        clContext.unloadBufferFromDevice("p_cameraDist", 0, sizeof(unsigned int) * cameraDist.size(), cameraDist.data());
-
-        int i = 0;
-      }
-    */
