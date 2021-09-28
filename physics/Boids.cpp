@@ -48,7 +48,7 @@ Boids::Boids(ModelParams params)
     , m_activeSeparation(true)
     , m_activeCohesion(true)
     , m_simplifiedMode(true)
-    , m_maxNbPartsInCell(10000)
+    , m_maxNbPartsInCell(3000)
     , m_radixSort(params.maxNbParticles)
     , m_target(std::make_unique<Target>(params.boxSize))
 {
@@ -166,24 +166,6 @@ void Boids::updateBoidsParamsInKernel()
     clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 3, sizeof(int), &signEffect);
   }
 }
-/*
-  int i = 0;
-  float effectRadius = ((float)m_boxSize) / m_gridRes;
-  float gridSpacing = 0.4f * effectRadius;
-  Math::float3 startFluidPos = { 5.0f, 5.0f, 0.0f };
-  for (int ix = 0; ix < 64; ++ix)
-  {
-    for (int iy = 0; iy < 32; ++iy)
-    {
-      for (int iz = 0; iz < 32; ++iz)
-      {
-        pos[i++] = { ix * gridSpacing - startFluidPos.x,
-          iy * gridSpacing - startFluidPos.y,
-          iz * gridSpacing - startFluidPos.z,
-          0.0f };
-      }
-    }
-  }*/
 
 void Boids::reset()
 {
@@ -194,24 +176,11 @@ void Boids::reset()
 
   CL::Context& clContext = CL::Context::Get();
 
+  initBoidsParticles();
+
   clContext.acquireGLBuffers({ "p_pos", "p_col", "c_partDetector" });
 
-  const auto& subdiv2D = Utils::GetNbParticlesSubdiv2D((Utils::NbParticles)m_currNbParticles);
-  Math::int2 grid2DRes = { subdiv2D[0], subdiv2D[1] };
-  Math::float3 start2D = { 0.0f, -(float)m_boxSize / 2.0f, -(float)m_boxSize / 2.0f };
-  Math::float3 end2D = { 0.0f, m_boxSize / 2.0f, m_boxSize / 2.0f };
-  auto gridVerts = Geometry::Generate2DGrid(Geometry::Shape::Rectangle, Geometry::Plane::YZ,
-      grid2DRes, start2D, end2D);
-
-  const float& inf = std::numeric_limits<float>::infinity();
-  std::vector<std::array<float, 4>> pos(m_maxNbParticles, std::array<float, 4>({ inf, inf, inf, 0.0f }));
-  std::transform(gridVerts.cbegin(), gridVerts.cend(), pos.begin(), [](Math::float3 vertPos) -> std::array<float, 4> { return { vertPos.x, vertPos.y, vertPos.z, 0.0f }; });
-
-  clContext.loadBufferFromHost("p_pos", 0, 4 * sizeof(float) * pos.size(), pos.data());
-
-  //clContext.runKernel(KERNEL_INFINITE_POS, m_maxNbParticles);
   clContext.runKernel(KERNEL_FILL_COLOR, m_maxNbParticles);
-  //clContext.runKernel(KERNEL_RANDOM_POS, m_currNbParticles);
   clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
   clContext.runKernel(KERNEL_FILL_PART_DETECTOR, m_currNbParticles);
 
@@ -219,6 +188,52 @@ void Boids::reset()
   clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector" });
+}
+
+void Boids::initBoidsParticles()
+{
+  if (m_currNbParticles > m_maxNbParticles)
+  {
+    LOG_ERROR("Cannot init boids, current number of particles is higher than max limit");
+    return;
+  }
+
+  CL::Context& clContext = CL::Context::Get();
+
+  clContext.acquireGLBuffers({ "p_pos" });
+
+  std::vector<Math::float3> gridVerts;
+
+  if (m_dimension == Dimension::dim2D)
+  {
+    const auto& subdiv2D = Utils::GetNbParticlesSubdiv2D((Utils::NbParticles)m_currNbParticles);
+    Math::int2 grid2DRes = { subdiv2D[0], subdiv2D[1] };
+    Math::float3 start2D = { 0.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
+    Math::float3 end2D = { 0.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
+
+    gridVerts = Geometry::Generate2DGrid(Geometry::Shape::Circle, Geometry::Plane::YZ, grid2DRes, start2D, end2D);
+  }
+  else
+  {
+    const auto& subdiv3D = Utils::GetNbParticlesSubdiv3D((Utils::NbParticles)m_currNbParticles);
+    Math::int3 grid3DRes = { subdiv3D[0], subdiv3D[1], subdiv3D[2] };
+    Math::float3 start3D = { m_boxSize / -6.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
+    Math::float3 end3D = { m_boxSize / 6.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
+
+    gridVerts = Geometry::Generate3DGrid(Geometry::Shape::Sphere, grid3DRes, start3D, end3D);
+  }
+
+  const float& inf = std::numeric_limits<float>::infinity();
+  std::vector<std::array<float, 4>> pos(m_maxNbParticles, std::array<float, 4>({ inf, inf, inf, 0.0f }));
+
+  std::transform(gridVerts.cbegin(), gridVerts.cend(), pos.begin(),
+      [](const Math::float3& vertPos) -> std::array<float, 4> { return { vertPos.x, vertPos.y, vertPos.z, 0.0f }; });
+
+  clContext.loadBufferFromHost("p_pos", 0, 4 * sizeof(float) * pos.size(), pos.data());
+  // Using same buffer to initialize vel, giving interesting patterns
+  clContext.loadBufferFromHost("p_vel", 0, 4 * sizeof(float) * pos.size(), pos.data());
+
+  clContext.releaseGLBuffers({ "p_pos" });
 }
 
 void Boids::update()

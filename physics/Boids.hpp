@@ -113,6 +113,7 @@ class Boids : public Model
   int targetSignEffect() const { return m_target ? m_target->signEffect() : 0; }
 
   private:
+  void initBoidsParticles();
   bool createProgram() const;
   bool createBuffers() const;
   bool createKernels() const;
