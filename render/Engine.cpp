@@ -123,9 +123,8 @@ void Engine::drawPointCloud()
 {
   m_pointCloudShader->activate();
 
-  // WIP
-  //m_pointCloudShader->setUniform("u_pointSize", (m_nbParticles < 10000) ? 3 : 1);
-  m_pointCloudShader->setUniform("u_pointSize", 4);
+  m_pointCloudShader->setUniform("u_pointSize", (m_nbParticles < 10000) ? 3 : 1);
+  //m_pointCloudShader->setUniform("u_pointSize", 4);
 
   m_pointCloudShader->setUniform("u_projView", m_camera->getProjViewMat());
   m_pointCloudShader->setUniform("u_cameraPos", m_camera->cameraPos());

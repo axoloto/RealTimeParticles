@@ -207,20 +207,28 @@ void Fluids::initFluidsParticles()
 
   if (m_dimension == Dimension::dim2D)
   {
-    m_currNbParticles = Utils::NbParticles::P4K;
     Geometry::Shape2D shape = Geometry::Shape2D::Rectangle;
 
     switch (m_initialCase)
     {
     case CaseType::DAM:
+      m_currNbParticles = Utils::NbParticles::P4K;
+
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
-      endFluidPos = { 0.0f, m_boxSize / 4.0f, m_boxSize / 4.0f };
+      endFluidPos = { 0.0f, 0.0f, 0.0f };
       break;
-    case CaseType::DROP:
-      shape = Geometry::Shape2D::Circle;
+    case CaseType::BOMB:
+      m_currNbParticles = Utils::NbParticles::P4K;
+      shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
       endFluidPos = { 0.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
+      break;
+    case CaseType::DROP:
+      m_currNbParticles = Utils::NbParticles::P512;
+      shape = Geometry::Shape2D::Rectangle;
+      startFluidPos = { 0.0f, m_boxSize / -7.0f, m_boxSize / -10.0f };
+      endFluidPos = { 0.0f, m_boxSize / 7.0f, m_boxSize / 10.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");
@@ -244,11 +252,17 @@ void Fluids::initFluidsParticles()
       startFluidPos = { m_boxSize / -2.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
       endFluidPos = { m_boxSize / 2.0f, 0.0f, 0.0f };
       break;
-    case CaseType::DROP:
-      m_currNbParticles = Utils::NbParticles::P4K;
+    case CaseType::BOMB:
+      m_currNbParticles = Utils::NbParticles::P65K;
       shape = Geometry::Shape3D::Sphere;
       startFluidPos = { m_boxSize / -6.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
       endFluidPos = { m_boxSize / 6.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
+      break;
+    case CaseType::DROP:
+      m_currNbParticles = Utils::NbParticles::P4K;
+      shape = Geometry::Shape3D::Box;
+      startFluidPos = { m_boxSize / -8.0f, 0.0f, m_boxSize / -8.0f };
+      endFluidPos = { m_boxSize / 8.0f, 5.0f * m_boxSize / 12.0f, m_boxSize / 8.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");
@@ -272,7 +286,7 @@ void Fluids::initFluidsParticles()
   std::vector<std::array<float, 4>> vel(m_maxNbParticles, std::array<float, 4>({ 0.0f, 0.0f, 0.0f, 0.0f }));
   clContext.loadBufferFromHost("p_vel", 0, 4 * sizeof(float) * vel.size(), vel.data());
 
-  std::vector<std::array<float, 4>> col(m_maxNbParticles, std::array<float, 4>({ 1.0f, 1.0f, 0.0f, 0.0f }));
+  std::vector<std::array<float, 4>> col(m_maxNbParticles, std::array<float, 4>({ 0.0f, 0.1f, 1.0f, 0.0f }));
   clContext.loadBufferFromHost("p_col", 0, 4 * sizeof(float) * col.size(), col.data());
 
   clContext.releaseGLBuffers({ "p_pos", "p_col" });

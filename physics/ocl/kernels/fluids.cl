@@ -377,13 +377,9 @@ __kernel void updatePosition(//Input
 
 /*
   Fill fluid color buffer with constraint value for real-time analysis
-  R = 1 by default
-  G > 0 => constraint > 0, i.e density is smaller than rest density
-  B > 0 => constraint < 0, i.e density is bigger than rest density
-
-  Red particles have a density close from the rest density, the system has found an equilibrium
-  Yellow (R + G) particles have a density too low and the system is not stabilized
-  Purple (R + B) particles have a density too high and the system is not stabilized
+  Blue => constraint == 0, i.e density close from the rest density, system close from equilibrium
+  Light blue => constraint > 0, i.e density is smaller than rest density, system is not stabilized
+  Dark blue => constraint < 0, i.e density is bigger than rest density, system is not stabilized
 */
 __kernel void fillFluidColor(//Input
                              const  __global float  *density, // 0
@@ -392,8 +388,18 @@ __kernel void fillFluidColor(//Input
                              //Output
                                     __global float4 *col)     // 2
 {
+  float4 blue      = (float4)(0.0f, 0.1f, 1.0f, 1.0f);
+  float4 lightBlue = (float4)(0.7f, 0.7f, 1.0f, 1.0f);
+  float4 darkBlue  = (float4)(0.0f, 0.0f, 0.5f, 1.0f);
+
   float constraint = (1.0f - density[ID] / fluid.restDensity);
-  float green = (constraint >= 0) ? constraint : 0.0f;
-  float blue  = (constraint >= 0) ? 0.0f : -constraint;
-  col[ID] = (float4)(1.0f, green, blue, 1.0f);
+
+  float4 color = (float4)(0.0f);
+
+  if(constraint > 0)
+    color = constraint * (lightBlue - blue) / 0.35f + blue;
+  else if(constraint < 0)
+    color = constraint * (blue - darkBlue) / 0.35f + blue;
+
+  col[ID] = color;
 }

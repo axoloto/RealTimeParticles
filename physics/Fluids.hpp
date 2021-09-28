@@ -16,7 +16,8 @@ namespace Physics
 enum CaseType
 {
   DAM = 0,
-  DROP = 1
+  BOMB = 1,
+  DROP = 2
 };
 
 struct CompareCaseType
@@ -29,6 +30,7 @@ struct CompareCaseType
 
 static const std::map<CaseType, std::string, CompareCaseType> ALL_FLUID_CASES {
   { CaseType::DAM, "Dam" },
+  { CaseType::BOMB, "Bomb" },
   { CaseType::DROP, "Drop" },
 };
 

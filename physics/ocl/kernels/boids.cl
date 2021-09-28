@@ -56,7 +56,7 @@ __kernel void randPosVertsBoids(//Output
 */
 __kernel void fillBoidsColor(__global float4 *col)
 {
-  col[ID] = (float4)(1.0f, 0.0f, 0.0f, 1.0f);
+  col[ID] = (float4)(1.0f, 0.02f, 0.02f, 1.0f);
 }
 
 /*
