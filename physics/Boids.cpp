@@ -211,16 +211,16 @@ void Boids::initBoidsParticles()
     Math::float3 start2D = { 0.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
     Math::float3 end2D = { 0.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
 
-    gridVerts = Geometry::Generate2DGrid(Geometry::Shape::Circle, Geometry::Plane::YZ, grid2DRes, start2D, end2D);
+    gridVerts = Geometry::Generate2DGrid(Geometry::Shape2D::Circle, Geometry::Plane::YZ, grid2DRes, start2D, end2D);
   }
-  else
+  else if (m_dimension == Dimension::dim3D)
   {
     const auto& subdiv3D = Utils::GetNbParticlesSubdiv3D((Utils::NbParticles)m_currNbParticles);
     Math::int3 grid3DRes = { subdiv3D[0], subdiv3D[1], subdiv3D[2] };
     Math::float3 start3D = { m_boxSize / -6.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
     Math::float3 end3D = { m_boxSize / 6.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
 
-    gridVerts = Geometry::Generate3DGrid(Geometry::Shape::Sphere, grid3DRes, start3D, end3D);
+    gridVerts = Geometry::Generate3DGrid(Geometry::Shape3D::Sphere, grid3DRes, start3D, end3D);
   }
 
   const float& inf = std::numeric_limits<float>::infinity();

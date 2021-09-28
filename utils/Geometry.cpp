@@ -5,7 +5,7 @@
 
 namespace Geometry
 {
-std::vector<Math::float3> Generate2DGrid(Shape shape, Plane plane,
+std::vector<Math::float3> Generate2DGrid(Shape2D shape, Plane plane,
     Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos)
 {
   if (gridRes.x * gridRes.y <= 0)
@@ -16,12 +16,13 @@ std::vector<Math::float3> Generate2DGrid(Shape shape, Plane plane,
   }
 
   std::vector<Math::float3> verts(gridRes.x * gridRes.y, Math::float3(0.0f, 0.0f, 0.0f));
+
   switch (shape)
   {
-  case Shape::Circle:
+  case Shape2D::Circle:
     GenerateCircularGrid(plane, verts, gridRes, gridStartPos, gridEndPos);
     break;
-  case Shape::Rectangle:
+  case Shape2D::Rectangle:
     GenerateRectangularGrid(plane, verts, gridRes, gridStartPos, gridEndPos);
     break;
   default:
@@ -31,7 +32,7 @@ std::vector<Math::float3> Generate2DGrid(Shape shape, Plane plane,
   return verts;
 }
 
-std::vector<Math::float3> Generate3DGrid(Shape shape,
+std::vector<Math::float3> Generate3DGrid(Shape3D shape,
     Math::int3 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos)
 {
   if (gridRes.x * gridRes.y * gridRes.z <= 0)
@@ -42,12 +43,13 @@ std::vector<Math::float3> Generate3DGrid(Shape shape,
   }
 
   std::vector<Math::float3> verts(gridRes.x * gridRes.y * gridRes.z, Math::float3(0.0f, 0.0f, 0.0f));
+
   switch (shape)
   {
-  case Shape::Sphere:
+  case Shape3D::Sphere:
     GenerateSphereGrid(verts, gridRes, gridStartPos, gridEndPos);
     break;
-  case Shape::Box:
+  case Shape3D::Box:
     GenerateBoxGrid(verts, gridRes, gridStartPos, gridEndPos);
   default:
     break;
@@ -95,9 +97,11 @@ void GenerateRectangularGrid(Plane plane, std::vector<Math::float3>& verts, Math
     {
       for (int iz = 0; iz < gridResExt.z; ++iz)
       {
-        verts[vertIndex++] = { gridStartPos.x + ix * gridSpacing.x,
+        verts[vertIndex++] = {
+          gridStartPos.x + ix * gridSpacing.x,
           gridStartPos.y + iy * gridSpacing.y,
-          gridStartPos.z + iz * gridSpacing.z };
+          gridStartPos.z + iz * gridSpacing.z
+        };
       }
     }
   }
@@ -174,7 +178,6 @@ void GenerateBoxGrid(std::vector<Math::float3>& verts, Math::int3 gridRes, Math:
   }
 
   Math::float3 vec = gridEndPos - gridStartPos;
-
   Math::float3 gridSpacing = Math::float3({ vec.x / gridRes.x, vec.y / gridRes.y, vec.z / gridRes.z });
 
   int vertIndex = 0;
@@ -184,9 +187,11 @@ void GenerateBoxGrid(std::vector<Math::float3>& verts, Math::int3 gridRes, Math:
     {
       for (int iz = 0; iz < gridRes.z; ++iz)
       {
-        verts[vertIndex++] = { gridStartPos.x + ix * gridSpacing.x,
+        verts[vertIndex++] = {
+          gridStartPos.x + ix * gridSpacing.x,
           gridStartPos.y + iy * gridSpacing.y,
-          gridStartPos.z + iz * gridSpacing.z };
+          gridStartPos.z + iz * gridSpacing.z
+        };
       }
     }
   }

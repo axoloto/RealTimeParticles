@@ -77,7 +77,7 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
   }
 
   float timeStep = fluidsEngine->getTimeStep();
-  if (ImGui::SliderFloat("Time Step", &timeStep, 0.0001f, 0.1f))
+  if (ImGui::SliderFloat("Time Step", &timeStep, 0.0001f, 0.015f))
   {
     fluidsEngine->setTimeStep(timeStep);
   }

@@ -7,10 +7,14 @@
 
 namespace Geometry
 {
-enum class Shape
+enum class Shape2D
 {
   Rectangle,
-  Circle,
+  Circle
+};
+
+enum class Shape3D
+{
   Box,
   Sphere
 };
@@ -22,10 +26,10 @@ enum class Plane
   XZ
 };
 
-std::vector<Math::float3> Generate2DGrid(Shape shape, Plane plane,
+std::vector<Math::float3> Generate2DGrid(Shape2D shape, Plane plane,
     Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos);
 
-std::vector<Math::float3> Generate3DGrid(Shape shape,
+std::vector<Math::float3> Generate3DGrid(Shape3D shape,
     Math::int3 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos);
 
 void GenerateRectangularGrid(Plane plane, std::vector<Math::float3>& verts, Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos);
