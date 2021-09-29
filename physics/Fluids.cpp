@@ -36,7 +36,6 @@ using namespace Physics;
 
 // fluids.cl
 #define KERNEL_RANDOM_POS "randPosVertsFluid"
-#define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
 #define KERNEL_PREDICT_POS "predictPosition"
 #define KERNEL_APPLY_BOUNDARY "applyBoundaryCondition"
 #define KERNEL_DENSITY "computeDensity"
@@ -50,7 +49,7 @@ using namespace Physics;
 Fluids::Fluids(ModelParams params)
     : Model(params)
     , m_simplifiedMode(true)
-    , m_maxNbPartsInCell(1000)
+    , m_maxNbPartsInCell(100)
     , m_radixSort(params.maxNbParticles)
     , m_initialCase(CaseType::DAM)
     , m_nbJacobiIters(3)
@@ -147,7 +146,6 @@ bool Fluids::createKernels() const
   /// Velocity and position update
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_VEL, { "p_predPos", "p_pos", "", "p_vel" });
   //
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_POS_BOUNCING, { "p_predPos", "p_pos" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_POS, { "p_predPos", "p_pos" });
 
   return true;

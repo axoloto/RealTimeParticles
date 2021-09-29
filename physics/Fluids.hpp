@@ -40,6 +40,9 @@ struct FluidKernelInputs
   cl_float restDensity = 450.0f;
   cl_float relaxCFM = 600.0f;
   cl_float timeStep = 0.008f;
+  cl_float artPressureRadius = 0.01f;
+  cl_float artPressureCoeff = 0.001f;
+  cl_uint artPressureExp = 4;
   cl_uint dim = 3;
 };
 
@@ -64,8 +67,8 @@ class Fluids : public Model
     m_kernelInputs.effectRadius = (cl_float)effectRadius;
     updateFluidsParamsInKernel();
   }
-  float getEffectRadius() const { return (float)m_kernelInputs.effectRadius; }
   */
+  float getEffectRadius() const { return (float)m_kernelInputs.effectRadius; }
 
   //
   void setRestDensity(float restDensity)
@@ -97,6 +100,30 @@ class Fluids : public Model
     m_nbJacobiIters = nbIters;
   }
   size_t getNbJacobiIters() const { return m_nbJacobiIters; }
+
+  //
+  void setArtPressureRadius(float radius)
+  {
+    m_kernelInputs.artPressureRadius = (cl_float)radius;
+    updateFluidsParamsInKernel();
+  }
+  float getArtPressureRadius() const { return (float)m_kernelInputs.artPressureRadius; }
+
+  //
+  void setArtPressureExp(size_t exp)
+  {
+    m_kernelInputs.artPressureExp = (cl_uint)exp;
+    updateFluidsParamsInKernel();
+  }
+  size_t getArtPressureExp() const { return (size_t)m_kernelInputs.artPressureExp; }
+
+  //
+  void setArtPressureCoeff(float coeff)
+  {
+    m_kernelInputs.artPressureCoeff = (cl_float)coeff;
+    updateFluidsParamsInKernel();
+  }
+  float getArtPressureCoeff() const { return (float)m_kernelInputs.artPressureCoeff; }
 
   private:
   bool createProgram() const;

@@ -22,11 +22,14 @@ typedef struct defFluidParams{
   float restDensity;
   float relaxCFM;
   float timeStep;
+  float artPressureRadius;
+  float artPressureCoeff;
+  uint  artPressureExp;
   uint  dim;
 } FluidParams;
 
 
-#define WALL_COEFF 100.0f
+#define WALL_COEFF 1000.0f
 
 // Defined in utils.cl
 /*
@@ -55,6 +58,11 @@ inline float poly6(const float4 vec, const float effectRadius)
   return (1.0f - step(effectRadius, vecLength)) * POLY6_COEFF * pow((effectRadius * effectRadius - vecLength * vecLength), 3);
 }
 
+inline float poly6L(const float vecLength, const float effectRadius)
+{
+  return (1.0f - step(effectRadius, vecLength)) * POLY6_COEFF * pow((effectRadius * effectRadius - vecLength * vecLength), 3);
+}
+
 /*
   Jacobian (on vec coords) of Spiky kernel introduced in
   Muller and al. 2003. "Particle-based fluid simulation for interactive applications"
@@ -80,6 +88,15 @@ inline float applyWallBoundaryConditions(float distanceFromWall, float effectRad
   return (1.0f - step(effectRadius, distanceFromWall)) * WALL_COEFF * M_PI_F 
   * ( 2.0f / 3.0f * pow(effectRadius, 3) 
      + distanceFromWall * (pow(distanceFromWall, 2) / 3.0f - pow(effectRadius, 2)) );
+}
+
+/*
+  Artificial pressure to remove tensile instability
+  Preventing particle clustering and improving surface tension
+*/
+inline float artPressure(const float4 vec, FluidParams fluid)
+{
+  return - fluid.artPressureCoeff * pow((poly6(vec, fluid.effectRadius) / poly6L(fluid.artPressureRadius * fluid.effectRadius, fluid.effectRadius)), fluid.artPressureExp);
 }
 
 /*
@@ -139,15 +156,12 @@ __kernel void computeDensity(//Input
                                     __global float  *density)      // 3
 {
   const float4 pos = predPos[ID];
-  const uint currCell1DIndex = getCell1DIndexFromPos(pos);
-  const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
+  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
 
   float fluidDensity = 0.0f;
 
-  int x = 0;
-  int y = 0;
-  int z = 0;
-  uint  cellIndex = 0;
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
   uint2 startEndN = (uint2)(0, 0);
 
   // 27 cells to visit, current one + 3D neighbors
@@ -157,18 +171,15 @@ __kernel void computeDensity(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        x = convert_int(currCell3DIndex.x) + iX;
-        y = convert_int(currCell3DIndex.y) + iY;
-        z = convert_int(currCell3DIndex.z) + iZ;
+        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
 
-        if (x < 0 || x >= GRID_RES
-         || y < 0 || y >= GRID_RES
-         || z < 0 || z >= GRID_RES)
+        // Removing out of range cells
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
           continue;
 
-        cellIndex = (x * GRID_RES + y) * GRID_RES + z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
 
-        startEndN = startEndCell[cellIndex];
+        startEndN = startEndCell[cellNIndex1D];
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
@@ -204,20 +215,17 @@ __kernel void computeConstraintFactor(//Input
                                             __global float  *constFactor)   // 4
 {
   const float4 pos = predPos[ID];
-  const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
-  const float currDensityC = density[ID] / fluid.restDensity - 1.0f;
-
-  int x = 0;
-  int y = 0;
-  int z = 0;
-  uint  cellIndexN = 0;
-  uint2 startEndN = (uint2)(0);
+  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
+  const float densityC = density[ID] / fluid.restDensity - 1.0f;
 
   float4 vec = (float4)(0.0f);
-
   float4 grad = (float4)(0.0f);
   float4 sumGradCi = (float4)(0.0f);
-  float sumSqGradC = 0.0f;
+  float  sumSqGradC = 0.0f;
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -226,18 +234,15 @@ __kernel void computeConstraintFactor(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        x = convert_int(currCell3DIndex.x) + iX;
-        y = convert_int(currCell3DIndex.y) + iY;
-        z = convert_int(currCell3DIndex.z) + iZ;
+        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
 
-        if (x < 0 || x >= GRID_RES
-         || y < 0 || y >= GRID_RES
-         || z < 0 || z >= GRID_RES)
+        // Removing out of range cells
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
           continue;
 
-        cellIndexN = (x * GRID_RES + y) * GRID_RES + z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
 
-        startEndN = startEndCell[cellIndexN];
+        startEndN = startEndCell[cellNIndex1D];
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
@@ -257,7 +262,7 @@ __kernel void computeConstraintFactor(//Input
   sumSqGradC += dot(sumGradCi, sumGradCi);
   sumSqGradC /= fluid.restDensity * fluid.restDensity;
 
-  constFactor[ID] = - currDensityC / (sumSqGradC + fluid.relaxCFM);
+  constFactor[ID] = - densityC / (sumSqGradC + fluid.relaxCFM);
 }
 
 /*
@@ -273,17 +278,15 @@ __kernel void computeConstraintCorrection(//Input
                                                 __global float4 *corrPos)      // 4
 {
   const float4 pos = predPos[ID];
-  const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
+  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
   const float lambdaI = constFactor[ID];
-
-  int x = 0;
-  int y = 0;
-  int z = 0;
-  uint  cellIndexN = 0;
-  uint2 startEndN = (uint2)(0);
 
   float4 vec = (float4)(0.0f);
   float4 corr = (float4)(0.0f);
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0, 0);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -292,24 +295,21 @@ __kernel void computeConstraintCorrection(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        x = convert_int(currCell3DIndex.x) + iX;
-        y = convert_int(currCell3DIndex.y) + iY;
-        z = convert_int(currCell3DIndex.z) + iZ;
+        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
 
-        if (x < 0 || x >= GRID_RES
-         || y < 0 || y >= GRID_RES
-         || z < 0 || z >= GRID_RES)
+        // Removing out of range cells
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
           continue;
 
-        cellIndexN = (x * GRID_RES + y) * GRID_RES + z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
 
-        startEndN = startEndCell[cellIndexN];
+        startEndN = startEndCell[cellNIndex1D];
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
           vec = pos - predPos[e];
 
-          corr += (lambdaI + constFactor[e]) * gradSpiky(vec, fluid.effectRadius);
+          corr += (lambdaI + constFactor[e] + artPressure(vec, fluid)) * gradSpiky(vec, fluid.effectRadius);
         }
       }
     }
@@ -343,17 +343,6 @@ __kernel void updateVel(//Input
 {
   // Preventing division by 0
   vel[ID] = (predPos[ID] - pos[ID]) / (fluid.timeStep + FLOAT_EPS);
-}
-
-/*
-  Apply Bouncing wall boundary conditions on position.
-*/
-__kernel void updatePosWithBouncingWalls(//Input
-                                         const  __global float4 *predPos, // 0
-                                         //Output
-                                                __global float4 *pos)     // 1
-{
-  pos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS);
 }
 
 /*

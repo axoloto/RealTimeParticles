@@ -63,6 +63,7 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
     fluidsEngine->setEffectRadius(effectRadius);
   }
   */
+  ImGui::Value("Kernel radius", (float)fluidsEngine->getEffectRadius());
 
   float restDensity = fluidsEngine->getRestDensity();
   if (ImGui::SliderFloat("Rest Density", &restDensity, 10.0f, 1000.0f))
@@ -83,9 +84,27 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
   }
 
   int nbJacobiIters = (int)fluidsEngine->getNbJacobiIters();
-  if (ImGui::SliderInt("Nb Jacobi Iters", &nbJacobiIters, 1, 6))
+  if (ImGui::SliderInt("Nb Jacobi Iterations", &nbJacobiIters, 1, 6))
   {
     fluidsEngine->setNbJacobiIters((size_t)nbJacobiIters);
+  }
+
+  float artPressureCoeff = fluidsEngine->getArtPressureCoeff();
+  if (ImGui::SliderFloat("Art Pressure Coeff", &artPressureCoeff, 0.0f, 0.001f, "%.4f"))
+  {
+    fluidsEngine->setArtPressureCoeff(artPressureCoeff);
+  }
+
+  float artPressureRadius = fluidsEngine->getArtPressureRadius();
+  if (ImGui::SliderFloat("Art Pressure Radius", &artPressureRadius, 0.001f, 0.015f))
+  {
+    fluidsEngine->setArtPressureRadius(artPressureRadius);
+  }
+
+  int artPressureExp = (int)fluidsEngine->getArtPressureExp();
+  if (ImGui::SliderInt("Art Pressure Exp", &artPressureExp, 1, 6))
+  {
+    fluidsEngine->setArtPressureExp((size_t)artPressureExp);
   }
 
   ImGui::End();
