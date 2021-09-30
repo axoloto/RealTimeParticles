@@ -194,6 +194,12 @@ ParticleSystemApp::ParticleSystemApp()
     return;
   }
 
+  if (!initGraphicsWidget())
+  {
+    LOG_ERROR("Failed to initialize graphics widget");
+    return;
+  }
+
   if (!initPhysicsEngine())
   {
     LOG_ERROR("Failed to initialize physics engine");
@@ -222,6 +228,13 @@ bool ParticleSystemApp::initGraphicsEngine()
   m_graphicsEngine = std::make_unique<Render::Engine>(params);
 
   return (m_graphicsEngine.get() != nullptr);
+}
+
+bool ParticleSystemApp::initGraphicsWidget()
+{
+  m_graphicsWidget = std::make_unique<UI::GraphicsWidget>(m_graphicsEngine.get());
+
+  return (m_graphicsWidget.get() != nullptr);
 }
 
 bool ParticleSystemApp::initPhysicsEngine()
@@ -282,6 +295,7 @@ void ParticleSystemApp::run()
 
     displayMainWidget();
 
+    m_graphicsWidget->display();
     m_physicsWidget->display();
 
     ImGuiIO& io = ImGui::GetIO();

@@ -10,6 +10,7 @@ Engine::Engine(EngineParams params)
     , m_nbParticles(params.currNbParticles)
     , m_boxSize(params.boxSize)
     , m_gridRes(params.gridRes)
+    , m_pointSize(params.pointSize)
     , m_isBoxVisible(false)
     , m_isGridVisible(false)
     , m_targetPos({ 0.0f, 0.0f, 0.0f })
@@ -123,9 +124,7 @@ void Engine::drawPointCloud()
 {
   m_pointCloudShader->activate();
 
-  m_pointCloudShader->setUniform("u_pointSize", (m_nbParticles < 10000) ? 3 : 1);
-  //m_pointCloudShader->setUniform("u_pointSize", 4);
-
+  m_pointCloudShader->setUniform("u_pointSize", (int)m_pointSize);
   m_pointCloudShader->setUniform("u_projView", m_camera->getProjViewMat());
   m_pointCloudShader->setUniform("u_cameraPos", m_camera->cameraPos());
 
@@ -306,7 +305,7 @@ void Engine::checkMouseEvents(UserAction action, Math::float2 delta)
   }
   case UserAction::ZOOM:
   {
-    m_camera->zoom(delta.x);
+    m_camera->zoom(0.5f * delta.x);
     break;
   }
   }

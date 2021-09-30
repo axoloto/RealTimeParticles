@@ -2,12 +2,14 @@
 #pragma once
 
 #include "Engine.hpp"
+#include "GraphicsWidget.hpp"
 #include "Math.hpp"
 #include "Model.hpp"
 #include "Parameters.hpp"
 #include "PhysicsWidget.hpp"
 #include <SDL.h>
 #include <imgui.h>
+
 
 namespace App
 {
@@ -24,6 +26,7 @@ class ParticleSystemApp
   bool initGraphicsEngine();
   bool initPhysicsEngine();
   bool initPhysicsWidget();
+  bool initGraphicsWidget();
   bool closeWindow();
   bool checkSDLStatus();
   void checkMouseState();
@@ -33,6 +36,7 @@ class ParticleSystemApp
   std::unique_ptr<Physics::Model> m_physicsEngine;
   std::unique_ptr<Render::Engine> m_graphicsEngine;
   std::unique_ptr<UI::PhysicsWidget> m_physicsWidget;
+  std::unique_ptr<UI::GraphicsWidget> m_graphicsWidget;
 
   SDL_Window* m_window;
   SDL_GLContext m_OGLContext;

@@ -22,6 +22,7 @@ struct EngineParams
   size_t maxNbParticles = 0;
   size_t boxSize = 0;
   size_t gridRes = 0;
+  size_t pointSize = 1;
   float aspectRatio = 0.0f;
 };
 
@@ -55,6 +56,9 @@ class Engine
   }
 
   inline void setNbParticles(int nbParticles) { m_nbParticles = nbParticles; }
+
+  inline size_t getPointSize() { return m_pointSize; }
+  inline void setPointSize(size_t pointSize) { m_pointSize = pointSize; }
 
   inline bool isBoxVisible() const { return m_isBoxVisible; }
   inline void setBoxVisibility(bool isVisible) { m_isBoxVisible = isVisible; }
@@ -114,6 +118,7 @@ class Engine
   size_t m_gridRes;
   size_t m_nbParticles;
   size_t m_maxNbParticles;
+  size_t m_pointSize;
 
   bool m_isBoxVisible;
   bool m_isGridVisible;

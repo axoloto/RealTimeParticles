@@ -18,10 +18,9 @@ constexpr char PointCloudVertShader[] = R"(#version 330 core
         vertexPos = vec4(aPos.xyz, 1.0);
         gl_Position = u_projView * vertexPos;
 
-        // WIP
         vec4 eye = u_projView * vertexPos; 
         float d = length(eye);
-        gl_PointSize = u_pointSize * max(30.0 * 1.0/(0.04 + 0.8*d + 0.0002*d*d), 0.1); 		
+        gl_PointSize = u_pointSize * max(8.0 * 1.0/(0.04 + 0.8*d + 0.0002*d*d), 0.5); 		
 
         vertexCol = aCol;
     }
