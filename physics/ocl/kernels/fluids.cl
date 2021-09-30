@@ -96,6 +96,9 @@ inline float applyWallBoundaryConditions(float distanceFromWall, float effectRad
 */
 inline float artPressure(const float4 vec, FluidParams fluid)
 {
+  if(islessequal(fluid.artPressureCoeff, 0.0f))
+    return 0.0f;
+
   return - fluid.artPressureCoeff * pow((poly6(vec, fluid.effectRadius) / poly6L(fluid.artPressureRadius * fluid.effectRadius, fluid.effectRadius)), fluid.artPressureExp);
 }
 
@@ -383,12 +386,12 @@ __kernel void fillFluidColor(//Input
 
   float constraint = (1.0f - density[ID] / fluid.restDensity);
 
-  float4 color = (float4)(0.0f);
+  float4 color = blue;
 
-  if(constraint > 0)
-    color = constraint * (lightBlue - blue) / 0.35f + blue;
-  else if(constraint < 0)
-    color = constraint * (blue - darkBlue) / 0.35f + blue;
+  if(constraint > 0.0f)
+    color += constraint * (lightBlue - blue) / 0.35f;
+  else if(constraint < 0.0f)
+    color += constraint * (blue - darkBlue) / 0.35f;
 
   col[ID] = color;
 }

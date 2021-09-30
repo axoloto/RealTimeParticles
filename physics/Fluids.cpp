@@ -225,8 +225,8 @@ void Fluids::initFluidsParticles()
     case CaseType::DROP:
       m_currNbParticles = Utils::NbParticles::P512;
       shape = Geometry::Shape2D::Rectangle;
-      startFluidPos = { 0.0f, m_boxSize / -7.0f, m_boxSize / -10.0f };
-      endFluidPos = { 0.0f, m_boxSize / 7.0f, m_boxSize / 10.0f };
+      startFluidPos = { 0.0f, m_boxSize / -10.0f, m_boxSize / -10.0f };
+      endFluidPos = { 0.0f, m_boxSize / 10.0f, m_boxSize / 10.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");

@@ -10,7 +10,6 @@
 #include <SDL.h>
 #include <imgui.h>
 
-
 namespace App
 {
 class ParticleSystemApp
@@ -43,7 +42,15 @@ class ParticleSystemApp
 
   std::string m_nameApp;
 
+  // Type of physics model currently selected
   Physics::ModelType m_modelType;
+
+  // FPS (Frame per second or framerate)
+  // User-defined target framerate
+  int m_targetFps;
+  // Real framerate
+  // can be lower than target depending on the physics simulation cost
+  float m_currFps;
 
   Math::int2 m_windowSize;
   Math::int2 m_mousePrevPos;

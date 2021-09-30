@@ -10,7 +10,7 @@ void UI::GraphicsWidget::display()
     return;
 
   // First default pos
-  ImGui::SetNextWindowPos(ImVec2(60, 430), ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowPos(ImVec2(15, 192), ImGuiCond_FirstUseEver);
 
   ImGui::Begin("Graphics Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);

@@ -180,6 +180,8 @@ ParticleSystemApp::ParticleSystemApp()
     , m_buttonLeftActivated(false)
     , m_windowSize(1280, 720)
     , m_modelType(Physics::ModelType::FLUIDS)
+    , m_targetFps(60)
+    , m_currFps(60.0f)
     , m_init(false)
 {
   if (!initWindow())
@@ -277,6 +279,8 @@ bool ParticleSystemApp::initPhysicsWidget()
 
 void ParticleSystemApp::run()
 {
+  auto start = std::chrono::steady_clock::now();
+
   bool stopRendering = false;
   while (!stopRendering)
   {
@@ -303,11 +307,21 @@ void ParticleSystemApp::run()
     glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    m_physicsEngine->update();
+    // Slowing down physics engine if target fps is lower than current fps
+    auto now = std::chrono::steady_clock::now();
+    auto timeSpent = now - start;
+    if (timeSpent > std::chrono::milliseconds(1000 / m_targetFps))
+    {
+      m_currFps = 1000.0f / std::chrono::duration_cast<std::chrono::milliseconds>(timeSpent).count();
 
-    m_graphicsEngine->setNbParticles((int)m_physicsEngine->nbParticles());
-    m_graphicsEngine->setTargetVisibility(m_physicsEngine->isTargetVisible());
-    m_graphicsEngine->setTargetPos(m_physicsEngine->targetPos());
+      m_physicsEngine->update();
+
+      m_graphicsEngine->setNbParticles((int)m_physicsEngine->nbParticles());
+      m_graphicsEngine->setTargetVisibility(m_physicsEngine->isTargetVisible());
+      m_graphicsEngine->setTargetPos(m_physicsEngine->targetPos());
+
+      start = now;
+    }
 
     m_graphicsEngine->draw();
 
@@ -323,7 +337,7 @@ void ParticleSystemApp::run()
 void ParticleSystemApp::displayMainWidget()
 {
   // First default pos
-  ImGui::SetNextWindowPos(ImVec2(60, 20), ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowPos(ImVec2(15, 12), ImGuiCond_FirstUseEver);
 
   ImGui::Begin("Main Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);
@@ -409,7 +423,10 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Spacing();
   ImGui::Separator();
   ImGui::Spacing();
-  ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+  ImGui::SliderInt("Target FPS", &m_targetFps, 1, 60);
+
+  ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / m_currFps, m_currFps);
 
   Physics::CL::Context& clContext = Physics::CL::Context::Get();
   bool isProfiling = clContext.isProfiling();
