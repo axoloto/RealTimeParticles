@@ -10,7 +10,7 @@ void UI::PhysicsWidget::display()
   auto* fluidsEngine = dynamic_cast<Physics::Fluids*>(m_physicsEngine);
 
   // First default pos
-  ImGui::SetNextWindowPos(ImVec2(60, 430), ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowPos(ImVec2(60, 630), ImGuiCond_FirstUseEver);
 
   if (boidsEngine)
     displayBoidsParameters(boidsEngine);

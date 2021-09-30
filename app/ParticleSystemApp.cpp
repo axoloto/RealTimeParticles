@@ -406,28 +406,6 @@ void ParticleSystemApp::displayMainWidget()
     m_graphicsEngine->setGridVisibility(isGridVisible);
   }
 
-  const auto cameraPos = m_graphicsEngine->cameraPos();
-  const auto focusPos = m_graphicsEngine->focusPos();
-
-  ImGui::Spacing();
-  ImGui::Separator();
-  ImGui::Spacing();
-  ImGui::Text(" Camera (%.1f, %.1f, %.1f)", cameraPos.x, cameraPos.y, cameraPos.z);
-  ImGui::Text(" Target (%.1f, %.1f, %.1f)", focusPos.x, focusPos.y, focusPos.z);
-  ImGui::Text(" Dist. camera target : %.1f", Math::length(cameraPos - focusPos));
-  ImGui::Spacing();
-
-  bool isAutoRotating = m_graphicsEngine->isCameraAutoRotating();
-  if (ImGui::Checkbox(" Auto rotation ", &isAutoRotating))
-  {
-    m_graphicsEngine->autoRotateCamera(isAutoRotating);
-  }
-
-  if (ImGui::Button(" Reset Camera "))
-  {
-    m_graphicsEngine->resetCamera();
-  }
-
   ImGui::Spacing();
   ImGui::Separator();
   ImGui::Spacing();
