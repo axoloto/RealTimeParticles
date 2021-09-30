@@ -74,27 +74,24 @@ __kernel void applyBoidsRulesWithGrid3D(//Input
   const float4 pos = position[ID];
   const float4 vel = velocity[ID];
 
-  const uint currCell1DIndex = getCell1DIndexFromPos(pos);
-  const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
-  const uint2 startEnd = startEndCell[currCell1DIndex];
+  const uint currCellIndex1D = getCell1DIndexFromPos(pos);
+  const uint3 currCellIndex3D = getCell3DIndexFromPos(pos);
+  const uint2 startEnd = startEndCell[currCellIndex1D];
 
   int count = 0;
 
-  float4 newAcc = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 averageBoidsPos = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 averageBoidsVel = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 repulseHeading  = (float4)(0.0, 0.0, 0.0, 0.0);
+  float4 newAcc = (float4)(0.0f);
+  float4 averageBoidsPos = (float4)(0.0f);
+  float4 averageBoidsVel = (float4)(0.0f);
+  float4 repulseHeading  = (float4)(0.0f);
 
   float squaredDist = 0.0f;
-  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 vec = (float4)(0.0f);
 
-  int x = 0;
-  int y = 0;
-  int z = 0;
-  uint  cellIndex = 0;
-  uint2 startEndN = (uint2)(0, 0);
-
-  float4 posN = (float4)(0.0, 0.0, 0.0, 0.0);
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0);
+  float4 posN = (float4)(0.0f);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -103,18 +100,15 @@ __kernel void applyBoidsRulesWithGrid3D(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        x = convert_int(currCell3DIndex.x) + iX;
-        y = convert_int(currCell3DIndex.y) + iY;
-        z = convert_int(currCell3DIndex.z) + iZ;
-
-        if (x < 0 || x >= GRID_RES
-         || y < 0 || y >= GRID_RES
-         || z < 0 || z >= GRID_RES)
+        cellNIndex3D = convert_int(currCellIndex3D) + (int3)(iX, iY, iZ);
+        
+        // Removing out of range cells
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
           continue;
 
-        cellIndex = (x * GRID_RES + y) * GRID_RES + z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
 
-        startEndN = startEndCell[cellIndex];
+        startEndN = startEndCell[cellNIndex1D];
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
@@ -173,44 +167,39 @@ __kernel void applyBoidsRulesWithGrid2D(//Input
   const float4 pos = position[ID];
   const float4 vel = velocity[ID];
 
-  const uint currCell1DIndex = getCell1DIndexFromPos(pos);
-  const uint3 currCell3DIndex = getCell3DIndexFromPos(pos);
-  const uint2 startEnd = startEndCell[currCell1DIndex];
+  const uint currCellIndex1D = getCell1DIndexFromPos(pos);
+  const uint3 currCellIndex3D = getCell3DIndexFromPos(pos);
+  const uint2 startEnd = startEndCell[currCellIndex1D];
 
   int count = 0;
 
-  float4 newAcc = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 averageBoidsPos = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 averageBoidsVel = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 repulseHeading  = (float4)(0.0, 0.0, 0.0, 0.0);
+  float4 newAcc = (float4)(0.0f);
+  float4 averageBoidsPos = (float4)(0.0f);
+  float4 averageBoidsVel = (float4)(0.0f);
+  float4 repulseHeading  = (float4)(0.0f);
 
   float squaredDist = 0.0f;
-  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 vec = (float4)(0.0f);
 
-  int x = GRID_RES /2;
-  int y = 0;
-  int z = 0;
-
-  uint cellIndex = 0;
-  uint2 startEndN = (uint2)(0, 0);
-
-  float4 posN = (float4)(0.0, 0.0, 0.0, 0.0);
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0);
+  float4 posN = (float4)(0.0f);
 
   // 9 cells to visit, current one + 2D YZ neighbors
   for (int iY = -1; iY <= 1; ++iY)
   {
     for (int iZ = -1; iZ <= 1; ++iZ)
     {
-      y = convert_int(currCell3DIndex.y) + iY;
-      z = convert_int(currCell3DIndex.z) + iZ;
-
-      if ( y < 0 || y >= GRID_RES
-        || z < 0 || z >= GRID_RES)
+      cellNIndex3D = convert_int(currCellIndex3D) + (int3)(0, iY, iZ);
+      
+      // Removing out of range cells
+      if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
         continue;
 
-      cellIndex = (x * GRID_RES + y) * GRID_RES + z;
+      cellNIndex1D = (GRID_RES / 2 * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
 
-      startEndN = startEndCell[cellIndex];
+      startEndN = startEndCell[cellNIndex1D];
 
       for (uint e = startEndN.x; e <= startEndN.y; ++e)
       {

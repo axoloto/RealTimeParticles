@@ -350,7 +350,7 @@ __kernel void updateVel(//Input
 */
 __kernel void applyBoundaryCondition(__global float4 *predPos)
 {
-  predPos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS);
+  predPos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS -0.2f); //WIP
 }
 
 /*
