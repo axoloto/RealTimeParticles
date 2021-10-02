@@ -46,9 +46,9 @@ constexpr char PointCloudFragShader[] = R"(#version 330 core
       float r2 = dot(xyz, xyz);
       fragColor.a = 1.0;
       //fragColor.a = 2.5* exp(-r2 / 100000)+0.75;
-      fragColor.rgb = vertexCol.rgb * fragColor.a;
+      //fragColor.rgb = vertexCol.rgb * fragColor.a;
 
-      //fragColor = vec4(vertexCol.rgb, 1.0);
+      fragColor = vec4(vertexCol.rgb, 1.0);
     }
     )";
 

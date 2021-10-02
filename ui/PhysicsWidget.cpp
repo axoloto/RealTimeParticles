@@ -89,22 +89,50 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
     fluidsEngine->setNbJacobiIters((size_t)nbJacobiIters);
   }
 
-  float artPressureCoeff = fluidsEngine->getArtPressureCoeff();
-  if (ImGui::SliderFloat("Art Pressure Coeff", &artPressureCoeff, 0.0f, 0.001f, "%.4f"))
+  bool isArtPressureEnabled = fluidsEngine->isArtPressureEnabled();
+  if (ImGui::Checkbox("Enable Artificial Pressure", &isArtPressureEnabled))
   {
-    fluidsEngine->setArtPressureCoeff(artPressureCoeff);
+    fluidsEngine->enableArtPressure(isArtPressureEnabled);
+  }
+  if (isArtPressureEnabled)
+  {
+    float artPressureCoeff = fluidsEngine->getArtPressureCoeff();
+    if (ImGui::SliderFloat("Coefficient", &artPressureCoeff, 0.0f, 0.001f, "%.4f"))
+    {
+      fluidsEngine->setArtPressureCoeff(artPressureCoeff);
+    }
+
+    float artPressureRadius = fluidsEngine->getArtPressureRadius();
+    if (ImGui::SliderFloat("Radius", &artPressureRadius, 0.001f, 0.015f))
+    {
+      fluidsEngine->setArtPressureRadius(artPressureRadius);
+    }
+
+    int artPressureExp = (int)fluidsEngine->getArtPressureExp();
+    if (ImGui::SliderInt("Exponent", &artPressureExp, 1, 6))
+    {
+      fluidsEngine->setArtPressureExp((size_t)artPressureExp);
+    }
   }
 
-  float artPressureRadius = fluidsEngine->getArtPressureRadius();
-  if (ImGui::SliderFloat("Art Pressure Radius", &artPressureRadius, 0.001f, 0.015f))
+  bool isVorticityConfinementEnabled = fluidsEngine->isVorticityConfinementEnabled();
+  if (ImGui::Checkbox("Enable Vorticity Confinement", &isVorticityConfinementEnabled))
   {
-    fluidsEngine->setArtPressureRadius(artPressureRadius);
+    fluidsEngine->enableVorticityConfinement(isVorticityConfinementEnabled);
   }
-
-  int artPressureExp = (int)fluidsEngine->getArtPressureExp();
-  if (ImGui::SliderInt("Art Pressure Exp", &artPressureExp, 1, 6))
+  if (isVorticityConfinementEnabled)
   {
-    fluidsEngine->setArtPressureExp((size_t)artPressureExp);
+    float vorticityConfinementCoeff = fluidsEngine->getVorticityConfinementCoeff();
+    if (ImGui::SliderFloat("Vorticity Coefficient", &vorticityConfinementCoeff, 0.0f, 0.001f, "%.4f"))
+    {
+      fluidsEngine->setVorticityConfinementCoeff(vorticityConfinementCoeff);
+    }
+
+    float xsphViscosityCoeff = fluidsEngine->getXsphViscosityCoeff();
+    if (ImGui::SliderFloat("Viscosity Coefficient", &xsphViscosityCoeff, 0.0f, 0.001f, "%.4f"))
+    {
+      fluidsEngine->setXsphViscosityCoeff(xsphViscosityCoeff);
+    }
   }
 
   ImGui::End();

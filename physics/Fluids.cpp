@@ -42,8 +42,11 @@ using namespace Physics;
 #define KERNEL_CONSTRAINT_FACTOR "computeConstraintFactor"
 #define KERNEL_CONSTRAINT_CORRECTION "computeConstraintCorrection"
 #define KERNEL_CORRECT_POS "correctPosition"
-#define KERNEL_UPDATE_POS "updatePosition"
 #define KERNEL_UPDATE_VEL "updateVel"
+#define KERNEL_COMPUTE_VORTICITY "computeVorticity"
+#define KERNEL_VORTICITY_CONFINEMENT "applyVorticityConfinement"
+#define KERNEL_XSPH_VISCOSITY "applyXsphViscosityCorrection"
+#define KERNEL_UPDATE_POS "updatePosition"
 #define KERNEL_FILL_COLOR "fillFluidColor"
 
 Fluids::Fluids(ModelParams params)
@@ -101,6 +104,8 @@ bool Fluids::createBuffers() const
   clContext.createBuffer("p_corrPos", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_constFactor", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_vel", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_velInViscosity", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_vort", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_cellID", m_maxNbParticles * sizeof(unsigned int), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_cameraDist", m_maxNbParticles * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
@@ -143,9 +148,12 @@ bool Fluids::createKernels() const
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_FACTOR, { "p_predPos", "p_density", "c_startEndPartID", "", "p_constFactor" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CONSTRAINT_CORRECTION, { "p_constFactor", "c_startEndPartID", "p_predPos", "", "p_corrPos" });
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_CORRECT_POS, { "p_corrPos", "p_predPos" });
-  /// Velocity and position update
+  /// Velocity update and correction using vorticity confinement and xsph viscosity
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_VEL, { "p_predPos", "p_pos", "", "p_vel" });
-  //
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_COMPUTE_VORTICITY, { "p_predPos", "c_startEndPartID", "p_vel", "", "p_vort" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_VORTICITY_CONFINEMENT, { "p_predPos", "c_startEndPartID", "p_vort", "", "p_vel" });
+  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_XSPH_VISCOSITY, { "p_predPos", "c_startEndPartID", "p_velInViscosity", "", "p_vel" });
+  /// Position update
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_UPDATE_POS, { "p_predPos", "p_pos" });
 
   return true;
@@ -154,9 +162,6 @@ bool Fluids::createKernels() const
 void Fluids::updateFluidsParamsInKernel()
 {
   CL::Context& clContext = CL::Context::Get();
-
-  //m_kernelInputs.poly6Coeff = 315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9));
-  //m_kernelInputs.spikyCoeff = 15.0f / (Math::PI_F * std::powf(effectRadius, 6));
 
   m_kernelInputs.dim = (m_dimension == Dimension::dim2D) ? 2 : 3;
 
@@ -170,6 +175,9 @@ void Fluids::updateFluidsParamsInKernel()
   clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
   clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
   clContext.setKernelArg(KERNEL_FILL_COLOR, 1, sizeof(FluidKernelInputs), &m_kernelInputs);
+  clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
+  clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
+  clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
 }
 
 void Fluids::reset()
@@ -331,8 +339,22 @@ void Fluids::update()
       clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
     }
 
-    // Updating velocity and position
+    // Updating velocity
     clContext.runKernel(KERNEL_UPDATE_VEL, m_currNbParticles);
+
+    if (m_kernelInputs.isVorticityConfEnabled)
+    {
+      // Computing vorticity
+      clContext.runKernel(KERNEL_COMPUTE_VORTICITY, m_currNbParticles);
+      // Applying vorticity confinement to attenue virtual damping
+      clContext.runKernel(KERNEL_VORTICITY_CONFINEMENT, m_currNbParticles);
+      // Copying velocity buffer as input for vorticity confinement correction
+      clContext.copyBuffer("p_vel", "p_velInViscosity");
+      // Applying xsph viscosity correction for a more coherent motion
+      clContext.runKernel(KERNEL_XSPH_VISCOSITY, m_currNbParticles);
+    }
+
+    // Updating pos
     clContext.runKernel(KERNEL_UPDATE_POS, m_currNbParticles);
 
     // Rendering purpose

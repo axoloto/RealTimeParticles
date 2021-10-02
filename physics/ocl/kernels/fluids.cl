@@ -22,10 +22,14 @@ typedef struct defFluidParams{
   float restDensity;
   float relaxCFM;
   float timeStep;
+  uint  dim;
+  uint  isArtPressureEnabled;
   float artPressureRadius;
   float artPressureCoeff;
   uint  artPressureExp;
-  uint  dim;
+  uint  isVorticityConfEnabled;
+  float vorticityConfCoeff;
+  float xsphViscosityCoeff;
 } FluidParams;
 
 
@@ -96,7 +100,7 @@ inline float applyWallBoundaryConditions(float distanceFromWall, float effectRad
 */
 inline float artPressure(const float4 vec, FluidParams fluid)
 {
-  if(islessequal(fluid.artPressureCoeff, 0.0f))
+  if(fluid.isArtPressureEnabled == 0)
     return 0.0f;
 
   return - fluid.artPressureCoeff * pow((poly6(vec, fluid.effectRadius) / poly6L(fluid.artPressureRadius * fluid.effectRadius, fluid.effectRadius)), fluid.artPressureExp);
@@ -281,8 +285,8 @@ __kernel void computeConstraintCorrection(//Input
                                                 __global float4 *corrPos)      // 4
 {
   const float4 pos = predPos[ID];
-  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
   const float lambdaI = constFactor[ID];
+  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
 
   float4 vec = (float4)(0.0f);
   float4 corr = (float4)(0.0f);
@@ -333,7 +337,7 @@ __kernel void correctPosition(//Input
 }
 
 /*
-  Update velocity buffer.
+  Update velocity buffer
 */
 __kernel void updateVel(//Input
                         const __global float4 *predPos,    // 0
@@ -349,11 +353,165 @@ __kernel void updateVel(//Input
 }
 
 /*
+  Compute vorticity
+*/
+__kernel void computeVorticity(//Input
+                               const __global float4 *predPos,      // 0
+                               const __global uint2  *startEndCell, // 1
+                               const __global float4 *vel,          // 2
+                               //Param
+                               const     FluidParams fluid,         // 3
+                               //Output
+                                     __global float4 *vorticity)    // 4
+{
+  const float4 pos = predPos[ID];
+  const float4 velocity = vel[ID];
+  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
+
+  float4 vort = (float4)(0.0f);
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0, 0);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
+
+        // Removing out of range cells
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+          continue;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          vort += cross((vel[e] - velocity), gradSpiky(pos - predPos[e], fluid.effectRadius));
+        }
+      }
+    }
+  }
+
+  vorticity[ID] = vort;
+}
+
+/*
+  Apply vorticity confinement
+*/
+__kernel void applyVorticityConfinement(//Input
+                                        const __global float4 *predPos,      // 0
+                                        const __global uint2  *startEndCell, // 1
+                                        const __global float4 *vort,         // 2
+                                        //Param
+                                        const     FluidParams fluid,         // 3
+                                        //Output
+                                              __global float4 *vel)          // 4
+{
+  const float4 pos = predPos[ID];
+  const float4 vorticity = vort[ID];
+  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
+
+  // vorticity confinement
+  float4 n = (float4)(0.0f);
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0, 0);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
+
+        // Removing out of range cells
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+          continue;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          n += fast_length(vort[e]) * gradSpiky(pos - predPos[e], fluid.effectRadius);
+        }
+      }
+    }
+  }
+
+  // Adding vorticity confinement to attenue virtual damping
+  vel[ID] += fluid.vorticityConfCoeff * cross(normalize(n), vorticity) * fluid.timeStep;
+}
+
+
+/*
+  Apply xsph viscosity correction
+*/
+__kernel void applyXsphViscosityCorrection(//Input
+                                        const __global float4 *predPos,      // 0
+                                        const __global uint2  *startEndCell, // 1
+                                        const __global float4 *velIn,        // 2
+                                        //Param
+                                        const     FluidParams fluid,         // 3
+                                        //Output
+                                              __global float4 *velOut)       // 4
+{
+  const float4 pos = predPos[ID];
+  const float4 velocity = velIn[ID];
+  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
+
+  float4 viscosity = (float4)(0.0f);
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0, 0);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
+
+        // Removing out of range cells
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+          continue;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          viscosity += (velIn[e] - velocity) * poly6(pos - predPos[e], fluid.effectRadius);
+        }
+      }
+    }
+  }
+
+  // Adding xsph viscosity for a more coherent motion
+  velOut[ID] = velocity + fluid.xsphViscosityCoeff * viscosity;
+}
+
+/*
   Apply Bouncing wall boundary conditions on position
 */
 __kernel void applyBoundaryCondition(__global float4 *predPos)
 {
-  predPos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS -0.2f); //WIP
+  predPos[ID] = clamp(predPos[ID], -ABS_WALL_POS +0.01f, ABS_WALL_POS -0.1f); //WIP, hack to deal with boundary conditions
 }
 
 /*

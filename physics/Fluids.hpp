@@ -40,10 +40,16 @@ struct FluidKernelInputs
   cl_float restDensity = 450.0f;
   cl_float relaxCFM = 600.0f;
   cl_float timeStep = 0.008f;
-  cl_float artPressureRadius = 0.01f;
+  cl_uint dim = 3;
+  // Artifical pressure if enabled will try to reduce tensile instability
+  cl_uint isArtPressureEnabled = 1;
+  cl_float artPressureRadius = 0.006f;
   cl_float artPressureCoeff = 0.001f;
   cl_uint artPressureExp = 4;
-  cl_uint dim = 3;
+  // Vorticity confinement if enabled will try to replace lost energy due to virtual damping
+  cl_uint isVorticityConfEnabled = 1;
+  cl_float vorticityConfCoeff = 0.0004f;
+  cl_float xsphViscosityCoeff = 0.0001f;
 };
 
 class Fluids : public Model
@@ -102,6 +108,14 @@ class Fluids : public Model
   size_t getNbJacobiIters() const { return m_nbJacobiIters; }
 
   //
+  void enableArtPressure(bool enable)
+  {
+    m_kernelInputs.isArtPressureEnabled = (cl_uint)enable;
+    updateFluidsParamsInKernel();
+  }
+  bool isArtPressureEnabled() const { return (bool)m_kernelInputs.isArtPressureEnabled; }
+
+  //
   void setArtPressureRadius(float radius)
   {
     m_kernelInputs.artPressureRadius = (cl_float)radius;
@@ -124,6 +138,30 @@ class Fluids : public Model
     updateFluidsParamsInKernel();
   }
   float getArtPressureCoeff() const { return (float)m_kernelInputs.artPressureCoeff; }
+
+  //
+  void enableVorticityConfinement(bool enable)
+  {
+    m_kernelInputs.isVorticityConfEnabled = (cl_uint)enable;
+    updateFluidsParamsInKernel();
+  }
+  bool isVorticityConfinementEnabled() const { return (bool)m_kernelInputs.isVorticityConfEnabled; }
+
+  //
+  void setVorticityConfinementCoeff(float coeff)
+  {
+    m_kernelInputs.vorticityConfCoeff = (cl_float)coeff;
+    updateFluidsParamsInKernel();
+  }
+  float getVorticityConfinementCoeff() const { return (float)m_kernelInputs.vorticityConfCoeff; }
+
+  //
+  void setXsphViscosityCoeff(float coeff)
+  {
+    m_kernelInputs.xsphViscosityCoeff = (cl_float)coeff;
+    updateFluidsParamsInKernel();
+  }
+  float getXsphViscosityCoeff() const { return (float)m_kernelInputs.xsphViscosityCoeff; }
 
   private:
   bool createProgram() const;
