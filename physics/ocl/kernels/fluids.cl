@@ -1,6 +1,6 @@
 
 // Position based fluids model based on NVIDIA paper 
-// Muller and al. 2013. "Position Based Fluids"
+// Macklin and Muller 2013. "Position Based Fluids"
 
 // Preprocessor defines following constant variables in Boids.cpp
 // EFFECT_RADIUS           - radius around a particle where boids laws apply 
@@ -53,7 +53,7 @@ inline uint getCell1DIndexFromPos(float4 pos);
 
 /*
   Poly6 kernel introduced in
-  Muller and al. 2003. "Particle-based fluid simulation for interactive applications"
+  Muller et al. 2003. "Particle-based fluid simulation for interactive applications"
   Return null value if vec length is superior to effectRadius
 */
 inline float poly6(const float4 vec, const float effectRadius)
@@ -69,7 +69,7 @@ inline float poly6L(const float vecLength, const float effectRadius)
 
 /*
   Jacobian (on vec coords) of Spiky kernel introduced in
-  Muller and al. 2003. "Particle-based fluid simulation for interactive applications"
+  Muller et al. 2003. "Particle-based fluid simulation for interactive applications"
   Return null vector if vec length is superior to effectRadius
 */
 inline float4 gradSpiky(const float4 vec, const float effectRadius)
@@ -511,7 +511,7 @@ __kernel void applyXsphViscosityCorrection(//Input
 */
 __kernel void applyBoundaryCondition(__global float4 *predPos)
 {
-  predPos[ID] = clamp(predPos[ID], -ABS_WALL_POS +0.01f, ABS_WALL_POS -0.1f); //WIP, hack to deal with boundary conditions
+  predPos[ID] = clamp(predPos[ID], -ABS_WALL_POS + 0.01f, ABS_WALL_POS - 0.1f); //WIP, hack to deal with boundary conditions
 }
 
 /*

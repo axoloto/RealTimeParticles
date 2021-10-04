@@ -44,7 +44,7 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
         fluidsEngine->setInitialCase(caseType);
         fluidsEngine->reset();
 
-        LOG_INFO("Fluids initial case correctly switched to {}", Physics::ALL_FLUID_CASES.find(caseType)->second);
+        LOG_DEBUG("Fluids initial case correctly switched to {}", Physics::ALL_FLUID_CASES.find(caseType)->second);
       }
     }
     ImGui::EndCombo();
@@ -56,13 +56,6 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
   ImGui::Text("Fluid parameters");
   ImGui::Spacing();
 
-  /*
-  float effectRadius = fluidsEngine->getEffectRadius();
-  if (ImGui::SliderFloat("Effect Radius", &effectRadius, 0.01f, 0.9f))
-  {
-    fluidsEngine->setEffectRadius(effectRadius);
-  }
-  */
   ImGui::Value("Kernel radius", (float)fluidsEngine->getEffectRadius());
 
   float restDensity = fluidsEngine->getRestDensity();
@@ -202,7 +195,7 @@ void UI::PhysicsWidget::displayBoidsParameters(Physics::Boids* boidsEngine)
     }
 
     float targetRadius = boidsEngine->targetRadiusEffect();
-    if (ImGui::SliderFloat("##targetRadius", &targetRadius, 30.0f, 1000.0f))
+    if (ImGui::SliderFloat("##targetRadius", &targetRadius, 1.0f, 20.0f))
     {
       boidsEngine->setTargetRadiusEffect(targetRadius);
     }

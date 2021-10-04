@@ -26,7 +26,7 @@ struct CompareModelType
 
 static const std::map<ModelType, std::string, CompareModelType> ALL_MODELS {
   { ModelType::BOIDS, "Boids" }, // Craig Reynolds laws
-  { ModelType::FLUIDS, "Fluids" }, // Position Based Fluids by NVIDIA team (Muller and al.)
+  { ModelType::FLUIDS, "Fluids" }, // Position Based Fluids by NVIDIA team (Macklin and Muller)
 };
 
 enum class Dimension

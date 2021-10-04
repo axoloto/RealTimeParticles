@@ -8,7 +8,7 @@
 #include "utils/RadixSort.hpp"
 
 // Position based fluids model based on NVIDIA paper
-// Muller and al. 2013. "Position Based Fluids"
+// Macklin and Muller 2013. "Position Based Fluids"
 
 namespace Physics
 {

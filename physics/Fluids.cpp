@@ -267,8 +267,8 @@ void Fluids::initFluidsParticles()
     case CaseType::DROP:
       m_currNbParticles = Utils::NbParticles::P4K;
       shape = Geometry::Shape3D::Box;
-      startFluidPos = { m_boxSize / -8.0f, 0.0f, m_boxSize / -8.0f };
-      endFluidPos = { m_boxSize / 8.0f, 5.0f * m_boxSize / 12.0f, m_boxSize / 8.0f };
+      startFluidPos = { m_boxSize / -10.0f, 0.0f, m_boxSize / -10.0f };
+      endFluidPos = { m_boxSize / 10.0f, 2.0f * m_boxSize / 10.0f, m_boxSize / 10.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");
