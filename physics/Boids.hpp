@@ -1,24 +1,19 @@
 #pragma once
 
 #include <array>
-#include <chrono>
 #include <vector>
 
-#include "Physics.hpp"
+#include "Model.hpp"
 #include "ocl/Context.hpp"
 #include "utils/RadixSort.hpp"
 #include "utils/Target.hpp"
 
-namespace Core
+namespace Physics
 {
-using clock = std::chrono::high_resolution_clock;
-class Boids : public Physics
+class Boids : public Model
 {
   public:
-  Boids(size_t maxNbParticles, size_t nbParticles, size_t boxSize, size_t gridRes, float velocity,
-      unsigned int particleCoordVBO,
-      unsigned int cameraCoordVBO,
-      unsigned int gridDetectorVBO);
+  Boids(ModelParams params);
   ~Boids() = default;
 
   void update() override;
@@ -118,8 +113,9 @@ class Boids : public Physics
   int targetSignEffect() const { return m_target ? m_target->signEffect() : 0; }
 
   private:
+  void initBoidsParticles();
   bool createProgram() const;
-  bool createBuffers(unsigned int particleCoordVBO, unsigned int cameraCoordVBO, unsigned int gridDetectorVBO) const;
+  bool createBuffers() const;
   bool createKernels() const;
   void updateBoidsParamsInKernel();
   void updateGridParamsInKernel();
@@ -138,7 +134,5 @@ class Boids : public Physics
   std::unique_ptr<Target> m_target;
 
   RadixSort m_radixSort;
-
-  std::chrono::steady_clock::time_point m_time;
 };
 }

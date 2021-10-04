@@ -3,6 +3,11 @@ cmake_minimum_required(VERSION 3.12)
 project(boids VERSION 0.1)
 
 message(STATUS "version 0.1")
+
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    add_compile_definitions(DEBUG_BUILD)
+endif()
+
 message(STATUS "build type ${CMAKE_BUILD_TYPE}")
 message(STATUS "build dir ${CMAKE_BUILD_DIR}")
 

@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "Math.hpp"
-namespace Core
+namespace Physics
 {
 // Directly inspired by Ken Perlin's work and https://solarianprogrammer.com/ cpp implementation
 

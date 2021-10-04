@@ -3,13 +3,13 @@
 #include <array>
 #include <vector>
 
-#include "Physics.hpp"
+#include "Model.hpp"
 #include "ocl/Context.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <random>
-namespace Core
+namespace Physics
 {
 template <typename T, typename U>
 bool checkPermutation(const std::vector<T>& keysAfterSort,

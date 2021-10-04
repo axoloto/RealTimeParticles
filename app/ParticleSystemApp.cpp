@@ -2,6 +2,9 @@
 #include "ParticleSystemApp.hpp"
 
 #include "Boids.hpp"
+#include "Fluids.hpp"
+
+#include "Logging.hpp"
 #include "Parameters.hpp"
 
 #include <imgui.h>
@@ -10,7 +13,6 @@
 
 #include <glad/glad.h>
 #include <sdl2/SDL.h>
-#include <spdlog/spdlog.h>
 
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
@@ -25,7 +27,7 @@ bool ParticleSystemApp::initWindow()
   // Setup SDL
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
   {
-    spdlog::error("Error: {}", SDL_GetError());
+    LOG_ERROR("Error: {}", SDL_GetError());
     return false;
   }
 
@@ -52,7 +54,7 @@ bool ParticleSystemApp::initWindow()
 
   if (err)
   {
-    spdlog::error("Failed to initialize OpenGL loader!");
+    LOG_ERROR("Failed to initialize OpenGL loader!");
     return false;
   }
 
@@ -177,47 +179,108 @@ ParticleSystemApp::ParticleSystemApp()
     , m_buttonRightActivated(false)
     , m_buttonLeftActivated(false)
     , m_windowSize(1280, 720)
+    , m_modelType(Physics::ModelType::FLUIDS)
+    , m_targetFps(60)
+    , m_currFps(60.0f)
     , m_init(false)
 {
-  initWindow();
-
-  size_t maxNbParticles = (size_t)(NbParticles::P260K);
-  size_t currNbParticles = (size_t)(NbParticles::P512);
-  float velocity = 5.0f;
-
-  m_graphicsEngine = std::make_unique<Render::OGLRender>(
-      maxNbParticles,
-      currNbParticles,
-      BOX_SIZE,
-      GRID_RES,
-      (float)m_windowSize.x / m_windowSize.y);
-
-  if (!m_graphicsEngine)
+  if (!initWindow())
+  {
+    LOG_ERROR("Failed to initialize application window");
     return;
+  }
 
-  m_physicsEngine = std::make_unique<Core::Boids>(
-      maxNbParticles,
-      currNbParticles,
-      BOX_SIZE,
-      GRID_RES,
-      velocity,
-      (unsigned int)m_graphicsEngine->pointCloudCoordVBO(),
-      (unsigned int)m_graphicsEngine->cameraCoordVBO(),
-      (unsigned int)m_graphicsEngine->gridDetectorVBO());
-
-  if (!m_physicsEngine)
+  if (!initGraphicsEngine())
+  {
+    LOG_ERROR("Failed to initialize graphics engine");
     return;
+  }
 
-  m_physicsWidget = std::make_unique<UI::BoidsWidget>(*m_physicsEngine);
-
-  if (!m_physicsWidget)
+  if (!initGraphicsWidget())
+  {
+    LOG_ERROR("Failed to initialize graphics widget");
     return;
+  }
+
+  if (!initPhysicsEngine())
+  {
+    LOG_ERROR("Failed to initialize physics engine");
+    return;
+  }
+
+  if (!initPhysicsWidget())
+  {
+    LOG_ERROR("Failed to initialize physics widget");
+    return;
+  }
+
+  LOG_INFO("Application correctly initialized");
 
   m_init = true;
 }
 
+bool ParticleSystemApp::initGraphicsEngine()
+{
+  Render::EngineParams params;
+  params.maxNbParticles = Utils::ALL_NB_PARTICLES.crbegin()->first;
+  params.boxSize = Utils::BOX_SIZE;
+  params.gridRes = Utils::GRID_RES;
+  params.aspectRatio = (float)m_windowSize.x / m_windowSize.y;
+
+  m_graphicsEngine = std::make_unique<Render::Engine>(params);
+
+  return (m_graphicsEngine.get() != nullptr);
+}
+
+bool ParticleSystemApp::initGraphicsWidget()
+{
+  m_graphicsWidget = std::make_unique<UI::GraphicsWidget>(m_graphicsEngine.get());
+
+  return (m_graphicsWidget.get() != nullptr);
+}
+
+bool ParticleSystemApp::initPhysicsEngine()
+{
+  Physics::ModelParams params;
+  params.maxNbParticles = Utils::ALL_NB_PARTICLES.crbegin()->first;
+  params.boxSize = Utils::BOX_SIZE;
+  params.gridRes = Utils::GRID_RES;
+  params.velocity = 1.0f;
+  params.particlePosVBO = (unsigned int)m_graphicsEngine->pointCloudCoordVBO();
+  params.particleColVBO = (unsigned int)m_graphicsEngine->pointCloudColorVBO();
+  params.cameraVBO = (unsigned int)m_graphicsEngine->cameraCoordVBO();
+  params.gridVBO = (unsigned int)m_graphicsEngine->gridDetectorVBO();
+
+  if (m_physicsEngine)
+  {
+    LOG_DEBUG("Physics engine already existing, resetting it");
+    m_physicsEngine.reset();
+  }
+
+  switch ((int)m_modelType)
+  {
+  case Physics::ModelType::BOIDS:
+    m_physicsEngine = std::make_unique<Physics::Boids>(params);
+    break;
+  case Physics::ModelType::FLUIDS:
+    m_physicsEngine = std::make_unique<Physics::Fluids>(params);
+    break;
+  }
+
+  return (m_physicsEngine.get() != nullptr);
+}
+
+bool ParticleSystemApp::initPhysicsWidget()
+{
+  m_physicsWidget = std::make_unique<UI::PhysicsWidget>(m_physicsEngine.get());
+
+  return (m_physicsWidget.get() != nullptr);
+}
+
 void ParticleSystemApp::run()
 {
+  auto start = std::chrono::steady_clock::now();
+
   bool stopRendering = false;
   while (!stopRendering)
   {
@@ -236,6 +299,7 @@ void ParticleSystemApp::run()
 
     displayMainWidget();
 
+    m_graphicsWidget->display();
     m_physicsWidget->display();
 
     ImGuiIO& io = ImGui::GetIO();
@@ -243,10 +307,21 @@ void ParticleSystemApp::run()
     glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    m_physicsEngine->update();
+    // Slowing down physics engine if target fps is lower than current fps
+    auto now = std::chrono::steady_clock::now();
+    auto timeSpent = now - start;
+    if (timeSpent > std::chrono::milliseconds(1000 / m_targetFps))
+    {
+      m_currFps = 1000.0f / std::chrono::duration_cast<std::chrono::milliseconds>(timeSpent).count();
 
-    m_graphicsEngine->setTargetVisibility(m_physicsEngine->isTargetVisible());
-    m_graphicsEngine->setTargetPos(m_physicsEngine->targetPos());
+      m_physicsEngine->update();
+
+      m_graphicsEngine->setNbParticles((int)m_physicsEngine->nbParticles());
+      m_graphicsEngine->setTargetVisibility(m_physicsEngine->isTargetVisible());
+      m_graphicsEngine->setTargetPos(m_physicsEngine->targetPos());
+
+      start = now;
+    }
 
     m_graphicsEngine->draw();
 
@@ -262,10 +337,44 @@ void ParticleSystemApp::run()
 void ParticleSystemApp::displayMainWidget()
 {
   // First default pos
-  ImGui::SetNextWindowPos(ImVec2(60, 20), ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowPos(ImVec2(15, 12), ImGuiCond_FirstUseEver);
 
   ImGui::Begin("Main Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
   ImGui::PushItemWidth(150);
+
+  if (!isInit())
+    return;
+
+  // Selection of the physical model
+  const auto& selModelName = (Physics::ALL_MODELS.find(m_modelType) != Physics::ALL_MODELS.end())
+      ? Physics::ALL_MODELS.find(m_modelType)->second
+      : Physics::ALL_MODELS.cbegin()->second;
+
+  if (ImGui::BeginCombo("Physical Model", selModelName.c_str()))
+  {
+    for (const auto& model : Physics::ALL_MODELS)
+    {
+      if (ImGui::Selectable(model.second.c_str(), m_modelType == model.first))
+      {
+        m_modelType = model.first;
+
+        if (!initPhysicsEngine())
+        {
+          LOG_ERROR("Failed to change physics engine");
+          return;
+        }
+
+        if (!initPhysicsWidget())
+        {
+          LOG_ERROR("Failed to change physics widget");
+          return;
+        }
+
+        LOG_INFO("Application correctly switched to {}", Physics::ALL_MODELS.find(m_modelType)->second);
+      }
+    }
+    ImGui::EndCombo();
+  }
 
   bool isOnPaused = m_physicsEngine->onPause();
   std::string pauseRun = isOnPaused ? "  Start  " : "  Pause  ";
@@ -281,27 +390,18 @@ void ParticleSystemApp::displayMainWidget()
     m_physicsEngine->reset();
   }
 
-  static int currNbPartsIndex = FindNbPartsIndex((int)m_physicsEngine->nbParticles());
-  if (ImGui::Combo("Particles", &currNbPartsIndex, AllPossibleNbParts().c_str()))
-  {
-    int nbParts = FindNbPartsByIndex((size_t)currNbPartsIndex);
-    m_physicsEngine->setNbParticles(nbParts);
-    m_physicsEngine->reset();
-    m_graphicsEngine->setNbParticles(nbParts);
-  }
-
-  bool isSystemDim2D = (m_physicsEngine->dimension() == Core::Dimension::dim2D);
+  bool isSystemDim2D = (m_physicsEngine->dimension() == Physics::Dimension::dim2D);
   if (ImGui::Checkbox("2D", &isSystemDim2D))
   {
-    m_physicsEngine->setDimension(isSystemDim2D ? Core::Dimension::dim2D : Core::Dimension::dim3D);
+    m_physicsEngine->setDimension(isSystemDim2D ? Physics::Dimension::dim2D : Physics::Dimension::dim3D);
   }
 
   ImGui::SameLine();
 
-  bool isSystemDim3D = (m_physicsEngine->dimension() == Core::Dimension::dim3D);
+  bool isSystemDim3D = (m_physicsEngine->dimension() == Physics::Dimension::dim3D);
   if (ImGui::Checkbox("3D", &isSystemDim3D))
   {
-    m_physicsEngine->setDimension(isSystemDim3D ? Core::Dimension::dim3D : Core::Dimension::dim2D);
+    m_physicsEngine->setDimension(isSystemDim3D ? Physics::Dimension::dim3D : Physics::Dimension::dim2D);
   }
 
   ImGui::SameLine();
@@ -324,33 +424,11 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Separator();
   ImGui::Spacing();
 
-  float velocity = m_physicsEngine->velocity();
-  if (ImGui::SliderFloat("Speed", &velocity, 0.01f, 20.0f))
-  {
-    m_physicsEngine->setVelocity(velocity);
-  }
+  ImGui::SliderInt("Target FPS", &m_targetFps, 1, 60);
 
-  const auto cameraPos = m_graphicsEngine->cameraPos();
-  const auto focusPos = m_graphicsEngine->focusPos();
+  ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / m_currFps, m_currFps);
 
-  ImGui::Spacing();
-  ImGui::Separator();
-  ImGui::Spacing();
-  ImGui::Text(" Camera (%.1f, %.1f, %.1f)", cameraPos.x, cameraPos.y, cameraPos.z);
-  ImGui::Text(" Target (%.1f, %.1f, %.1f)", focusPos.x, focusPos.y, focusPos.z);
-  ImGui::Text(" Dist. camera target : %.1f", Math::length(cameraPos - focusPos));
-  ImGui::Spacing();
-  if (ImGui::Button(" Reset Camera "))
-  {
-    m_graphicsEngine->resetCamera();
-  }
-
-  ImGui::Spacing();
-  ImGui::Separator();
-  ImGui::Spacing();
-  ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
-  Core::CL::Context& clContext = Core::CL::Context::Get();
+  Physics::CL::Context& clContext = Physics::CL::Context::Get();
   bool isProfiling = clContext.isProfiling();
   if (ImGui::Checkbox(" GPU Profiler ", &isProfiling))
   {
@@ -382,14 +460,9 @@ bool ParticleSystemApp::popUpErrorMessage(std::string errorMessage)
 
 } // End namespace App
 
-auto initializeLogger()
-{
-  spdlog::set_level(spdlog::level::debug);
-}
-
 int main(int, char**)
 {
-  initializeLogger();
+  Utils::InitializeLogger();
 
   App::ParticleSystemApp app;
 

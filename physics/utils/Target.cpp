@@ -1,10 +1,10 @@
 #include "Target.hpp"
+#include "Logging.hpp"
 #include <algorithm>
 #include <cmath>
 #include <math.h>
-#include <spdlog/spdlog.h>
 
-using namespace Core;
+using namespace Physics;
 
 Target::Target(size_t boxSize, Math::float3 initPos)
     : m_pNoiseTheta(PerlinNoise(1))
@@ -12,7 +12,8 @@ Target::Target(size_t boxSize, Math::float3 initPos)
     , m_pNoiseR(PerlinNoise(246))
     , m_pos(initPos)
     , m_isActive(false)
-    , m_radiusEffect(500.0f)
+    , m_isVisible(false)
+    , m_radiusEffect(2.0f)
     , m_signEffect(1)
 {
   m_maxRadius = 0.48f * boxSize;

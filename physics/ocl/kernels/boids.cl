@@ -6,58 +6,29 @@
 // NUM_MAX_PARTS_IN_CELL   - maximum number of particles taking into account in a single cell in simplified mode
 
 #define MAX_STEERING  0.5f
-#define FLOAT_EPSILON 0.01f
-#define FAR_DIST      100000000.0f
+#define FLOAT_EPSILON 0.00001f
 #define ID            get_global_id(0)
 
+// Defined in utils.cl
 /*
-  Random number generator
+  Random unsigned integer number generator
 */
-inline unsigned int parallelRNG(unsigned int i)
-{
-  unsigned int value = i;
+inline unsigned int parallelRNG(unsigned int i);
 
-  value = (value ^ 61) ^ (value >> 16);
-  value *= 9;
-  value ^= value << 4;
-  value *= 0x27d4eb2d;
-  value ^= value >> 15;
-
-  return value;
-}
-
+// Defined in grid.cl
 /*
-  Reset camera distance buffer
+  Compute 3D index of the cell containing given position
 */
-__kernel void resetCameraDist(__global uint *cameraDist)
-{
-  cameraDist[ID] = (uint)(FAR_DIST * 2);
-}
-
+inline uint3 getCell3DIndexFromPos(float4 pos);
 /*
-  Fill camera distance buffer
+  Compute 1D index of the cell containing given position
 */
-__kernel void fillCameraDist(//Input
-                             const __global float4 *pos,          // 0
-                             const __global float3 *cameraPos,    // 1
-                             //Output
-                                   __global uint   *cameraDist)   // 2
-{
-  cameraDist[ID] = (uint)(FAR_DIST - fast_length(pos[ID].xyz - cameraPos[0].xyz));
-}
-
-/*
-  Fill position buffer with inf positions
-*/
-__kernel void infPosVerts(__global float4 *pos)
-{
-  pos[ID] = (float4)(FAR_DIST, FAR_DIST, FAR_DIST, 0.0f);
-}
+inline uint getCell1DIndexFromPos(float4 pos);
 
 /*
   Fill position buffer with random positions
 */
-__kernel void randPosVerts(//Output
+__kernel void randPosVertsBoids(//Output
                            __global float4 *pos, 
                            __global float4 *vel,
                            //Param
@@ -67,161 +38,25 @@ __kernel void randPosVerts(//Output
   const unsigned int randomIntY = parallelRNG(ID + 1);
   const unsigned int randomIntZ = parallelRNG(ID + 2);
 
-  const float x = (float)(randomIntX & 0x0ff) * 2.0 - 250.0f;
-  const float y = (float)(randomIntY & 0x0ff) * 2.0 - 250.0f;
-  const float z = (float)(randomIntZ & 0x0ff) * 2.0 - 250.0f;
+  const float x = (float)(randomIntX & 0x0ff) / 6.0f - ABS_WALL_POS ;
+  const float y = (float)(randomIntY & 0x0ff) / 6.0f - ABS_WALL_POS ;
+  const float z = (float)(randomIntZ & 0x0ff) / 6.0f - ABS_WALL_POS ;
 
   const float3 randomXYZ = (float3)(x * step(3.0f, dim), y, z);
 
   pos[ID].xyz = clamp(randomXYZ, -ABS_WALL_POS, ABS_WALL_POS);
   pos[ID].w = 0.0f;
 
-  vel[ID].xyz = clamp(randomXYZ, -50.0f, 50.0f);
+  vel[ID].xyz = clamp(randomXYZ, -1.0f, 1.0f);
   vel[ID].w = 0.0f;
 }
 
 /*
-  Compute 3D index of the cell containing given position
+  Fill color buffer with chosen color, could be a physics variable for real-time analysis
 */
-inline int3 getCell3DIndexFromPos(float4 pos)
+__kernel void fillBoidsColor(__global float4 *col)
 {
-  const int cellSize = 2 * ABS_WALL_POS / GRID_RES;
-
-  // Moving particles in [0 - 2 * ABS_WALL_POS] to have coords matching with cellIndices
-  // Adding epsilon to avoid wrong indices if particle exactly on the ABS_WALL_POS
-  const float3 posXYZ = pos.xyz + ABS_WALL_POS - FLOAT_EPSILON;
-
-  const int3 cell3DIndex = convert_int3(posXYZ / cellSize);
-
-  return cell3DIndex;
-}
-
-/*
-  Compute 1D index of the cell containing given position
-*/
-inline uint getCell1DIndexFromPos(float4 pos)
-{
-  const int3 cell3DIndex = getCell3DIndexFromPos(pos);
-
-  const uint cell1DIndex = cell3DIndex.x * GRID_RES * GRID_RES
-                         + cell3DIndex.y * GRID_RES
-                         + cell3DIndex.z;
-
-  return cell1DIndex;
-}
-
-/*
-  Reset grid detector buffer. For rendering purpose only.
-*/
-__kernel void flushGridDetector(__global float8* gridDetector)
-{
-  gridDetector[ID] = 0.0f;
-}
-
-/*
-  Fill grid detector buffer. For rendering purpose only.
-*/
-__kernel void fillGridDetector(__global float4 *pPos,
-                               __global float8 *gridDetector)
-{
-  const float4 pos = pPos[ID];
-
-  const uint gridDetectorIndex = getCell1DIndexFromPos(pos);
-
-  if (gridDetectorIndex < GRID_NUM_CELLS)
-    gridDetector[gridDetectorIndex] = 1.0f;
-}
-
-/*
-  Reset cellID buffer. For radix sort purpose.
-*/
-__kernel void resetCellIDs(__global uint *pCellID)
-{
-  // For all particles, giving cell ID above any available one
-  // the ones not filled later (i.e not processed because index > nbParticles displayed)
-  // will be sorted at the end and not considered after sorting
-  pCellID[ID] = GRID_NUM_CELLS * 2 + ID;
-}
-
-/*
-  Fill cellID buffer. For radix sort purpose.
-*/
-__kernel void fillCellIDs(//Input
-                          const __global float4 *pPos,
-                          //Output
-                                __global uint   *pCellID)
-{
-  const float4 pos = pPos[ID];
-
-  const uint cell1DIndex = getCell1DIndexFromPos(pos);
-
-  pCellID[ID] = cell1DIndex;
-}
-
-/*
-  Flush startEndPartID buffer for each cell.
-*/
-__kernel void flushStartEndCell(__global uint2 *cStartEndPartID)
-{
-  // Flushing with 1 as starting index and 0 as ending index
-  // Little hack to bypass empty cell further in the boids algo
-  cStartEndPartID[ID] = (uint2)(1, 0);
-}
-
-/*
-  Find first partID for each cell.
-*/
-__kernel void fillStartCell(//Input
-                            const __global uint  *pCellID,
-                            //Output
-                                  __global uint2 *cStartEndPartID)
-{
-  const uint currentCellID = pCellID[ID];
-
-  if (ID > 0 && currentCellID < GRID_NUM_CELLS)
-  {
-    uint leftCellID = pCellID[ID - 1];
-    if (currentCellID != leftCellID)
-    {
-      // Found start
-      cStartEndPartID[currentCellID].x = ID;
-    }
-  }
-}
-
-/*
-  Find last partID for each cell.
-*/
-__kernel void fillEndCell(//Input
-                          const __global uint  *pCellID,
-                          //Output
-                                __global uint2 *cStartEndPartID)
-{
-  const uint currentCellID = pCellID[ID];
-
-  if (ID != get_global_size(0) && currentCellID < GRID_NUM_CELLS)
-  {
-    const uint rightCellID = pCellID[ID + 1];
-    if (currentCellID != rightCellID)
-    {
-      // Found end
-      cStartEndPartID[currentCellID].y = ID;
-    }
-  }
-}
-
-/* 
-  Adjust last partID for each cell, capping it with max number of parts in cell in simplified mode.
-*/
-__kernel void adjustEndCell(__global uint2 *cStartEndPartID)
-{
-  const uint2 startEnd = cStartEndPartID[ID];
-
-  if (startEnd.y > startEnd.x)
-  {
-    const uint newEnd = startEnd.x + min(startEnd.y - startEnd.x, (uint)NUM_MAX_PARTS_IN_CELL);
-    cStartEndPartID[ID] = (uint2)(startEnd.x, newEnd);
-  }
+  col[ID] = (float4)(1.0f, 0.02f, 0.02f, 1.0f);
 }
 
 /*
@@ -239,27 +74,24 @@ __kernel void applyBoidsRulesWithGrid3D(//Input
   const float4 pos = position[ID];
   const float4 vel = velocity[ID];
 
-  const uint currCell1DIndex = getCell1DIndexFromPos(pos);
-  const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
-  const uint2 startEnd = startEndCell[currCell1DIndex];
+  const uint currCellIndex1D = getCell1DIndexFromPos(pos);
+  const uint3 currCellIndex3D = getCell3DIndexFromPos(pos);
+  const uint2 startEnd = startEndCell[currCellIndex1D];
 
   int count = 0;
 
-  float4 newAcc = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 averageBoidsPos = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 averageBoidsVel = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 repulseHeading  = (float4)(0.0, 0.0, 0.0, 0.0);
+  float4 newAcc = (float4)(0.0f);
+  float4 averageBoidsPos = (float4)(0.0f);
+  float4 averageBoidsVel = (float4)(0.0f);
+  float4 repulseHeading  = (float4)(0.0f);
 
   float squaredDist = 0.0f;
-  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 vec = (float4)(0.0f);
 
-  int x = 0;
-  int y = 0;
-  int z = 0;
-  uint  cellIndex = 0;
-  uint2 startEndN = (uint2)(0, 0);
-
-  float4 posN = (float4)(0.0, 0.0, 0.0, 0.0);
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0);
+  float4 posN = (float4)(0.0f);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -268,18 +100,15 @@ __kernel void applyBoidsRulesWithGrid3D(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        x = currCell3DIndex.x + iX;
-        y = currCell3DIndex.y + iY;
-        z = currCell3DIndex.z + iZ;
-
-        if (x < 0 || x >= GRID_RES
-         || y < 0 || y >= GRID_RES
-         || z < 0 || z >= GRID_RES)
+        cellNIndex3D = convert_int(currCellIndex3D) + (int3)(iX, iY, iZ);
+        
+        // Removing out of range cells
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
           continue;
 
-        cellIndex = (x * GRID_RES + y) * GRID_RES + z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
 
-        startEndN = startEndCell[cellIndex];
+        startEndN = startEndCell[cellNIndex1D];
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
@@ -338,44 +167,39 @@ __kernel void applyBoidsRulesWithGrid2D(//Input
   const float4 pos = position[ID];
   const float4 vel = velocity[ID];
 
-  const uint currCell1DIndex = getCell1DIndexFromPos(pos);
-  const int3 currCell3DIndex = getCell3DIndexFromPos(pos);
-  const uint2 startEnd = startEndCell[currCell1DIndex];
+  const uint currCellIndex1D = getCell1DIndexFromPos(pos);
+  const uint3 currCellIndex3D = getCell3DIndexFromPos(pos);
+  const uint2 startEnd = startEndCell[currCellIndex1D];
 
   int count = 0;
 
-  float4 newAcc = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 averageBoidsPos = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 averageBoidsVel = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 repulseHeading  = (float4)(0.0, 0.0, 0.0, 0.0);
+  float4 newAcc = (float4)(0.0f);
+  float4 averageBoidsPos = (float4)(0.0f);
+  float4 averageBoidsVel = (float4)(0.0f);
+  float4 repulseHeading  = (float4)(0.0f);
 
   float squaredDist = 0.0f;
-  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 vec = (float4)(0.0f);
 
-  int x = GRID_RES /2;
-  int y = 0;
-  int z = 0;
-
-  uint cellIndex = 0;
-  uint2 startEndN = (uint2)(0, 0);
-
-  float4 posN = (float4)(0.0, 0.0, 0.0, 0.0);
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0);
+  float4 posN = (float4)(0.0f);
 
   // 9 cells to visit, current one + 2D YZ neighbors
   for (int iY = -1; iY <= 1; ++iY)
   {
     for (int iZ = -1; iZ <= 1; ++iZ)
     {
-      y = currCell3DIndex.y + iY;
-      z = currCell3DIndex.z + iZ;
-
-      if ( y < 0 || y >= GRID_RES
-        || z < 0 || z >= GRID_RES)
+      cellNIndex3D = convert_int(currCellIndex3D) + (int3)(0, iY, iZ);
+      
+      // Removing out of range cells
+      if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
         continue;
 
-      cellIndex = (x * GRID_RES + y) * GRID_RES + z;
+      cellNIndex1D = (GRID_RES / 2 * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
 
-      startEndN = startEndCell[cellIndex];
+      startEndN = startEndCell[cellNIndex1D];
 
       for (uint e = startEndN.x; e <= startEndN.y; ++e)
       {
@@ -490,7 +314,7 @@ __kernel void updatePosWithCyclicWalls(//Input
                                             __global float4 *pos)     // 2
 {
   const float4 newPos = pos[ID] + vel[ID] * timeStep;
-  const float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
+  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
 
   if (!isequal(clampedNewPos.x, newPos.x))
   {
@@ -636,7 +460,7 @@ __kernel void applyBoidsRulesWithGridAndTex(
   int x = 0;
   int y = 0;
   int z = 0;
-  int3 currentCell3DIndex = getCell3DIndexFromPos(pos);
+  uint3 currentCell3DIndex = getCell3DIndexFromPos(pos);
   uint cellIndex = 0;
 
   sampler_t samp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;
@@ -730,7 +554,7 @@ __kernel void applyBoidsRulesWithGridAndTexLocal(
   sampler_t samp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_NONE | CLK_FILTER_NEAREST;
 
   float4 posF = read_imagef(posTex, samp, (int2)(0, cellIndex));
-  int3 cell3DIndex = getCell3DIndexFromPos(posF);
+  uint3 cell3DIndex = getCell3DIndexFromPos(posF);
 
   // local filling for the 27 cells
 

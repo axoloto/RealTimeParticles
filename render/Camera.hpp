@@ -19,6 +19,9 @@ class Camera
     updateProjViewMat();
   }
 
+  inline bool isAutoRotating() const { return m_isAutoRotating; }
+  inline void enableAutoRotating(bool autoRotate) { m_isAutoRotating = autoRotate; }
+
   void rotate(float angleX, float angleY);
   void translate(float dispX, float dispY);
   void zoom(float delta);
@@ -40,5 +43,6 @@ class Camera
   float m_aspectRatio;
   float m_zNear;
   float m_zFar;
+  bool m_isAutoRotating;
 };
 }

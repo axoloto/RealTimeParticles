@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace Core
+namespace Physics
 {
 namespace CL
 {
@@ -26,12 +26,19 @@ class Context
   public:
   static Context& Get();
 
+  // Check if the context has been instantiated
   bool isInit() const { return m_init; }
+  // Release every programs and kernels/buffers/datas on GPU side
+  bool release();
+
+  // Send all the tasks to device queue and wait for them to be complete
+  bool finishTasks();
 
   bool isProfiling() const { return m_isKernelProfilingEnabled; }
   void enableProfiler(bool enable) { m_isKernelProfilingEnabled = enable; }
 
-  bool createProgram(std::string name, std::string sourcePath, std::string specificBuildOptions);
+  bool createProgram(std::string name, std::vector<std::string> sourceNames, std::string specificBuildOptions);
+  bool createProgram(std::string name, std::string sourceName, std::string specificBuildOptions) { return createProgram(name, std::vector<std::string>({ sourceName }), specificBuildOptions); }
   bool createGLBuffer(std::string name, unsigned int VBOIndex, cl_mem_flags memoryFlags);
   bool createBuffer(std::string name, size_t bufferSize, cl_mem_flags memoryFlags);
   bool createImage2D(std::string name, imageSpecs specs, cl_mem_flags memoryFlags);

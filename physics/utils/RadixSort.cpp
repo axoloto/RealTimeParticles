@@ -1,13 +1,12 @@
 #include "RadixSort.hpp"
-#include "FileUtils.hpp"
 
+#include "Logging.hpp"
 #include <ctime>
 #include <iostream>
 #include <numeric>
-#include <spdlog/spdlog.h>
 #include <sstream>
 
-using namespace Core;
+using namespace Physics;
 
 #define PROGRAM_RADIXSORT "RadixSort"
 
@@ -30,13 +29,27 @@ RadixSort::RadixSort(size_t numEntities)
   m_numRadixPasses = m_numTotalBits / m_numRadixBits;
 
   if (m_numEntities % (m_numGroups * m_numItems) != 0)
-    spdlog::error("Radix sort not supporting arrays of size {}, only ones whose size is multiple of {} ", m_numEntities, m_numGroups * m_numItems);
+    LOG_ERROR("Radix sort not supporting arrays of size {}, only ones whose size is multiple of {} ", m_numEntities, m_numGroups * m_numItems);
 
-  createProgram();
+  if (!createProgram())
+  {
+    LOG_ERROR("Failed to initialize radix sort program");
+    return;
+  }
 
-  createBuffers();
+  if (!createBuffers())
+  {
+    LOG_ERROR("Failed to initialize radix sort buffers");
+    return;
+  }
 
-  createKernels();
+  if (!createKernels())
+  {
+    LOG_ERROR("Failed to initialize radix sort kernels");
+    return;
+  }
+
+  LOG_INFO("Radix sort correctly initialized");
 }
 
 bool RadixSort::createProgram() const
@@ -53,7 +66,8 @@ bool RadixSort::createProgram() const
     clBuildOptions << " -DHOST_PTR_IS_32bit";
   }
 
-  clContext.createProgram(PROGRAM_RADIXSORT, FileUtils::GetSrcDir() + "\\physics\\ocl\\kernels\\radixSort.cl", clBuildOptions.str());
+  if (!clContext.createProgram(PROGRAM_RADIXSORT, "radixSort.cl", clBuildOptions.str()))
+    return false;
 
   return true;
 }

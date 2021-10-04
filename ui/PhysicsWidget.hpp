@@ -1,7 +1,10 @@
 
 #pragma once
 
-#include "Physics.hpp"
+#include "Boids.hpp"
+#include "Fluids.hpp"
+#include "Model.hpp"
+
 #include <memory>
 
 namespace UI
@@ -9,24 +12,17 @@ namespace UI
 class PhysicsWidget
 {
   public:
-  explicit PhysicsWidget(Core::Physics& physicsEngine)
+  explicit PhysicsWidget(Physics::Model* physicsEngine)
       : m_physicsEngine(physicsEngine) {};
   virtual ~PhysicsWidget() = default;
 
-  virtual void display() = 0;
-
-  protected:
-  Core::Physics& m_physicsEngine;
-};
-
-class BoidsWidget : public PhysicsWidget
-{
-  public:
-  explicit BoidsWidget(Core::Physics& physicsEngine)
-      : PhysicsWidget(physicsEngine) {};
-  ~BoidsWidget() override = default;
-  void display() override;
+  void display();
 
   private:
+  void displayBoidsParameters(Physics::Boids* boids);
+  void displayFluidsParameters(Physics::Fluids* engine);
+  void displayBoundaryConditions(Physics::Model* engine);
+
+  Physics::Model* m_physicsEngine;
 };
 }
