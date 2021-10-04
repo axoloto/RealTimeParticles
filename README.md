@@ -1,8 +1,8 @@
 # Particle System Sandbox
 
-Minimalist particle simulator combining DearImGui/OpenGL and OpenCL to admire and play with small-sized (512) to large (130k) particle systems. 
+Minimalist real-time particle simulator combining DearImGui/OpenGL and OpenCL to admire and play with small-sized (512) to large (130k) particle systems. 
 
-Physics models currently implemented:
+Real-time physics models currently implemented:
 1.  Boids based on classical [Craig Reynolds](https://www.red3d.com/cwr/boids/) implementation
 <p align = "center">
 <img src="./Boids_128.gif" alt="Boids" width="300" height="300">
