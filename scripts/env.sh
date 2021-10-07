@@ -3,7 +3,7 @@ set -euo pipefail
 DEV_DIR=$(pwd)
 DEV_BUILD_DIR="$DEV_DIR/CMakeBuild"
 DEV_INSTALL_DIR="$DEV_DIR/install"
-DEV_PACKAGE=1
+DEV_PACKAGE=0
 
 if [[ -z "$1" ]] 
 then
