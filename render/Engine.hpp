@@ -22,7 +22,7 @@ struct EngineParams
   size_t maxNbParticles = 0;
   size_t boxSize = 0;
   size_t gridRes = 0;
-  size_t pointSize = 1;
+  size_t pointSize = 4;
   float aspectRatio = 0.0f;
 };
 

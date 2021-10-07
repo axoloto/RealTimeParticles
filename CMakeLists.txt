@@ -1,8 +1,8 @@
 
 cmake_minimum_required(VERSION 3.12)
-project(boids VERSION 1.0
-              DESCRIPTION "Minimalist real-time 3D particle system simulator"
-              HOMEPAGE_URL "https://github.com/axoloto/boids")
+project(RealTimeParticles VERSION 1.0
+                          DESCRIPTION "Minimalist real-time 3D particle system simulator"
+                          HOMEPAGE_URL "https://github.com/axoloto/RealTimeParticles")
 
 message(STATUS "Version Major ${PROJECT_VERSION_MAJOR}")
 message(STATUS "Version Minor ${PROJECT_VERSION_MINOR}")
@@ -39,7 +39,7 @@ add_subdirectory("app")
 
 # Packaging support
 set(CPACK_PACKAGE_VENDOR "Adrien Moulin")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Minimalist real-time 3D particle system simulator")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Minimalist real-time 3D particles system simulator")
 set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
 set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})

@@ -1,6 +1,6 @@
-Particle System Sandbox 1.0
+RealTimeParticles 1.0
 
-Minimalist real-time particle simulator combining DearImGui/OpenGL and OpenCL to admire and play with small-sized (512) to large (130k) particle systems. 
+Minimalist real-time 3D particles simulator combining DearImGui/OpenGL and OpenCL to admire and play with small-sized (512) to large (130k) particle systems. 
 
 # Real-time physics models implemented
 
