@@ -6,10 +6,14 @@
 #include <ostream>
 #include <sstream>
 
-
 const std::string Utils::GetSrcDir()
 {
-  return std::string(BINARY_DIR);
+  return std::string(SOURCE_DIR);
+}
+
+const std::string Utils::GetInstallDir()
+{
+  return std::string(INSTALL_DIR);
 }
 
 const std::string Utils::FloatToStr(float val, size_t precision)

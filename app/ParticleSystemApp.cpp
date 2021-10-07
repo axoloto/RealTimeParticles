@@ -292,9 +292,15 @@ void ParticleSystemApp::run()
     ImGui_ImplSDL2_NewFrame(m_window);
     ImGui::NewFrame();
 
+    static bool noted = false;
+    if (!noted && isUsingIGPU())
+    {
+      noted = popUpMessage("Warning", "The application is currently running on your integrated GPU. It will perform better on your dedicated GPU (NVIDIA/AMD).");
+    }
+
     if (!m_physicsEngine->isInit())
     {
-      stopRendering = popUpErrorMessage("The application needs OpenCL 1.2 or more recent to run.");
+      stopRendering = popUpMessage("Error", "The application needs OpenCL 1.2 or more recent to run.");
     }
 
     displayMainWidget();
@@ -438,16 +444,16 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::End();
 }
 
-bool ParticleSystemApp::popUpErrorMessage(std::string errorMessage)
+bool ParticleSystemApp::popUpMessage(const std::string& title, const std::string& message) const
 {
   bool closePopUp = false;
 
   bool open = true;
-  ImGui::OpenPopup("Error");
-  if (ImGui::BeginPopupModal("Error", &open))
+  ImGui::OpenPopup(title.c_str());
+  if (ImGui::BeginPopupModal(title.c_str(), &open))
   {
-    ImGui::Text(errorMessage.c_str());
-    if (ImGui::Button((std::string("Close ") + m_nameApp).c_str()))
+    ImGui::Text(message.c_str());
+    if (ImGui::Button("Close"))
     {
       ImGui::CloseCurrentPopup();
       closePopUp = true;
@@ -456,6 +462,13 @@ bool ParticleSystemApp::popUpErrorMessage(std::string errorMessage)
   }
 
   return closePopUp;
+}
+
+bool ParticleSystemApp::isUsingIGPU() const
+{
+  const std::string& GLCLPlatformName = Physics::CL::Context::Get().getPlatformName();
+
+  return (GLCLPlatformName.find("Intel") != std::string::npos);
 }
 
 } // End namespace App

@@ -227,7 +227,15 @@ bool Physics::CL::Context::createProgram(std::string programName, std::vector<st
   cl::Program::Sources sources;
   for (const auto& sourceName : sourceNames)
   {
-    std::ifstream sourceFile(Utils::GetSrcDir() + "\\physics\\ocl\\kernels\\" + sourceName);
+    // Little hack to make it work from both installer and local build
+    std::ifstream sourceFile(".\\kernels\\" + sourceName);
+
+    if (!sourceFile.is_open())
+      sourceFile = std::ifstream(Utils::GetSrcDir() + "\\physics\\ocl\\kernels\\" + sourceName);
+
+    if (!sourceFile.is_open())
+      LOG_ERROR("Cannot find kernel file {}", sourceName);
+
     std::string sourceCode(std::istreambuf_iterator<char>(sourceFile), (std::istreambuf_iterator<char>()));
     sources.push_back(sourceCode);
   }
@@ -742,4 +750,18 @@ bool Physics::CL::Context::mapAndSendBufferToDevice(std::string bufferName, cons
   }
 
   return true;
+}
+
+std::string Physics::CL::Context::getPlatformName() const
+{
+  std::string platformName;
+  cl_platform.getInfo(CL_PLATFORM_NAME, &platformName);
+  return platformName;
+}
+
+std::string Physics::CL::Context::getDeviceName() const
+{
+  std::string deviceName;
+  cl_device.getInfo(CL_DEVICE_NAME, &deviceName);
+  return deviceName;
 }

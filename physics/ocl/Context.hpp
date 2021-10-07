@@ -56,6 +56,9 @@ class Context
 
   bool mapAndSendBufferToDevice(std::string bufferName, const void* bufferPtr, size_t bufferSize);
 
+  std::string getPlatformName() const;
+  std::string getDeviceName() const;
+
   private:
   Context();
   ~Context() = default;

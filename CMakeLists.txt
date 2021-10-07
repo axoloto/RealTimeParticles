@@ -1,8 +1,12 @@
 
 cmake_minimum_required(VERSION 3.12)
-project(boids VERSION 0.1)
+project(boids VERSION 1.0
+              DESCRIPTION "Minimalist real-time 3D particle system simulator"
+              HOMEPAGE_URL "https://github.com/axoloto/boids")
 
-message(STATUS "version 0.1")
+message(STATUS "Version Major ${PROJECT_VERSION_MAJOR}")
+message(STATUS "Version Minor ${PROJECT_VERSION_MINOR}")
+message(STATUS "Version Patch ${PROJECT_VERSION_PATCH}")
 
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     add_compile_definitions(DEBUG_BUILD)
@@ -32,3 +36,18 @@ add_subdirectory("physics")
 add_subdirectory("render")
 add_subdirectory("ui")
 add_subdirectory("app")
+
+# Packaging support
+set(CPACK_PACKAGE_VENDOR "Adrien Moulin")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Minimalist real-time 3D particle system simulator")
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(CPACK_PACKAGE_DIRECTORY ${CMAKE_INSTALL_DIR})
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README_Installer.txt")
+
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE" DESTINATION .)
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/README_Installer.txt" DESTINATION .)
+
+include(CPack)

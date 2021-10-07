@@ -100,7 +100,7 @@ __kernel void applyBoidsRulesWithGrid3D(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int(currCellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = convert_int3(currCellIndex3D) + (int3)(iX, iY, iZ);
         
         // Removing out of range cells
         if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
@@ -191,7 +191,7 @@ __kernel void applyBoidsRulesWithGrid2D(//Input
   {
     for (int iZ = -1; iZ <= 1; ++iZ)
     {
-      cellNIndex3D = convert_int(currCellIndex3D) + (int3)(0, iY, iZ);
+      cellNIndex3D = convert_int3(currCellIndex3D) + (int3)(0, iY, iZ);
       
       // Removing out of range cells
       if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
