@@ -6,6 +6,7 @@
 
 #include "Logging.hpp"
 #include "Parameters.hpp"
+#include "Utils.hpp"
 
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
@@ -43,11 +44,27 @@ bool ParticleSystemApp::initWindow()
   SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
   SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
   SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
-  SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+  SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_SHOWN);
   m_window = SDL_CreateWindow(m_nameApp.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_windowSize.x, m_windowSize.y, window_flags);
   m_OGLContext = SDL_GL_CreateContext(m_window);
   SDL_GL_MakeCurrent(m_window, m_OGLContext);
   SDL_GL_SetSwapInterval(1); // Enable vsync
+
+  // Attempt to fit app to full working space of current window
+  int displayIndex = SDL_GetWindowDisplayIndex(m_window);
+  if (displayIndex >= 0)
+  {
+    int topBorderSize = 0;
+    SDL_GetWindowBordersSize(m_window, &topBorderSize, NULL, NULL, NULL);
+
+    SDL_Rect usableBounds;
+    if (SDL_GetDisplayUsableBounds(displayIndex, &usableBounds) == 0)
+    {
+      SDL_SetWindowPosition(m_window, usableBounds.x, usableBounds.y + topBorderSize);
+      SDL_SetWindowSize(m_window, usableBounds.w, usableBounds.h - topBorderSize);
+      m_windowSize = Math::int2(usableBounds.w, usableBounds.h - topBorderSize);
+    }
+  }
 
   // Initialize OpenGL loader
   bool err = gladLoadGL() == 0;
@@ -173,7 +190,7 @@ bool ParticleSystemApp::checkSDLStatus()
 }
 
 ParticleSystemApp::ParticleSystemApp()
-    : m_nameApp("Particle System Sandbox")
+    : m_nameApp("RealTimeParticles " + Utils::GetVersions())
     , m_mousePrevPos(0, 0)
     , m_backGroundColor(0.0f, 0.0f, 0.0f, 1.00f)
     , m_buttonRightActivated(false)
@@ -292,9 +309,15 @@ void ParticleSystemApp::run()
     ImGui_ImplSDL2_NewFrame(m_window);
     ImGui::NewFrame();
 
+    static bool noted = false;
+    if (!noted && isUsingIGPU())
+    {
+      noted = popUpMessage("Warning", "The application is currently running on your integrated GPU. It will perform better on your dedicated GPU (NVIDIA/AMD).");
+    }
+
     if (!m_physicsEngine->isInit())
     {
-      stopRendering = popUpErrorMessage("The application needs OpenCL 1.2 or more recent to run.");
+      stopRendering = popUpMessage("Error", "The application needs OpenCL 1.2 or more recent to run.");
     }
 
     displayMainWidget();
@@ -438,16 +461,16 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::End();
 }
 
-bool ParticleSystemApp::popUpErrorMessage(std::string errorMessage)
+bool ParticleSystemApp::popUpMessage(const std::string& title, const std::string& message) const
 {
   bool closePopUp = false;
 
   bool open = true;
-  ImGui::OpenPopup("Error");
-  if (ImGui::BeginPopupModal("Error", &open))
+  ImGui::OpenPopup(title.c_str());
+  if (ImGui::BeginPopupModal(title.c_str(), &open))
   {
-    ImGui::Text(errorMessage.c_str());
-    if (ImGui::Button((std::string("Close ") + m_nameApp).c_str()))
+    ImGui::Text(message.c_str());
+    if (ImGui::Button("Close"))
     {
       ImGui::CloseCurrentPopup();
       closePopUp = true;
@@ -456,6 +479,13 @@ bool ParticleSystemApp::popUpErrorMessage(std::string errorMessage)
   }
 
   return closePopUp;
+}
+
+bool ParticleSystemApp::isUsingIGPU() const
+{
+  const std::string& GLCLPlatformName = Physics::CL::Context::Get().getPlatformName();
+
+  return (GLCLPlatformName.find("Intel") != std::string::npos);
 }
 
 } // End namespace App

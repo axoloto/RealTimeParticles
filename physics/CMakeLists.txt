@@ -11,4 +11,4 @@ add_subdirectory("utils")
 
 target_link_libraries(physics ocl utils)
 
-install(TARGETS physics RUNTIME DESTINATION bin LIBRARY DESTINATION lib)
+install(TARGETS physics DESTINATION lib)

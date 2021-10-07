@@ -55,7 +55,7 @@ Fluids::Fluids(ModelParams params)
     , m_maxNbPartsInCell(100)
     , m_radixSort(params.maxNbParticles)
     , m_initialCase(CaseType::DAM)
-    , m_nbJacobiIters(3)
+    , m_nbJacobiIters(2)
 {
   createProgram();
 

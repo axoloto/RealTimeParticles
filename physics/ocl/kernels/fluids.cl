@@ -178,7 +178,7 @@ __kernel void computeDensity(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
         if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
@@ -241,7 +241,7 @@ __kernel void computeConstraintFactor(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
         if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
@@ -302,7 +302,7 @@ __kernel void computeConstraintCorrection(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
         if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
@@ -381,7 +381,7 @@ __kernel void computeVorticity(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
         if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
@@ -432,7 +432,7 @@ __kernel void applyVorticityConfinement(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
         if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
@@ -484,7 +484,7 @@ __kernel void applyXsphViscosityCorrection(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
         if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
