@@ -29,7 +29,7 @@ Real-time physics models currently implemented:
 
 ```bash
 pip install conan
-conan remote add bincrafters "https://api.bintray.com/conan/bincrafters/public-conan"
+conan remote add conan-center https://conan.io/center/
 git clone https://github.com/axoloto/Boids.git
 cd Boids
 ./runApp.sh
