@@ -18,7 +18,7 @@ const std::string Utils::GetInstallDir()
 
 const std::string Utils::GetVersions()
 {
-  return std::string(VERSION_MAJOR) + "." + std::string(VERSION_MINOR);
+  return std::string(VERSION_MAJOR) + "." + std::string(VERSION_MINOR) + "." + std::string(VERSION_PATCH);
 }
 
 const std::string Utils::FloatToStr(float val, size_t precision)
