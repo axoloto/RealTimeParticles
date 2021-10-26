@@ -35,7 +35,7 @@ void UI::GraphicsWidget::display()
   }
 
   int pointSize = (int)m_graphicsEngine->getPointSize();
-  if (ImGui::SliderInt("Particle size", &pointSize, 1, 5))
+  if (ImGui::SliderInt("Particle size", &pointSize, 1, 10))
   {
     m_graphicsEngine->setPointSize((size_t)pointSize);
   }

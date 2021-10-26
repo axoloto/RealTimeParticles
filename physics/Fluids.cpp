@@ -83,6 +83,7 @@ bool Fluids::createProgram() const
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
   clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * std::powf(effectRadius, 9)));
   clBuildOptions << " -DSPIKY_COEFF=" << Utils::FloatToStr(15.0f / (Math::PI_F * std::powf(effectRadius, 6)));
+  clBuildOptions << " -DMAX_VEL=" << Utils::FloatToStr(30.0f);
 
   LOG_INFO(clBuildOptions.str());
   clContext.createProgram(PROGRAM_FLUIDS, std::vector<std::string>({ "fluids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
@@ -233,8 +234,8 @@ void Fluids::initFluidsParticles()
     case CaseType::DROP:
       m_currNbParticles = Utils::NbParticles::P512;
       shape = Geometry::Shape2D::Rectangle;
-      startFluidPos = { 0.0f, m_boxSize / -10.0f, m_boxSize / -10.0f };
-      endFluidPos = { 0.0f, m_boxSize / 10.0f, m_boxSize / 10.0f };
+      startFluidPos = { 0.0f, 2.0f * m_boxSize / 10.0f, m_boxSize / -10.0f };
+      endFluidPos = { 0.0f, 4.0f * m_boxSize / 10.0f, m_boxSize / 10.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");
@@ -245,6 +246,19 @@ void Fluids::initFluidsParticles()
     Math::int2 grid2DRes = { subdiv2D[0], subdiv2D[1] };
 
     gridVerts = Geometry::Generate2DGrid(shape, Geometry::Plane::YZ, grid2DRes, startFluidPos, endFluidPos);
+
+    // Specific case
+    if (m_initialCase == CaseType::DROP)
+    {
+      m_currNbParticles += Utils::NbParticles::P4K;
+      Math::int2 grid2DRes = { 64, 128 };
+      startFluidPos = { 0.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
+      endFluidPos = { 0.0f, 0.0f, m_boxSize / 2.0f };
+
+      auto bottomGridVerts = Geometry::Generate2DGrid(Geometry::Shape2D::Rectangle, Geometry::Plane::YZ, grid2DRes, startFluidPos, endFluidPos);
+
+      gridVerts.insert(gridVerts.end(), bottomGridVerts.begin(), bottomGridVerts.end());
+    }
   }
   else if (m_dimension == Dimension::dim3D)
   {
@@ -267,8 +281,8 @@ void Fluids::initFluidsParticles()
     case CaseType::DROP:
       m_currNbParticles = Utils::NbParticles::P4K;
       shape = Geometry::Shape3D::Box;
-      startFluidPos = { m_boxSize / -10.0f, 0.0f, m_boxSize / -10.0f };
-      endFluidPos = { m_boxSize / 10.0f, 2.0f * m_boxSize / 10.0f, m_boxSize / 10.0f };
+      startFluidPos = { m_boxSize / -10.0f, 2.0f * m_boxSize / 10.0f, m_boxSize / -10.0f };
+      endFluidPos = { m_boxSize / 10.0f, 4.0f * m_boxSize / 10.0f, m_boxSize / 10.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");
@@ -279,6 +293,19 @@ void Fluids::initFluidsParticles()
     Math::int3 grid3DRes = { subdiv3D[0], subdiv3D[1], subdiv3D[2] };
 
     gridVerts = Geometry::Generate3DGrid(shape, grid3DRes, startFluidPos, endFluidPos);
+
+    // Specific case
+    if (m_initialCase == CaseType::DROP)
+    {
+      m_currNbParticles += Utils::NbParticles::P65K;
+      Math::int3 grid3DRes = { 64, 16, 64 };
+      startFluidPos = { m_boxSize / -2.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
+      endFluidPos = { m_boxSize / 2.0f, m_boxSize / -2.55f, m_boxSize / 2.0f };
+
+      auto bottomGridVerts = Geometry::Generate3DGrid(Geometry::Shape3D::Box, grid3DRes, startFluidPos, endFluidPos);
+
+      gridVerts.insert(gridVerts.end(), bottomGridVerts.begin(), bottomGridVerts.end());
+    }
   }
 
   float inf = std::numeric_limits<float>::infinity();
