@@ -29,7 +29,7 @@ struct CompareCaseType
 };
 
 static const std::map<CaseType, std::string, CompareCaseType> ALL_FLUID_CASES {
-  { CaseType::DAM, "Dam" },
+  { CaseType::DAM, "Dam-Break" },
   { CaseType::BOMB, "Bomb" },
   { CaseType::DROP, "Drop" },
 };
@@ -39,7 +39,7 @@ struct FluidKernelInputs
   cl_float effectRadius = 0.3f;
   cl_float restDensity = 450.0f;
   cl_float relaxCFM = 600.0f;
-  cl_float timeStep = 0.008f;
+  cl_float timeStep = 0.010f;
   cl_uint dim = 3;
   // Artifical pressure if enabled will try to reduce tensile instability
   cl_uint isArtPressureEnabled = 1;

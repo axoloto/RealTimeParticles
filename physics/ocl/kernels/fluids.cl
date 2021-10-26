@@ -349,7 +349,7 @@ __kernel void updateVel(//Input
    
 {
   // Preventing division by 0
-  vel[ID] = (predPos[ID] - pos[ID]) / (fluid.timeStep + FLOAT_EPS);
+  vel[ID] =   vel[ID] = clamp((predPos[ID] - pos[ID]) / (fluid.timeStep + FLOAT_EPS), -MAX_VEL, MAX_VEL);
 }
 
 /*
@@ -540,7 +540,7 @@ __kernel void fillFluidColor(//Input
 {
   float4 blue      = (float4)(0.0f, 0.1f, 1.0f, 1.0f);
   float4 lightBlue = (float4)(0.7f, 0.7f, 1.0f, 1.0f);
-  float4 darkBlue  = (float4)(0.0f, 0.0f, 0.5f, 1.0f);
+  float4 darkBlue  = (float4)(0.0f, 0.0f, 0.8f, 1.0f);
 
   float constraint = (1.0f - density[ID] / fluid.restDensity);
 
