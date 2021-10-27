@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <chrono>
 #include <random>
+#include <iostream>
+
 namespace Physics
 {
 template <typename T, typename U>

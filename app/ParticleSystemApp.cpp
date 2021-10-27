@@ -13,7 +13,7 @@
 #include <imgui_impl_sdl.h>
 
 #include <glad/glad.h>
-#include <sdl2/SDL.h>
+#include <SDL2/SDL.h>
 
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
@@ -469,7 +469,7 @@ bool ParticleSystemApp::popUpMessage(const std::string& title, const std::string
   ImGui::OpenPopup(title.c_str());
   if (ImGui::BeginPopupModal(title.c_str(), &open))
   {
-    ImGui::Text(message.c_str());
+    ImGui::Text(message.c_str(), "%s");
     if (ImGui::Button("Close"))
     {
       ImGui::CloseCurrentPopup();

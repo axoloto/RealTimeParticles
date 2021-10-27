@@ -1,3 +1,5 @@
+#!/bin/bash
+
 set -euo pipefail
 
 if [[ $DEV_PACKAGE == 0 ]] 

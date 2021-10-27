@@ -1,14 +1,15 @@
-#pragma once
+
+
+#include "Context.hpp"
 
 #ifdef WIN32
 #include "windows.h"
 #else
-#ifdef UNIX
-#include "glx.h"
+#ifdef __unix__
+#include "GL/glx.h"
 #endif
 #endif
 
-#include "Context.hpp"
 #include "ErrorCode.hpp"
 #include "Logging.hpp"
 #include "Utils.hpp"
@@ -131,14 +132,11 @@ bool Physics::CL::Context::createContext()
       0
     };
 #endif
-#ifdef UNIX
+#ifdef __unix__
     cl_context_properties props[] = {
-      CL_GL_CONTEXT_KHR,
-      (cl_context_properties)glXGetCurrentContext(),
-      CL_GLX_DISPLAY_KHR,
-      (cl_context_properties)glXGetCurrentDisplay(),
-      CL_CONTEXT_PLATFORM,
-      (cl_context_properties)platform(), 0
+      CL_GL_CONTEXT_KHR, (cl_context_properties)glXGetCurrentContext(),
+      CL_GLX_DISPLAY_KHR, (cl_context_properties)glXGetCurrentDisplay(),
+      CL_CONTEXT_PLATFORM, (cl_context_properties)platform(), 0
     };
 #endif
 
@@ -394,14 +392,14 @@ bool Physics::CL::Context::swapBuffers(std::string bufferNameA, std::string buff
   if (!m_init)
     return false;
 
-  auto& itA = m_buffersMap.find(bufferNameA);
+  const auto& itA = m_buffersMap.find(bufferNameA);
   if (itA == m_buffersMap.end())
   {
     LOG_ERROR("Cannot swap buffers, buffer {} not existing", bufferNameA);
     return false;
   }
 
-  auto& itB = m_buffersMap.find(bufferNameB);
+  const auto& itB = m_buffersMap.find(bufferNameB);
   if (itB == m_buffersMap.end())
   {
     LOG_ERROR("Cannot swap buffers, buffer {} not existing", bufferNameB);
@@ -424,7 +422,7 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
 
   cl::Buffer srcBuffer;
 
-  auto& itSrc = m_buffersMap.find(srcBufferName);
+  const auto& itSrc = m_buffersMap.find(srcBufferName);
 
   if (itSrc == m_buffersMap.end())
   {
@@ -445,7 +443,7 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
     srcBuffer = itSrc->second;
   }
 
-  auto& itDst = m_buffersMap.find(dstBufferName);
+  const auto& itDst = m_buffersMap.find(dstBufferName);
   if (itDst == m_buffersMap.end())
   {
     LOG_ERROR("Cannot copy buffers, destination buffer {} not existing", dstBufferName);
