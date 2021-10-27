@@ -231,8 +231,6 @@ bool Physics::CL::Context::createProgram(std::string programName, std::vector<st
     // Little hack to make it work from both installer and local build
     std::ifstream sourceFile(std::filesystem::path("./kernels/" + sourceName).string());
 
-    std::cout << sourceFile.is_open() << " " << Utils::GetSrcDir() << std::endl;
-
     if (!sourceFile.is_open())
       sourceFile.open(std::filesystem::path(Utils::GetSrcDir() + "/physics/ocl/kernels/" + sourceName).string());
 
