@@ -17,6 +17,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <filesystem>
 
 
 Physics::CL::Context& Physics::CL::Context::Get()
@@ -228,10 +229,12 @@ bool Physics::CL::Context::createProgram(std::string programName, std::vector<st
   for (const auto& sourceName : sourceNames)
   {
     // Little hack to make it work from both installer and local build
-    std::ifstream sourceFile(".\\kernels\\" + sourceName);
+    std::ifstream sourceFile(std::filesystem::path("./kernels/" + sourceName).string());
+
+    std::cout << sourceFile.is_open() << " " << Utils::GetSrcDir() << std::endl;
 
     if (!sourceFile.is_open())
-      sourceFile = std::ifstream(Utils::GetSrcDir() + "\\physics\\ocl\\kernels\\" + sourceName);
+      sourceFile.open(std::filesystem::path(Utils::GetSrcDir() + "/physics/ocl/kernels/" + sourceName).string());
 
     if (!sourceFile.is_open())
       LOG_ERROR("Cannot find kernel file {}", sourceName);
@@ -244,7 +247,7 @@ bool Physics::CL::Context::createProgram(std::string programName, std::vector<st
 
   std::string options = specificBuildOptions + std::string(" -cl-denorms-are-zero -cl-fast-relaxed-math");
   cl_int err = program.build({ cl_device }, options.c_str());
-  if (err != CL_SUCCESS)
+  if (err != CL_SUCCESS) 
   {
     CL_ERROR(err, "Cannot build program");
     LOG_ERROR(program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
