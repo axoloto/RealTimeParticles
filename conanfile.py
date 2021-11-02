@@ -2,7 +2,7 @@ from conans import ConanFile, tools, CMake
 
 
 class Conanfile(ConanFile):
-    name = "Boids"
+    name = "RealTimeParticles"
     version = "0.1"
     requires = ["sdl/[>=2.0.12]",
                 "glad/[>=0.1.29]",

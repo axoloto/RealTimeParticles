@@ -15,7 +15,7 @@ Real-time physics models currently implemented:
 
 **For best performance, make sure that the application runs on a discrete GPU and not default IGPU.**
 
-# Requirements
+## Requirements
 
 - [Gitbash](https://git-scm.com/downloads)
 - [Python](https://www.python.org/) (>= 3.5) and [pip](https://pypi.org/project/pip/)
@@ -25,17 +25,29 @@ Real-time physics models currently implemented:
 - C++ compiler, tested with [MSVC 15/19](https://visualstudio.microsoft.com/vs/features/cplusplus/) only for now 
 - Device (GPU, IGPU or else) supporting OpenGL and OpenCL 1.2 or higher
 
-# Build and Run
+### Install requirements Ubuntu
 
 ```bash
+sudo apt install git cmake python3-pip lidegl-dev libsdl2-dev
+```
+
+### Setup Conan
+
+```
 pip install conan
 conan remote add conan-center https://conan.io/center/
-git clone https://github.com/axoloto/Boids.git
-cd Boids
+conan profile update settings.compiler.libcxx=libstdc++11 default
+```
+
+## Build and Run
+
+```bash
+git clone https://github.com/axoloto/RealTimeParticles.git
+cd RealTimeParticles
 ./runApp.sh
 ```
 
-# References
+## References
 
 - [CMake](https://cmake.org/)
 - [ImGui](https://github.com/ocornut/imgui)
@@ -51,4 +63,12 @@ cd Boids
 
 # Notes
 
-Whole application has been tested only on a handful of Windows machines. I will happily make sure it works on Linux machines as well once I have access to one. Concerning performance, I reach 60fps with a Nvidia GTX 1650 for the 130k boids 3D model, and 12-30fps for the 3D fluids simulation Dam depending on selected settings.
+I reach 60fps with a Nvidia GTX 1650 for the 130k boids 3D model, and 12-30fps for the 3D fluids simulation Dam depending on selected settings.
+
+# Thanks
+
+A huge thank you to the following people who helped me on this project:
+
+- [Maitre-Pangolin](https://github.com/Maitre-Pangolin) implemented the first CPU boids model.
+- [Frederic Janicki](https://github.com/fjanicki-ssense) initiated conan implementation.
+- [vrince](https://github.com/vrince) implemented Linux support.

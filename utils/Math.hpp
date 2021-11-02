@@ -55,6 +55,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include <stdint.h>
 
 #ifdef _MSC_VER
 #    pragma warning(push)

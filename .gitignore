@@ -6,7 +6,7 @@ docs/doxyoutput_intern/
 *.filters
 *.sln
 
-CmakeBuild/
+CMakeBuild/
 CMakeFiles/
 install/
 

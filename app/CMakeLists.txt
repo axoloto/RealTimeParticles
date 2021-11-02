@@ -4,7 +4,10 @@ file(GLOB SRC "ParticleSystemApp.cpp" "ParticleSystemApp.hpp" "${CONAN_SRC_DIRS_
 
 add_executable(RealTimeParticles ${SRC})
 set_target_properties(RealTimeParticles PROPERTIES FOLDER app)
-set_target_properties(RealTimeParticles PROPERTIES LINK_FLAGS "/ignore:4099")
+
+if(WIN32)
+    set_target_properties(RealTimeParticles PROPERTIES LINK_FLAGS "/ignore:4099")
+endif()
 
 add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
 

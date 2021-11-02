@@ -1,14 +1,15 @@
-#pragma once
+
+
+#include "Context.hpp"
 
 #ifdef WIN32
 #include "windows.h"
 #else
-#ifdef UNIX
-#include "glx.h"
+#ifdef __unix__
+#include "GL/glx.h"
 #endif
 #endif
 
-#include "Context.hpp"
 #include "ErrorCode.hpp"
 #include "Logging.hpp"
 #include "Utils.hpp"
@@ -16,6 +17,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <filesystem>
 
 
 Physics::CL::Context& Physics::CL::Context::Get()
@@ -131,14 +133,11 @@ bool Physics::CL::Context::createContext()
       0
     };
 #endif
-#ifdef UNIX
+#ifdef __unix__
     cl_context_properties props[] = {
-      CL_GL_CONTEXT_KHR,
-      (cl_context_properties)glXGetCurrentContext(),
-      CL_GLX_DISPLAY_KHR,
-      (cl_context_properties)glXGetCurrentDisplay(),
-      CL_CONTEXT_PLATFORM,
-      (cl_context_properties)platform(), 0
+      CL_GL_CONTEXT_KHR, (cl_context_properties)glXGetCurrentContext(),
+      CL_GLX_DISPLAY_KHR, (cl_context_properties)glXGetCurrentDisplay(),
+      CL_CONTEXT_PLATFORM, (cl_context_properties)platform(), 0
     };
 #endif
 
@@ -230,10 +229,10 @@ bool Physics::CL::Context::createProgram(std::string programName, std::vector<st
   for (const auto& sourceName : sourceNames)
   {
     // Little hack to make it work from both installer and local build
-    std::ifstream sourceFile(".\\kernels\\" + sourceName);
+    std::ifstream sourceFile(std::filesystem::path("./kernels/" + sourceName).string());
 
     if (!sourceFile.is_open())
-      sourceFile = std::ifstream(Utils::GetSrcDir() + "\\physics\\ocl\\kernels\\" + sourceName);
+      sourceFile.open(std::filesystem::path(Utils::GetSrcDir() + "/physics/ocl/kernels/" + sourceName).string());
 
     if (!sourceFile.is_open())
       LOG_ERROR("Cannot find kernel file {}", sourceName);
@@ -246,7 +245,7 @@ bool Physics::CL::Context::createProgram(std::string programName, std::vector<st
 
   std::string options = specificBuildOptions + std::string(" -cl-denorms-are-zero -cl-fast-relaxed-math");
   cl_int err = program.build({ cl_device }, options.c_str());
-  if (err != CL_SUCCESS)
+  if (err != CL_SUCCESS) 
   {
     CL_ERROR(err, "Cannot build program");
     LOG_ERROR(program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
@@ -394,14 +393,14 @@ bool Physics::CL::Context::swapBuffers(std::string bufferNameA, std::string buff
   if (!m_init)
     return false;
 
-  auto& itA = m_buffersMap.find(bufferNameA);
+  const auto& itA = m_buffersMap.find(bufferNameA);
   if (itA == m_buffersMap.end())
   {
     LOG_ERROR("Cannot swap buffers, buffer {} not existing", bufferNameA);
     return false;
   }
 
-  auto& itB = m_buffersMap.find(bufferNameB);
+  const auto& itB = m_buffersMap.find(bufferNameB);
   if (itB == m_buffersMap.end())
   {
     LOG_ERROR("Cannot swap buffers, buffer {} not existing", bufferNameB);
@@ -424,7 +423,7 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
 
   cl::Buffer srcBuffer;
 
-  auto& itSrc = m_buffersMap.find(srcBufferName);
+  const auto& itSrc = m_buffersMap.find(srcBufferName);
 
   if (itSrc == m_buffersMap.end())
   {
@@ -445,7 +444,7 @@ bool Physics::CL::Context::copyBuffer(std::string srcBufferName, std::string dst
     srcBuffer = itSrc->second;
   }
 
-  auto& itDst = m_buffersMap.find(dstBufferName);
+  const auto& itDst = m_buffersMap.find(dstBufferName);
   if (itDst == m_buffersMap.end())
   {
     LOG_ERROR("Cannot copy buffers, destination buffer {} not existing", dstBufferName);

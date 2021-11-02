@@ -1,5 +1,5 @@
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.16)
 project(RealTimeParticles VERSION 1.0.1
                           DESCRIPTION "Minimalist real-time 3D particle system simulator"
                           HOMEPAGE_URL "https://github.com/axoloto/RealTimeParticles")
@@ -11,6 +11,10 @@ message(STATUS "Version Patch ${PROJECT_VERSION_PATCH}")
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     add_compile_definitions(DEBUG_BUILD)
 endif()
+
+add_compile_definitions(CL_HPP_ENABLE_EXCEPTIONS)
+add_compile_definitions(CL_HPP_MINIMUM_OPENCL_VERSION=120)
+add_compile_definitions(CL_HPP_TARGET_OPENCL_VERSION=120)
 
 message(STATUS "build type ${CMAKE_BUILD_TYPE}")
 message(STATUS "build dir ${CMAKE_BUILD_DIR}")
