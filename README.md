@@ -25,7 +25,7 @@ Real-time physics models currently implemented:
 - C++ compiler, tested with [MSVC 15/19](https://visualstudio.microsoft.com/vs/features/cplusplus/) only for now 
 - Device (GPU, IGPU or else) supporting OpenGL and OpenCL 1.2 or higher
 
-### Install requierments Ubuntu
+### Install requirements Ubuntu
 
 ```bash
 sudo apt install git cmake python3-pip lidegl-dev libsdl2-dev
