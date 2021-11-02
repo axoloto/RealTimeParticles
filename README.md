@@ -69,6 +69,6 @@ I reach 60fps with a Nvidia GTX 1650 for the 130k boids 3D model, and 12-30fps f
 
 A huge thank you to the following people who helped me on this project:
 
-[Maitre-Pangolin](https://github.com/Maitre-Pangolin) implemented the first CPU boids model.
-[Frederic Janicki](https://github.com/fjanicki-ssense) initiated conan implementation.
-[vrince](https://github.com/vrince) implemented Linux support.
+- [Maitre-Pangolin](https://github.com/Maitre-Pangolin) implemented the first CPU boids model.
+- [Frederic Janicki](https://github.com/fjanicki-ssense) initiated conan implementation.
+- [vrince](https://github.com/vrince) implemented Linux support.
