@@ -11,18 +11,12 @@ printf "%b" "$paths\n"
 
 mkdir -p "$DEV_BUILD_DIR/$DEV_BUILD_TYPE" "$DEV_INSTALL_DIR/$DEV_BUILD_TYPE"
 
-printf "========================= START CONAN ============================ \n"
-
-conan install . -if "$DEV_BUILD_DIR/$DEV_BUILD_TYPE" -s build_type=$DEV_BUILD_TYPE --build missing
-
-printf "========================== END CONAN ============================= \n"
-
 cd "$DEV_BUILD_DIR/$DEV_BUILD_TYPE"
 
 printf "========================= START CMAKE ============================ \n"
 
 EXTRA_CMAKE_ARGUMENTS=""
-if [[ "$OSTYPE" == "win32" ]]; then
+if [[ "$OSTYPE" == "win32" ]] || [[ "$OSTYPE" == "msys" ]]; then
       EXTRA_CMAKE_ARGUMENTS="-DCMAKE_GENERATOR_PLATFORM=x64"
 fi
 

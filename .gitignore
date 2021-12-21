@@ -1,7 +1,6 @@
 docs/cpp_intern/
 docs/doxyoutput_intern/
 
-*.cmake
 *.vcxproj
 *.filters
 *.sln
