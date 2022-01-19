@@ -1,8 +1,12 @@
 # RealTimeParticles
 
 Minimalist real-time application combining DearImGui/OpenGL and OpenCL to admire and play with small-sized (512) to large (130k) 2D/3D particle systems. 
+ 
+ ## Demo on YouTube
+[![ytFluids](ytFluids.jpg)](https://youtu.be/8PnJYDknNMA "Video on Youtube")
 
-Real-time physics models currently implemented:
+## Real-Time Physics Models
+
 1.  Boids based on classical [Craig Reynolds](https://www.red3d.com/cwr/boids/) implementation
 <p align = "center">
 <img src="./Boids_128.gif" alt="Boids" width="300" height="300">
