@@ -6,7 +6,7 @@ class Conanfile(ConanFile):
     requires = ["sdl/[>=2.0.12]",
                 "glad/[>=0.1.29]",
                 "opencl-headers/[>=2021.04.29]",
-                "opencl-icd-loader/[>=2021.04.29]",
+              #  "opencl-icd-loader/[>=2021.04.29]", //temp, not working with Apple
                 "spdlog/[>=1.9.2]",
                 "imgui/[>=1.85]"
                 ]

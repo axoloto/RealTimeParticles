@@ -4,9 +4,7 @@ project(RealTimeParticles VERSION 1.0.1
                           DESCRIPTION "Minimalist real-time 3D particle system simulator"
                           HOMEPAGE_URL "https://github.com/axoloto/RealTimeParticles")
 
-message(STATUS "Version Major ${PROJECT_VERSION_MAJOR}")
-message(STATUS "Version Minor ${PROJECT_VERSION_MINOR}")
-message(STATUS "Version Patch ${PROJECT_VERSION_PATCH}")
+message(STATUS "${PROJECT_NAME} ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     add_compile_definitions(DEBUG_BUILD)

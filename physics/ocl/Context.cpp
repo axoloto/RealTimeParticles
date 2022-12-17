@@ -2,12 +2,14 @@
 
 #include "Context.hpp"
 
-#ifdef WIN32
+#ifdef _WIN32
 #include "windows.h"
-#else
-#ifdef __unix__
+#endif
+#ifdef __linux__
 #include "GL/glx.h"
 #endif
+#ifdef __APPLE__
+#include <OpenGL/OpenGL.h>
 #endif
 
 #include "ErrorCode.hpp"
@@ -18,7 +20,6 @@
 #include <iostream>
 #include <vector>
 #include <filesystem>
-
 
 Physics::CL::Context& Physics::CL::Context::Get()
 {
@@ -125,7 +126,7 @@ bool Physics::CL::Context::createContext()
     const auto platform = platformGPU.first;
     const auto GPUs = platformGPU.second;
 
-#ifdef WIN32
+#ifdef _WIN32
     cl_context_properties props[] = {
       CL_GL_CONTEXT_KHR, (cl_context_properties)wglGetCurrentContext(),
       CL_WGL_HDC_KHR, (cl_context_properties)wglGetCurrentDC(),
@@ -133,11 +134,17 @@ bool Physics::CL::Context::createContext()
       0
     };
 #endif
-#ifdef __unix__
+#ifdef __linux__
     cl_context_properties props[] = {
       CL_GL_CONTEXT_KHR, (cl_context_properties)glXGetCurrentContext(),
       CL_GLX_DISPLAY_KHR, (cl_context_properties)glXGetCurrentDisplay(),
       CL_CONTEXT_PLATFORM, (cl_context_properties)platform(), 0
+    };
+#endif
+#ifdef __APPLE__
+    cl_context_properties props[] = {
+      CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE, (cl_context_properties)CGLGetShareGroup(CGLGetCurrentContext()),
+      0
     };
 #endif
 
