@@ -21,12 +21,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 include(cmake/Conan.cmake)
 run_conan()
 
-include_directories("utils")
-include_directories("physics")
-include_directories("render")
-include_directories("ui")
-include_directories("app")
-
+# Codebase
 add_subdirectory("utils")
 add_subdirectory("physics")
 add_subdirectory("render")

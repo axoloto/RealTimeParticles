@@ -3,8 +3,8 @@
 #include <array>
 #include <vector>
 
-#include "Math.hpp"
-#include "Model.hpp"
+#include "../Model.hpp"
+#include "../../utils/Math.hpp"
 #include "PerlinNoise.hpp"
 
 namespace Physics

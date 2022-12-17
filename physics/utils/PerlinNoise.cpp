@@ -1,4 +1,5 @@
 #include "PerlinNoise.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>

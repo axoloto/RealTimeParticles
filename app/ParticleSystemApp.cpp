@@ -201,6 +201,8 @@ ParticleSystemApp::ParticleSystemApp()
     , m_currFps(60.0f)
     , m_init(false)
 {
+  LOG_INFO("Starting RealTimeParticles");
+  
   if (!initWindow())
   {
     LOG_ERROR("Failed to initialize application window");
@@ -231,9 +233,14 @@ ParticleSystemApp::ParticleSystemApp()
     return;
   }
 
-  LOG_INFO("Application correctly initialized");
+  LOG_INFO("RealTimeParticles initialization successful");
 
   m_init = true;
+}
+
+ParticleSystemApp::~ParticleSystemApp()
+{
+  LOG_INFO("Quitting RealTimeParticles");
 }
 
 bool ParticleSystemApp::initGraphicsEngine()

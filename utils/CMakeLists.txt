@@ -15,5 +15,7 @@ message(STATUS "CMAKE Install Directory: ${CMAKE_INSTALL_DIR}")
 
 target_link_libraries(utils PUBLIC spdlog::spdlog)
 
+target_include_directories(utils INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+
 install(TARGETS utils DESTINATION lib)
 

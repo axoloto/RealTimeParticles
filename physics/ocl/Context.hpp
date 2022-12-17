@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ocl/opencl.hpp"
+#include "opencl.hpp"
 
 #include <map>
 #include <string>

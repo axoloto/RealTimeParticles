@@ -8,6 +8,8 @@ target_compile_definitions(ocl PUBLIC CL_HPP_TARGET_OPENCL_VERSION=120)
 
 target_link_libraries(ocl PRIVATE utils)
 
+target_include_directories(ocl INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+
 if(WIN32)
     target_link_libraries(ocl PRIVATE OpenCL)
 elseif(UNIX AND NOT APPLE)

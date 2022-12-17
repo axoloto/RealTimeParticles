@@ -16,7 +16,7 @@ class ParticleSystemApp
 {
   public:
   ParticleSystemApp();
-  ~ParticleSystemApp() = default;
+  ~ParticleSystemApp();
   void run();
   bool isInit() const { return m_init; }
 
