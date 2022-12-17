@@ -22,13 +22,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-option(MULTI_CONAN_BUILD "Enable Multiple Conan Builds" OFF)
 include(cmake/Conan.cmake)
 run_conan()
-include(${CMAKE_BUILD_DIR}/conanbuildinfo.cmake)
-conan_basic_setup()
-
-find_package(OpenGL REQUIRED)
 
 include_directories("utils")
 include_directories("physics")

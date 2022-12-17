@@ -12,5 +12,5 @@ class Conanfile(ConanFile):
                 ]
     settings = "os", "compiler", "arch", "build_type"
     exports = "*"
-    generators = "cmake"
+    generators = "cmake_find_package_multi"
     build_policy = "missing"
