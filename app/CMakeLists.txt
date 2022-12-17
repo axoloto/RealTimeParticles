@@ -5,7 +5,7 @@ set_target_properties(RealTimeParticles PROPERTIES FOLDER app)
 
 add_subdirectory(imgui_backend)
 
-target_link_libraries(RealTimeParticles PRIVATE physics render ui imgui_backend)
+target_link_libraries(RealTimeParticles PRIVATE physics render ui imgui_backend utils)
 
 if(APPLE)
     find_library(OpenGL_Framework OpenGL)

@@ -4,6 +4,9 @@
 #include "Parameters.hpp"
 #include "Utils.hpp"
 
+#include "ocl/Context.hpp"
+#include "utils/RadixSort.hpp"
+
 #include <algorithm>
 #include <array>
 #include <ctime>
@@ -49,11 +52,33 @@ using namespace Physics;
 #define KERNEL_UPDATE_POS "updatePosition"
 #define KERNEL_FILL_COLOR "fillFluidColor"
 
+namespace Physics {
+struct FluidKernelInputs
+{
+  cl_float effectRadius = 0.3f;
+  cl_float restDensity = 450.0f;
+  cl_float relaxCFM = 600.0f;
+  cl_float timeStep = 0.010f;
+  cl_uint dim = 3;
+  // Artifical pressure if enabled will try to reduce tensile instability
+  cl_uint isArtPressureEnabled = 1;
+  cl_float artPressureRadius = 0.006f;
+  cl_float artPressureCoeff = 0.001f;
+  cl_uint artPressureExp = 4;
+  // Vorticity confinement if enabled will try to replace lost energy due to virtual damping
+  cl_uint isVorticityConfEnabled = 1;
+  cl_float vorticityConfCoeff = 0.0004f;
+  cl_float xsphViscosityCoeff = 0.0001f;
+};
+
+}
+
 Fluids::Fluids(ModelParams params)
     : Model(params)
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(100)
-    , m_radixSort(params.maxNbParticles)
+    , m_radixSort(std::make_unique<RadixSort>(params.maxNbParticles))
+    , m_kernelInputs(std::make_unique<FluidKernelInputs>())
     , m_initialCase(CaseType::DAM)
     , m_nbJacobiIters(2)
 {
@@ -63,10 +88,13 @@ Fluids::Fluids(ModelParams params)
 
   createKernels();
 
-  m_init = true;
+  m_init = (m_radixSort && m_kernelInputs);
 
   reset();
 }
+
+// Must be on implementation side as FluidKernelInputs must be complete
+Fluids::~Fluids(){};
 
 bool Fluids::createProgram() const
 {
@@ -162,23 +190,26 @@ bool Fluids::createKernels() const
 
 void Fluids::updateFluidsParamsInKernel()
 {
+  if(!m_init)
+    return;
+
   CL::Context& clContext = CL::Context::Get();
 
-  m_kernelInputs.dim = (m_dimension == Dimension::dim2D) ? 2 : 3;
+  m_kernelInputs->dim = (m_dimension == Dimension::dim2D) ? 2 : 3;
 
   const float effectRadius = ((float)m_boxSize) / m_gridRes;
-  m_kernelInputs.effectRadius = effectRadius;
+  m_kernelInputs->effectRadius = effectRadius;
 
-  clContext.setKernelArg(KERNEL_RANDOM_POS, 0, sizeof(FluidKernelInputs), &m_kernelInputs);
-  clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(FluidKernelInputs), &m_kernelInputs);
-  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), &m_kernelInputs);
-  clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), &m_kernelInputs);
-  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
-  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
-  clContext.setKernelArg(KERNEL_FILL_COLOR, 1, sizeof(FluidKernelInputs), &m_kernelInputs);
-  clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
-  clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
-  clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), &m_kernelInputs);
+  clContext.setKernelArg(KERNEL_RANDOM_POS, 0, sizeof(FluidKernelInputs), m_kernelInputs.get());
+  clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
+  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
+  clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
+  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR, 3, sizeof(FluidKernelInputs), m_kernelInputs.get());
+  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION, 3, sizeof(FluidKernelInputs), m_kernelInputs.get());
+  clContext.setKernelArg(KERNEL_FILL_COLOR, 1, sizeof(FluidKernelInputs), m_kernelInputs.get());
+  clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), m_kernelInputs.get());
+  clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), m_kernelInputs.get());
+  clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), m_kernelInputs.get());
 }
 
 void Fluids::reset()
@@ -203,6 +234,9 @@ void Fluids::reset()
 
 void Fluids::initFluidsParticles()
 {
+  if(!m_init)
+    return;
+
   CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_pos", "p_col" });
@@ -342,7 +376,7 @@ void Fluids::update()
     // NNS - spatial partitioning
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
-    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" });
+    m_radixSort->sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" });
 
     clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
@@ -369,7 +403,7 @@ void Fluids::update()
     // Updating velocity
     clContext.runKernel(KERNEL_UPDATE_VEL, m_currNbParticles);
 
-    if (m_kernelInputs.isVorticityConfEnabled)
+    if (m_kernelInputs->isVorticityConfEnabled)
     {
       // Computing vorticity
       clContext.runKernel(KERNEL_COMPUTE_VORTICITY, m_currNbParticles);
@@ -393,7 +427,140 @@ void Fluids::update()
   // Rendering purpose
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
 
-  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" });
+  m_radixSort->sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" });
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }
+
+// Storing definitions here to prevent cl_types in headers
+void Fluids::setRestDensity(float restDensity)
+{
+  if(!m_init) return;
+  m_kernelInputs->restDensity = (cl_float)restDensity;
+  updateFluidsParamsInKernel();
+}
+
+//
+void Fluids::setRelaxCFM(float relaxCFM)
+{
+  if(!m_init) return;
+  m_kernelInputs->relaxCFM = (cl_float)relaxCFM;
+  updateFluidsParamsInKernel();
+}
+
+//
+void Fluids::setTimeStep(float timeStep)
+{
+  if(!m_init) return;
+  m_kernelInputs->timeStep = (cl_float)timeStep;
+  updateFluidsParamsInKernel();
+}
+
+//
+void Fluids::setNbJacobiIters(size_t nbIters)
+{
+  if(!m_init) return;
+  m_nbJacobiIters = nbIters;
+}
+
+//
+void Fluids::enableArtPressure(bool enable)
+{
+  if(!m_init) return;
+  m_kernelInputs->isArtPressureEnabled = (cl_uint)enable;
+  updateFluidsParamsInKernel();
+}
+
+//
+void Fluids::setArtPressureRadius(float radius)
+{
+  if(!m_init) return;
+  m_kernelInputs->artPressureRadius = (cl_float)radius;
+  updateFluidsParamsInKernel();
+}
+
+//
+void Fluids::setArtPressureExp(size_t exp)
+{
+  if(!m_init) return;
+  m_kernelInputs->artPressureExp = (cl_uint)exp;
+  updateFluidsParamsInKernel();
+}
+
+//
+void Fluids::setArtPressureCoeff(float coeff)
+{
+  if(!m_init) return;
+  m_kernelInputs->artPressureCoeff = (cl_float)coeff;
+  updateFluidsParamsInKernel();
+}
+
+//
+void Fluids::enableVorticityConfinement(bool enable)
+{
+  if(!m_init) return;
+  m_kernelInputs->isVorticityConfEnabled = (cl_uint)enable;
+  updateFluidsParamsInKernel();
+}
+
+//
+void Fluids::setVorticityConfinementCoeff(float coeff)
+{
+  if(!m_init) return;
+  m_kernelInputs->vorticityConfCoeff = (cl_float)coeff;
+  updateFluidsParamsInKernel();
+}
+
+//
+void Fluids::setXsphViscosityCoeff(float coeff)
+{
+  if(!m_init) return;
+  m_kernelInputs->xsphViscosityCoeff = (cl_float)coeff;
+  updateFluidsParamsInKernel();
+}
+
+// Not giving access to it for now.
+// Strongly connected to grid resolution which is not available as parameter,
+// in order to maintain cohesion between boids and fluids models
+/*
+void Fluids::setEffectRadius(float effectRadius)
+{
+  if(!m_init) return;
+  m_kernelInputs.effectRadius = (cl_float)effectRadius;
+  updateFluidsParamsInKernel();
+}
+*/
+float Fluids::getEffectRadius() const { return m_init ? (float)m_kernelInputs->effectRadius : 0.0f; }
+
+//
+float Fluids::getRestDensity() const { return m_init ? (float)m_kernelInputs->restDensity : 0.0f; }
+
+//
+float Fluids::getRelaxCFM() const { return m_init ? (float)m_kernelInputs->relaxCFM : 0.0f; }
+
+//
+float Fluids::getTimeStep() const { return m_init ? (float)m_kernelInputs->timeStep : 0.0f; }
+
+//
+size_t Fluids::getNbJacobiIters() const { return m_init ? m_nbJacobiIters : 0; }
+
+//
+bool Fluids::isArtPressureEnabled() const { return m_init ? (bool)m_kernelInputs->isArtPressureEnabled : false; }
+
+//
+float Fluids::getArtPressureRadius() const { return m_init ? (float)m_kernelInputs->artPressureRadius : 0.0f; }
+
+//
+size_t Fluids::getArtPressureExp() const { return m_init ? (size_t)m_kernelInputs->artPressureExp : 0; }
+
+//
+float Fluids::getArtPressureCoeff() const { return m_init ? (float)m_kernelInputs->artPressureCoeff : 0.0f; }
+
+//
+bool Fluids::isVorticityConfinementEnabled() const { return m_init ? (bool)m_kernelInputs->isVorticityConfEnabled : 0.0f; }
+
+//
+float Fluids::getVorticityConfinementCoeff() const { return m_init ? (float)m_kernelInputs->vorticityConfCoeff : 0.0f; }
+
+//
+float Fluids::getXsphViscosityCoeff() const { return m_init ? (float)m_kernelInputs->xsphViscosityCoeff : 0.0f; }

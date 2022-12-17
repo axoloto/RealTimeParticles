@@ -7,7 +7,6 @@
 #include "Model.hpp"
 #include "PerlinNoise.hpp"
 
-
 namespace Physics
 {
 class Target

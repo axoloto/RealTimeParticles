@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Model.hpp"
-#include "ocl/Context.hpp"
-#include "utils/RadixSort.hpp"
 #include "utils/Target.hpp"
 
 #include <array>
@@ -11,11 +9,14 @@
 
 namespace Physics
 {
+  // Forward decl
+  class RadixSort;
+
 class Boids : public Model
 {
   public:
   Boids(ModelParams params);
-  ~Boids() = default;
+  ~Boids();
 
   void update() override;
   void reset() override;
@@ -134,6 +135,6 @@ class Boids : public Model
 
   std::unique_ptr<Target> m_target;
 
-  RadixSort m_radixSort;
+  std::unique_ptr<RadixSort> m_radixSort;
 };
 }

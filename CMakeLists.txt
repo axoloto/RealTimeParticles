@@ -10,12 +10,8 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     add_compile_definitions(DEBUG_BUILD)
 endif()
 
-add_compile_definitions(CL_HPP_ENABLE_EXCEPTIONS)
-add_compile_definitions(CL_HPP_MINIMUM_OPENCL_VERSION=120)
-add_compile_definitions(CL_HPP_TARGET_OPENCL_VERSION=120)
-
-message(STATUS "build type ${CMAKE_BUILD_TYPE}")
-message(STATUS "build dir ${CMAKE_BUILD_DIR}")
+message(STATUS "build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "build folder: ${CMAKE_BUILD_DIR}")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

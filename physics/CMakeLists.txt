@@ -9,6 +9,6 @@ include_directories("utils")
 add_subdirectory("ocl")
 add_subdirectory("utils")
 
-target_link_libraries(physics ocl utils)
+target_link_libraries(physics PRIVATE ocl utils)
 
 install(TARGETS physics DESTINATION lib)

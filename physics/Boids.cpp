@@ -4,6 +4,9 @@
 #include "Parameters.hpp"
 #include "Utils.hpp"
 
+#include "ocl/Context.hpp"
+#include "utils/RadixSort.hpp"
+
 #include <ctime>
 #include <iomanip>
 #include <iostream>
@@ -49,7 +52,7 @@ Boids::Boids(ModelParams params)
     , m_activeCohesion(true)
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(3000)
-    , m_radixSort(params.maxNbParticles)
+    , m_radixSort(std::make_unique<RadixSort>(params.maxNbParticles))
     , m_target(std::make_unique<Target>(params.boxSize))
 {
   m_currNbParticles = Utils::NbParticles::P512;
@@ -64,6 +67,9 @@ Boids::Boids(ModelParams params)
 
   reset();
 }
+
+// Must be defined on implementation side to have RadixSort complete
+Boids::~Boids(){};
 
 bool Boids::createProgram() const
 {
@@ -250,7 +256,7 @@ void Boids::update()
     float timeStep = 0.1f;
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
-    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_acc" });
+    m_radixSort->sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_acc" });
 
     clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
@@ -294,7 +300,7 @@ void Boids::update()
 
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
 
-  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_acc" });
+  m_radixSort->sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_acc" });
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }

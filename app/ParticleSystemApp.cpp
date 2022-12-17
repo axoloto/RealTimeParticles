@@ -310,7 +310,7 @@ void ParticleSystemApp::run()
     ImGui::NewFrame();
 
     static bool noted = false;
-    if (!noted && isUsingIGPU())
+    if (!noted && m_physicsEngine->isUsingIGPU())
     {
       noted = popUpMessage("Warning", "The application is currently running on your integrated GPU. It will perform better on your dedicated GPU (NVIDIA/AMD).");
     }
@@ -451,11 +451,10 @@ void ParticleSystemApp::displayMainWidget()
 
   ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / m_currFps, m_currFps);
 
-  Physics::CL::Context& clContext = Physics::CL::Context::Get();
-  bool isProfiling = clContext.isProfiling();
-  if (ImGui::Checkbox(" GPU Profiler ", &isProfiling))
+  bool isProfiling = m_physicsEngine->isProfilingEnabled();
+  if (ImGui::Checkbox(" GPU Solver Profiling ", &isProfiling))
   {
-    clContext.enableProfiler(isProfiling);
+    m_physicsEngine->enableProfiling(isProfiling);
   }
 
   ImGui::End();
@@ -479,13 +478,6 @@ bool ParticleSystemApp::popUpMessage(const std::string& title, const std::string
   }
 
   return closePopUp;
-}
-
-bool ParticleSystemApp::isUsingIGPU() const
-{
-  const std::string& GLCLPlatformName = Physics::CL::Context::Get().getPlatformName();
-
-  return (GLCLPlatformName.find("Intel") != std::string::npos);
 }
 
 } // End namespace App
