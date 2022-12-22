@@ -94,10 +94,20 @@ bool Physics::CL::Context::findGPUDevices()
       std::string extensions;
       GPU.getInfo(CL_DEVICE_EXTENSIONS, &extensions);
 
-      if (extensions.find("cl_khr_gl_sharing") != std::string::npos)
+      if (extensions.find("cl_khr_gl_sharing") != std::string::npos ||
+          extensions.find("cl_APPLE_gl_sharing") != std::string::npos)
       {
-        LOG_INFO("Found GPU {} on platform {}", deviceName, platformName);
-        GPUsOnPlatformWithInteropCLGL.push_back(GPU);
+        LOG_INFO("Found GPU {} on platform {} with GL-CL extension", deviceName, platformName);
+        // Prioritizing AMD/NVIDIA GPUs, more reliable to init context with them on Macos
+        if(deviceName.find("AMD") != std::string::npos || deviceName.find("NVIDIA") != std::string::npos)
+          GPUsOnPlatformWithInteropCLGL.insert(GPUsOnPlatformWithInteropCLGL.begin(), GPU);
+        else // INTEL IGPU most probably
+          GPUsOnPlatformWithInteropCLGL.push_back(GPU);
+      }
+      else
+      {
+        LOG_INFO("Found GPU {} on platform {} with NO GL-CL extension", deviceName, platformName);
+        LOG_INFO("Extensions found {}", extensions);
       }
     }
 
@@ -107,7 +117,7 @@ bool Physics::CL::Context::findGPUDevices()
 
   if (m_allGPUsWithInteropCLGL.empty())
   {
-    LOG_ERROR("No GPU found with Interop OpenCL-OpenGL extension");
+    LOG_ERROR("No GPU found with Interop OpenCL-OpenGL extension, cannot create an OpenCL context");
     return false;
   }
 
@@ -139,12 +149,14 @@ bool Physics::CL::Context::createContext()
     cl_context_properties props[] = {
       CL_GL_CONTEXT_KHR, (cl_context_properties)glXGetCurrentContext(),
       CL_GLX_DISPLAY_KHR, (cl_context_properties)glXGetCurrentDisplay(),
-      CL_CONTEXT_PLATFORM, (cl_context_properties)platform(), 0
+      CL_CONTEXT_PLATFORM, (cl_context_properties)platform(),
+      0
     };
 #endif
 #ifdef __APPLE__
     cl_context_properties props[] = {
       CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE, (cl_context_properties)CGLGetShareGroup(CGLGetCurrentContext()),
+      CL_CONTEXT_PLATFORM, (cl_context_properties)platform(),
       0
     };
 #endif
