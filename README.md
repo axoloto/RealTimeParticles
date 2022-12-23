@@ -23,7 +23,7 @@ Minimalist real-time application combining DearImGui/OpenGL and OpenCL to admire
 
 - [Gitbash](https://git-scm.com/downloads)
 - [Python](https://www.python.org/) (>= 3.5) + [pip](https://pypi.org/project/pip/)
-- [Conan](https://conan.io/) (>=1.50)
+- [Conan](https://conan.io/) (>=1.56)
 - [CMake](https://cmake.org/download/) (>=3.16)
 - [NSIS](http://nsis.sourceforge.net/) (only for packaging the installer)
 - C++ compiler (Cpp17)

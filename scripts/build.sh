@@ -15,16 +15,11 @@ cd "$DEV_BUILD_DIR/$DEV_BUILD_TYPE"
 
 printf "========================= START CMAKE ============================ \n"
 
-EXTRA_CMAKE_ARGUMENTS=""
-if [[ "$OSTYPE" == "win32" ]] || [[ "$OSTYPE" == "msys" ]]; then
-      EXTRA_CMAKE_ARGUMENTS="-DCMAKE_GENERATOR_PLATFORM=x64"
-fi
 
 cmake "$DEV_DIR" \
       -DCMAKE_INSTALL_PREFIX="$DEV_INSTALL_DIR/$DEV_BUILD_TYPE" \
       -DCMAKE_BUILD_TYPE=$DEV_BUILD_TYPE \
       -DCMAKE_BUILD_DIR="$DEV_BUILD_DIR/$DEV_BUILD_TYPE" \
-      $EXTRA_CMAKE_ARGUMENTS
 
 cmake --build "$DEV_BUILD_DIR/$DEV_BUILD_TYPE" --config "$DEV_BUILD_TYPE" --target "install"
 
