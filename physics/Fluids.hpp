@@ -1,17 +1,20 @@
 #pragma once
 
+#include "Model.hpp"
+#include "utils/RadixSort.hpp"
+
+#include <memory>
 #include <array>
 #include <vector>
-
-#include "Model.hpp"
-#include "ocl/Context.hpp"
-#include "utils/RadixSort.hpp"
 
 // Position based fluids model based on NVIDIA paper
 // Macklin and Muller 2013. "Position Based Fluids"
 
 namespace Physics
 {
+  // Forward decl
+  struct FluidKernelInputs;
+
 // List of implemented cases
 enum CaseType
 {
@@ -34,29 +37,12 @@ static const std::map<CaseType, std::string, CompareCaseType> ALL_FLUID_CASES {
   { CaseType::DROP, "Drop" },
 };
 
-struct FluidKernelInputs
-{
-  cl_float effectRadius = 0.3f;
-  cl_float restDensity = 450.0f;
-  cl_float relaxCFM = 600.0f;
-  cl_float timeStep = 0.010f;
-  cl_uint dim = 3;
-  // Artifical pressure if enabled will try to reduce tensile instability
-  cl_uint isArtPressureEnabled = 1;
-  cl_float artPressureRadius = 0.006f;
-  cl_float artPressureCoeff = 0.001f;
-  cl_uint artPressureExp = 4;
-  // Vorticity confinement if enabled will try to replace lost energy due to virtual damping
-  cl_uint isVorticityConfEnabled = 1;
-  cl_float vorticityConfCoeff = 0.0004f;
-  cl_float xsphViscosityCoeff = 0.0001f;
-};
 
 class Fluids : public Model
 {
   public:
   Fluids(ModelParams params);
-  ~Fluids() = default;
+  ~Fluids();
 
   void update() override;
   void reset() override;
@@ -74,94 +60,40 @@ class Fluids : public Model
     updateFluidsParamsInKernel();
   }
   */
-  float getEffectRadius() const { return (float)m_kernelInputs.effectRadius; }
-
+  float getEffectRadius() const;
   //
-  void setRestDensity(float restDensity)
-  {
-    m_kernelInputs.restDensity = (cl_float)restDensity;
-    updateFluidsParamsInKernel();
-  }
-  float getRestDensity() const { return (float)m_kernelInputs.restDensity; }
-
+  void setRestDensity(float restDensity);
+  float getRestDensity() const;
   //
-  void setRelaxCFM(float relaxCFM)
-  {
-    m_kernelInputs.relaxCFM = (cl_float)relaxCFM;
-    updateFluidsParamsInKernel();
-  }
-  float getRelaxCFM() const { return (float)m_kernelInputs.relaxCFM; }
-
+  void setRelaxCFM(float relaxCFM);
+  float getRelaxCFM() const;
   //
-  void setTimeStep(float timeStep)
-  {
-    m_kernelInputs.timeStep = (cl_float)timeStep;
-    updateFluidsParamsInKernel();
-  }
-  float getTimeStep() const { return (float)m_kernelInputs.timeStep; }
-
+  void setTimeStep(float timeStep);
+  float getTimeStep() const;
   //
-  void setNbJacobiIters(size_t nbIters)
-  {
-    m_nbJacobiIters = nbIters;
-  }
-  size_t getNbJacobiIters() const { return m_nbJacobiIters; }
-
+  void setNbJacobiIters(size_t nbIters);
+  size_t getNbJacobiIters() const;
   //
-  void enableArtPressure(bool enable)
-  {
-    m_kernelInputs.isArtPressureEnabled = (cl_uint)enable;
-    updateFluidsParamsInKernel();
-  }
-  bool isArtPressureEnabled() const { return (bool)m_kernelInputs.isArtPressureEnabled; }
-
+  void enableArtPressure(bool enable);
+  bool isArtPressureEnabled() const;
   //
-  void setArtPressureRadius(float radius)
-  {
-    m_kernelInputs.artPressureRadius = (cl_float)radius;
-    updateFluidsParamsInKernel();
-  }
-  float getArtPressureRadius() const { return (float)m_kernelInputs.artPressureRadius; }
-
+  void setArtPressureRadius(float radius);
+  float getArtPressureRadius() const;
   //
-  void setArtPressureExp(size_t exp)
-  {
-    m_kernelInputs.artPressureExp = (cl_uint)exp;
-    updateFluidsParamsInKernel();
-  }
-  size_t getArtPressureExp() const { return (size_t)m_kernelInputs.artPressureExp; }
-
+  void setArtPressureExp(size_t exp);
+  size_t getArtPressureExp() const;
   //
-  void setArtPressureCoeff(float coeff)
-  {
-    m_kernelInputs.artPressureCoeff = (cl_float)coeff;
-    updateFluidsParamsInKernel();
-  }
-  float getArtPressureCoeff() const { return (float)m_kernelInputs.artPressureCoeff; }
-
+  void setArtPressureCoeff(float coeff);
+  float getArtPressureCoeff() const;
   //
-  void enableVorticityConfinement(bool enable)
-  {
-    m_kernelInputs.isVorticityConfEnabled = (cl_uint)enable;
-    updateFluidsParamsInKernel();
-  }
-  bool isVorticityConfinementEnabled() const { return (bool)m_kernelInputs.isVorticityConfEnabled; }
-
+  void enableVorticityConfinement(bool enable);
+  bool isVorticityConfinementEnabled() const;
   //
-  void setVorticityConfinementCoeff(float coeff)
-  {
-    m_kernelInputs.vorticityConfCoeff = (cl_float)coeff;
-    updateFluidsParamsInKernel();
-  }
-  float getVorticityConfinementCoeff() const { return (float)m_kernelInputs.vorticityConfCoeff; }
-
+  void setVorticityConfinementCoeff(float coeff);
+  float getVorticityConfinementCoeff() const;
   //
-  void setXsphViscosityCoeff(float coeff)
-  {
-    m_kernelInputs.xsphViscosityCoeff = (cl_float)coeff;
-    updateFluidsParamsInKernel();
-  }
-  float getXsphViscosityCoeff() const { return (float)m_kernelInputs.xsphViscosityCoeff; }
+  void setXsphViscosityCoeff(float coeff);
+  float getXsphViscosityCoeff() const;
 
   private:
   bool createProgram() const;
@@ -179,7 +111,7 @@ class Fluids : public Model
 
   RadixSort m_radixSort;
 
-  FluidKernelInputs m_kernelInputs;
+  std::unique_ptr<FluidKernelInputs> m_kernelInputs;
 
   CaseType m_initialCase;
 };

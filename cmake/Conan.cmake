@@ -1,18 +1,10 @@
 macro(run_conan)
   # Download automatically, you can also just copy the conan.cmake file
   if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
-    message(
-      STATUS
-        "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
-    file(
-      DOWNLOAD
-      #"https://raw.githubusercontent.com/conan-io/cmake-conan/v0.16.1/conan.cmake" # Stable version missing multi-config feature
-      "https://raw.githubusercontent.com/conan-io/cmake-conan/develop/conan.cmake"  # Develop branch not safe but with multi-config feature
-      "${CMAKE_BINARY_DIR}/conan.cmake"
-      EXPECTED_HASH
-       # SHA256=396e16d0f5eabdc6a14afddbcfff62a54a7ee75c6da23f32f7a31bc85db23484 # Stable 0.16.1
-       SHA256=8e1ae613d112105fcb43f2837fe81d6d08b4619237a8035731afebbea9646e32 # Develop
-      TLS_VERIFY ON)
+  message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
+  file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/0.18.1/conan.cmake"
+                "${CMAKE_BINARY_DIR}/conan.cmake"
+                TLS_VERIFY ON)
   endif()
 
   set(ENV{CONAN_REVISIONS_ENABLED} 1)

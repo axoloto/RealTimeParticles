@@ -1,5 +1,7 @@
 #include "RadixSort.hpp"
 
+#include "../ocl/Context.hpp"
+
 #include "Logging.hpp"
 #include <ctime>
 #include <iostream>

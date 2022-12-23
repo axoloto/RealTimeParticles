@@ -4,6 +4,8 @@
 #include "Parameters.hpp"
 #include "Utils.hpp"
 
+#include "ocl/Context.hpp"
+
 #include <ctime>
 #include <iomanip>
 #include <iostream>
@@ -50,7 +52,7 @@ Boids::Boids(ModelParams params)
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(3000)
     , m_radixSort(params.maxNbParticles)
-    , m_target(std::make_unique<Target>(params.boxSize))
+    , m_target(params.boxSize)
 {
   m_currNbParticles = Utils::NbParticles::P512;
 
@@ -64,6 +66,9 @@ Boids::Boids(ModelParams params)
 
   reset();
 }
+
+// Must be defined on implementation side to have RadixSort complete
+Boids::~Boids(){};
 
 bool Boids::createProgram() const
 {
@@ -266,8 +271,8 @@ void Boids::update()
 
     if (isTargetActivated())
     {
-      m_target->updatePos(m_dimension, m_velocity);
-      auto targetXYZ = m_target->pos();
+      m_target.updatePos(m_dimension, m_velocity);
+      auto targetXYZ = m_target.pos();
       std::array<float, 4> targetPos = { targetXYZ.x, targetXYZ.y, targetXYZ.z, 0.0f };
       clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 1, sizeof(float) * 4, &targetPos);
       clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_currNbParticles);

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Math.hpp"
-#include "ocl/Context.hpp"
 
 #include <array>
 #include <map>
@@ -54,6 +53,8 @@ struct ModelParams
   unsigned int gridVBO = 0;
 };
 
+// Abstrac class defining physical model foundations to implement
+// Currently all models are CL-based but that could change
 class Model
 {
   public:
@@ -73,10 +74,7 @@ class Model
       , m_init(false)
       , m_pause(false) {};
 
-  virtual ~Model()
-  {
-    CL::Context::Get().release();
-  };
+  virtual ~Model();
 
   size_t maxNbParticles() const { return m_maxNbParticles; }
 
@@ -110,6 +108,10 @@ class Model
   virtual Math::float3 targetPos() const { return { 0.0f, 0.0f, 0.0f }; }
   virtual bool isTargetActivated() const { return false; }
   virtual bool isTargetVisible() const { return false; }
+
+  bool isProfilingEnabled() const;
+  void enableProfiling(bool enable);
+  bool isUsingIGPU() const;
 
   protected:
   bool m_init;

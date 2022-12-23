@@ -1,20 +1,22 @@
-project(RealTimeParticles)
-
-file(GLOB SRC "ParticleSystemApp.cpp" "ParticleSystemApp.hpp" "${CONAN_SRC_DIRS_IMGUI}/imgui_impl_opengl3.cpp" "${CONAN_SRC_DIRS_IMGUI}/imgui_impl_sdl.cpp")
+file(GLOB SRC "ParticleSystemApp.cpp" "ParticleSystemApp.hpp")
 
 add_executable(RealTimeParticles ${SRC})
 set_target_properties(RealTimeParticles PROPERTIES FOLDER app)
 
+add_subdirectory(imgui_backend)
+
+target_link_libraries(RealTimeParticles PRIVATE physics render ui imgui_backend utils)
+
+if(APPLE)
+    find_library(OpenGL_Framework OpenGL)
+    target_link_libraries(RealTimeParticles PRIVATE ${OpenGL_Framework})
+elseif()
+    find_package(OpenGL REQUIRED CONFIG)
+    target_link_libraries(RealTimeParticles PRIVATE OpenGL)
+endif()
+
 if(WIN32)
     set_target_properties(RealTimeParticles PROPERTIES LINK_FLAGS "/ignore:4099")
 endif()
-
-add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
-
-target_include_directories(RealTimeParticles PRIVATE ${OPENGL_INCLUDE_DIRS}
-                                            "$ENV{TP_DIR}/diligentGraphics" ${CONAN_SRC_DIRS_IMGUI})
-
-conan_target_link_libraries(RealTimeParticles)
-target_link_libraries(RealTimeParticles physics render ui imgui utils ${OPENGL_LIBRARIES})
 
 install(TARGETS RealTimeParticles RUNTIME DESTINATION bin)

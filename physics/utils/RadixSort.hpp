@@ -3,9 +3,6 @@
 #include <array>
 #include <vector>
 
-#include "Model.hpp"
-#include "ocl/Context.hpp"
-
 #include <algorithm>
 #include <chrono>
 #include <random>

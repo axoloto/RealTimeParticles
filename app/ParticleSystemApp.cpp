@@ -201,6 +201,8 @@ ParticleSystemApp::ParticleSystemApp()
     , m_currFps(60.0f)
     , m_init(false)
 {
+  LOG_INFO("Starting RealTimeParticles");
+  
   if (!initWindow())
   {
     LOG_ERROR("Failed to initialize application window");
@@ -231,9 +233,14 @@ ParticleSystemApp::ParticleSystemApp()
     return;
   }
 
-  LOG_INFO("Application correctly initialized");
+  LOG_INFO("RealTimeParticles initialization successful");
 
   m_init = true;
+}
+
+ParticleSystemApp::~ParticleSystemApp()
+{
+  LOG_INFO("Quitting RealTimeParticles");
 }
 
 bool ParticleSystemApp::initGraphicsEngine()
@@ -310,7 +317,7 @@ void ParticleSystemApp::run()
     ImGui::NewFrame();
 
     static bool noted = false;
-    if (!noted && isUsingIGPU())
+    if (!noted && m_physicsEngine->isUsingIGPU())
     {
       noted = popUpMessage("Warning", "The application is currently running on your integrated GPU. It will perform better on your dedicated GPU (NVIDIA/AMD).");
     }
@@ -326,7 +333,14 @@ void ParticleSystemApp::run()
     m_physicsWidget->display();
 
     ImGuiIO& io = ImGui::GetIO();
+
+#ifdef __APPLE__
+    // On Apple, window size is reported in low DPI, even when running in high DPI mode
+    glViewport(0, 0, (int)io.DisplaySize.x * io.DisplayFramebufferScale.x, (int)io.DisplaySize.y * io.DisplayFramebufferScale.y);
+#else
     glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+#endif
+
     glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -451,12 +465,14 @@ void ParticleSystemApp::displayMainWidget()
 
   ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / m_currFps, m_currFps);
 
-  Physics::CL::Context& clContext = Physics::CL::Context::Get();
-  bool isProfiling = clContext.isProfiling();
-  if (ImGui::Checkbox(" GPU Profiler ", &isProfiling))
+// Apple is not very OpenCL friendly
+#ifndef __APPLE__
+  bool isProfiling = m_physicsEngine->isProfilingEnabled();
+  if (ImGui::Checkbox(" GPU Solver Profiling ", &isProfiling))
   {
-    clContext.enableProfiler(isProfiling);
+    m_physicsEngine->enableProfiling(isProfiling);
   }
+#endif
 
   ImGui::End();
 }
@@ -479,13 +495,6 @@ bool ParticleSystemApp::popUpMessage(const std::string& title, const std::string
   }
 
   return closePopUp;
-}
-
-bool ParticleSystemApp::isUsingIGPU() const
-{
-  const std::string& GLCLPlatformName = Physics::CL::Context::Get().getPlatformName();
-
-  return (GLCLPlatformName.find("Intel") != std::string::npos);
 }
 
 } // End namespace App

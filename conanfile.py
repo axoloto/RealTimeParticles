@@ -5,12 +5,12 @@ class Conanfile(ConanFile):
     version = "1.0.1"
     requires = ["sdl/[>=2.0.12]",
                 "glad/[>=0.1.29]",
-                "opencl-headers/[>=2021.04.29]",
-                "opencl-icd-loader/[>=2021.04.29]",
+                "opencl-headers/[>=2022.09.30]",
+                "opencl-icd-loader/[>=2022.09.30]", # might need to be disabled for macos
                 "spdlog/[>=1.9.2]",
                 "imgui/[>=1.85]"
                 ]
     settings = "os", "compiler", "arch", "build_type"
     exports = "*"
-    generators = "cmake"
+    generators = "cmake_find_package_multi"
     build_policy = "missing"

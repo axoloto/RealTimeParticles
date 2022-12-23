@@ -1,5 +1,7 @@
 #include "Target.hpp"
-#include "Logging.hpp"
+
+#include "../../utils/Logging.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <math.h>

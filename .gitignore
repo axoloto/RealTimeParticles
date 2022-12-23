@@ -5,8 +5,7 @@ docs/doxyoutput_intern/
 *.filters
 *.sln
 
-CMakeBuild/
-CMakeFiles/
+build/
 install/
 
 CMakeCache.txt
