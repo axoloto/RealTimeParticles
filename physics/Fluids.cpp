@@ -5,7 +5,6 @@
 #include "Utils.hpp"
 
 #include "ocl/Context.hpp"
-#include "utils/RadixSort.hpp"
 
 #include <algorithm>
 #include <array>
@@ -77,7 +76,7 @@ Fluids::Fluids(ModelParams params)
     : Model(params)
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(100)
-    , m_radixSort(std::make_unique<RadixSort>(params.maxNbParticles))
+    , m_radixSort(params.maxNbParticles)
     , m_kernelInputs(std::make_unique<FluidKernelInputs>())
     , m_initialCase(CaseType::DAM)
     , m_nbJacobiIters(2)
@@ -88,7 +87,7 @@ Fluids::Fluids(ModelParams params)
 
   createKernels();
 
-  m_init = (m_radixSort && m_kernelInputs);
+  m_init = (m_kernelInputs != nullptr);
 
   reset();
 }
@@ -376,7 +375,7 @@ void Fluids::update()
     // NNS - spatial partitioning
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
-    m_radixSort->sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" });
+    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" });
 
     clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
@@ -427,7 +426,7 @@ void Fluids::update()
   // Rendering purpose
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
 
-  m_radixSort->sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" });
+  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" });
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }

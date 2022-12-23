@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Model.hpp"
+#include "utils/RadixSort.hpp"
 
 #include <memory>
 #include <array>
@@ -12,7 +13,6 @@
 namespace Physics
 {
   // Forward decl
-  class RadixSort;
   struct FluidKernelInputs;
 
 // List of implemented cases
@@ -109,7 +109,7 @@ class Fluids : public Model
 
   size_t m_nbJacobiIters;
 
-  std::unique_ptr<RadixSort> m_radixSort;
+  RadixSort m_radixSort;
 
   std::unique_ptr<FluidKernelInputs> m_kernelInputs;
 

@@ -5,7 +5,6 @@
 #include "Utils.hpp"
 
 #include "ocl/Context.hpp"
-#include "utils/RadixSort.hpp"
 
 #include <ctime>
 #include <iomanip>
@@ -52,8 +51,8 @@ Boids::Boids(ModelParams params)
     , m_activeCohesion(true)
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(3000)
-    , m_radixSort(std::make_unique<RadixSort>(params.maxNbParticles))
-    , m_target(std::make_unique<Target>(params.boxSize))
+    , m_radixSort(params.maxNbParticles)
+    , m_target(params.boxSize)
 {
   m_currNbParticles = Utils::NbParticles::P512;
 
@@ -256,7 +255,7 @@ void Boids::update()
     float timeStep = 0.1f;
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
-    m_radixSort->sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_acc" });
+    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_acc" });
 
     clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
@@ -272,8 +271,8 @@ void Boids::update()
 
     if (isTargetActivated())
     {
-      m_target->updatePos(m_dimension, m_velocity);
-      auto targetXYZ = m_target->pos();
+      m_target.updatePos(m_dimension, m_velocity);
+      auto targetXYZ = m_target.pos();
       std::array<float, 4> targetPos = { targetXYZ.x, targetXYZ.y, targetXYZ.z, 0.0f };
       clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 1, sizeof(float) * 4, &targetPos);
       clContext.runKernel(KERNEL_ADD_TARGET_RULE, m_currNbParticles);
@@ -300,7 +299,7 @@ void Boids::update()
 
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
 
-  m_radixSort->sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_acc" });
+  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_acc" });
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }

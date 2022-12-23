@@ -2,6 +2,7 @@
 
 #include "Model.hpp"
 #include "utils/Target.hpp"
+#include "utils/RadixSort.hpp"
 
 #include <array>
 #include <vector>
@@ -9,9 +10,6 @@
 
 namespace Physics
 {
-  // Forward decl
-  class RadixSort;
-
 class Boids : public Model
 {
   public:
@@ -77,42 +75,35 @@ class Boids : public Model
   //
   Math::float3 targetPos() const override
   {
-    return m_target ? m_target->pos() : Math::float3({ 0.0f, 0.0f, 0.0f });
+    return m_target.pos();
   }
 
   void activateTarget(bool isActive)
   {
-    if (m_target)
-      m_target->activate(isActive);
-
+    m_target.activate(isActive);
     updateBoidsParamsInKernel();
   }
-  bool isTargetActivated() const override { return m_target ? m_target->isActivated() : false; }
+  bool isTargetActivated() const override { return m_target.isActivated(); }
 
   void setTargetVisibility(bool isVisible)
   {
-    if (m_target)
-      m_target->show(isVisible);
+    m_target.show(isVisible);
   }
-  bool isTargetVisible() const override { return m_target ? m_target->isVisible() : false; }
+  bool isTargetVisible() const override { return m_target.isVisible(); }
 
   void setTargetRadiusEffect(float radiusEffect)
   {
-    if (m_target)
-      m_target->setRadiusEffect(radiusEffect);
-
+    m_target.setRadiusEffect(radiusEffect);
     updateBoidsParamsInKernel();
   }
-  float targetRadiusEffect() const { return m_target ? m_target->radiusEffect() : 0.0f; }
+  float targetRadiusEffect() const { return m_target.radiusEffect(); }
 
   void setTargetSignEffect(int signEffect)
   {
-    if (m_target)
-      m_target->setSignEffect(signEffect);
-
+    m_target.setSignEffect(signEffect);
     updateBoidsParamsInKernel();
   }
-  int targetSignEffect() const { return m_target ? m_target->signEffect() : 0; }
+  int targetSignEffect() const { return m_target.signEffect(); }
 
   private:
   void initBoidsParticles();
@@ -133,8 +124,8 @@ class Boids : public Model
   bool m_simplifiedMode;
   size_t m_maxNbPartsInCell;
 
-  std::unique_ptr<Target> m_target;
+  Target m_target;
 
-  std::unique_ptr<RadixSort> m_radixSort;
+  RadixSort m_radixSort;
 };
 }

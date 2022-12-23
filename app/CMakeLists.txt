@@ -11,7 +11,7 @@ if(APPLE)
     find_library(OpenGL_Framework OpenGL)
     target_link_libraries(RealTimeParticles PRIVATE ${OpenGL_Framework})
 elseif()
-    find_package(OpenGL REQUIRED)
+    find_package(OpenGL REQUIRED CONFIG)
     target_link_libraries(RealTimeParticles PRIVATE OpenGL)
 endif()
 
