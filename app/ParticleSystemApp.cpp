@@ -333,7 +333,7 @@ void ParticleSystemApp::run()
     m_physicsWidget->display();
 
     ImGuiIO& io = ImGui::GetIO();
-    glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+    glViewport(0, 0, (int)io.DisplaySize.x * 2, (int)io.DisplaySize.y * 2);
     glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -458,11 +458,14 @@ void ParticleSystemApp::displayMainWidget()
 
   ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / m_currFps, m_currFps);
 
+// Apple is not very OpenCL friendly
+#ifndef __APPLE__
   bool isProfiling = m_physicsEngine->isProfilingEnabled();
   if (ImGui::Checkbox(" GPU Solver Profiling ", &isProfiling))
   {
     m_physicsEngine->enableProfiling(isProfiling);
   }
+#endif
 
   ImGui::End();
 }
