@@ -337,7 +337,7 @@ void ParticleSystemApp::run()
 #ifdef __APPLE__
     // On Apple, window size is reported in low DPI, even when running in high DPI mode
     glViewport(0, 0, (int)io.DisplaySize.x * io.DisplayFramebufferScale.x, (int)io.DisplaySize.y * io.DisplayFramebufferScale.y);
-#elif
+#else
     glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
 #endif
 

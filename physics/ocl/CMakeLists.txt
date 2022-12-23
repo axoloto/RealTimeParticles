@@ -13,10 +13,10 @@ target_include_directories(ocl INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 if(NOT APPLE)
     find_package(OpenCLHeaders REQUIRED CONFIG)
     find_package(OpenCLICDLoader REQUIRED CONFIG)
-    target_link_libraries(ocl PRIVATE OpenCL::Headers OpenCL::OpenCL)
+    target_link_libraries(ocl PUBLIC OpenCL::Headers OpenCL::OpenCL)
 elseif(APPLE)
     find_library(OclFramework OpenCL) # Should be in System/Library/Frameworks/OpenCL.framework
-    target_link_libraries(ocl PRIVATE ${OclFramework})
+    target_link_libraries(ocl PUBLIC ${OclFramework})
 endif()
 
 install(TARGETS ocl DESTINATION lib)

@@ -2,6 +2,7 @@
 
 #include "Model.hpp"
 
+#include <memory>
 #include <array>
 #include <vector>
 
