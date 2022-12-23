@@ -3,8 +3,6 @@ file(GLOB SRC "*.cpp" "*.hpp")
 
 find_package(glad REQUIRED CONFIG)
 
-#find_package(OpenGL REQUIRED)
-
 add_library(render ${SRC})
 
 target_link_libraries(render PUBLIC glad::glad PRIVATE utils)
