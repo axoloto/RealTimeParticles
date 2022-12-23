@@ -10,10 +10,10 @@ target_link_libraries(ocl PRIVATE utils)
 
 target_include_directories(ocl INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
-if(WIN32)
-    target_link_libraries(ocl PRIVATE OpenCL)
-elseif(UNIX AND NOT APPLE)
-    target_link_libraries(ocl PRIVATE OpenCL OpenGL::GLX)
+if(NOT APPLE)
+    find_package(OpenCLHeaders REQUIRED CONFIG)
+    find_package(OpenCLICDLoader REQUIRED CONFIG)
+    target_link_libraries(ocl PRIVATE OpenCL::Headers OpenCL::OpenCL)
 elseif(APPLE)
     find_library(OclFramework OpenCL) # Should be in System/Library/Frameworks/OpenCL.framework
     target_link_libraries(ocl PRIVATE ${OclFramework})

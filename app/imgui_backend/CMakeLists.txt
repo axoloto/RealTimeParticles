@@ -3,7 +3,7 @@ file(GLOB SRC "*.cpp" "*.hpp")
 add_compile_definitions(IMGUI_IMPL_OPENGL_LOADER_GLAD)
 
 find_package(imgui REQUIRED CONFIG)
-find_package(sdl2 REQUIRED CONFIG)
+find_package(SDL2 REQUIRED CONFIG)
 
 add_library(imgui_backend ${SRC})
 
