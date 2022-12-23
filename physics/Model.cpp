@@ -1,6 +1,23 @@
 #include "Model.hpp"
 
+#include "Fluids.hpp"
+#include "Boids.hpp"
+
 #include "ocl/Context.hpp"
+
+std::unique_ptr<Physics::Model> Physics::CreateModel(Physics::ModelType type, Physics::ModelParams params)
+{
+  switch ((int)type)
+  {
+  case Physics::ModelType::BOIDS:
+    return std::make_unique<Physics::Boids>(params);
+  case Physics::ModelType::FLUIDS:
+    return std::make_unique<Physics::Fluids>(params);
+  default:
+    return nullptr;
+  }
+  return nullptr;
+}
 
 Physics::Model::~Model()
 {

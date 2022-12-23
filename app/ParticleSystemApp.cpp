@@ -1,9 +1,7 @@
 
 #include "ParticleSystemApp.hpp"
 
-#include "Boids.hpp"
-#include "Fluids.hpp"
-
+#include "Model.hpp"
 #include "Logging.hpp"
 #include "Parameters.hpp"
 #include "Utils.hpp"
@@ -281,15 +279,7 @@ bool ParticleSystemApp::initPhysicsEngine()
     m_physicsEngine.reset();
   }
 
-  switch ((int)m_modelType)
-  {
-  case Physics::ModelType::BOIDS:
-    m_physicsEngine = std::make_unique<Physics::Boids>(params);
-    break;
-  case Physics::ModelType::FLUIDS:
-    m_physicsEngine = std::make_unique<Physics::Fluids>(params);
-    break;
-  }
+  m_physicsEngine = Physics::CreateModel(m_modelType, params);
 
   return (m_physicsEngine.get() != nullptr);
 }

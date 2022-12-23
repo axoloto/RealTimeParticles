@@ -53,6 +53,9 @@ struct ModelParams
   unsigned int gridVBO = 0;
 };
 
+class Model;
+std::unique_ptr<Model> CreateModel(ModelType type, ModelParams params);
+
 // Abstrac class defining physical model foundations to implement
 // Currently all models are CL-based but that could change
 class Model
