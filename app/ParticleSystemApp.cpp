@@ -333,7 +333,14 @@ void ParticleSystemApp::run()
     m_physicsWidget->display();
 
     ImGuiIO& io = ImGui::GetIO();
-    glViewport(0, 0, (int)io.DisplaySize.x * 2, (int)io.DisplaySize.y * 2);
+
+#ifdef __APPLE__
+    // On Apple, The window size is reported in Low DPI, even when running in high DPI mode
+    glViewport(0, 0, (int)io.DisplaySize.x * io.DisplayFramebufferScale.x, (int)io.DisplaySize.y * io.DisplayFramebufferScale.y);
+#elif
+    glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
+#endif
+
     glClearColor(m_backGroundColor.x, m_backGroundColor.y, m_backGroundColor.z, m_backGroundColor.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
