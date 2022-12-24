@@ -1,6 +1,6 @@
 
 // Position based fluids model based on NVIDIA paper 
-// Macklin and Muller 2013. "Position Based Fluids"
+// "Position Based Fluids", Macklin and Muller 2013.
 
 // Preprocessor defines following constant variables in Fluids.cpp
 // EFFECT_RADIUS           - radius around a particle where SPH laws apply 

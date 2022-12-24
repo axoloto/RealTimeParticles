@@ -1,8 +1,8 @@
 
 #include "ParticleSystemApp.hpp"
 
-#include "Model.hpp"
 #include "Logging.hpp"
+#include "Model.hpp"
 #include "Parameters.hpp"
 #include "Utils.hpp"
 
@@ -10,8 +10,8 @@
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl.h>
 
-#include <glad/glad.h>
 #include <SDL2/SDL.h>
+#include <glad/glad.h>
 
 #if __APPLE__
 constexpr auto GLSL_VERSION = "#version 150";
@@ -194,13 +194,13 @@ ParticleSystemApp::ParticleSystemApp()
     , m_buttonRightActivated(false)
     , m_buttonLeftActivated(false)
     , m_windowSize(1280, 720)
-    , m_modelType(Physics::ModelType::FLUIDS)
+    , m_modelType(Physics::ModelType::CLOUDS)
     , m_targetFps(60)
     , m_currFps(60.0f)
     , m_init(false)
 {
   LOG_INFO("Starting RealTimeParticles");
-  
+
   if (!initWindow())
   {
     LOG_ERROR("Failed to initialize application window");
@@ -286,7 +286,7 @@ bool ParticleSystemApp::initPhysicsEngine()
 
 bool ParticleSystemApp::initPhysicsWidget()
 {
-  m_physicsWidget = std::make_unique<UI::PhysicsWidget>(m_physicsEngine.get());
+  m_physicsWidget = std::make_unique<UI::PhysicsWidget>(m_physicsEngine);
 
   return (m_physicsWidget.get() != nullptr);
 }

@@ -25,9 +25,9 @@ struct CompareModelType
 };
 
 static const std::map<ModelType, std::string, CompareModelType> ALL_MODELS {
-  { ModelType::BOIDS, "Boids" }, // Craig Reynolds laws
-  { ModelType::FLUIDS, "Fluids" }, // Position Based Fluids by NVIDIA team (Macklin and Muller)
-  { ModelType::CLOUDS, "Clouds" }, // Position Based Fluids + Clouds Physics + Constrained (smoothed) temperature field (CWT Barbosa, Dobashi & Yamamoto)
+  { ModelType::BOIDS, "Boids" }, // Craig Reynolds boids laws, 1987
+  { ModelType::FLUIDS, "Fluids" }, // Position Based Fluids by NVIDIA team (Macklin and Muller, 2013)
+  { ModelType::CLOUDS, "Clouds" }, // Position Based Fluids + Clouds Physics + Constrained (smoothed) temperature field (CWT Barbosa, Dobashi & Yamamoto, 2015)
 };
 
 enum class Dimension

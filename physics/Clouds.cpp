@@ -36,8 +36,8 @@ using namespace Physics;
 #define KERNEL_FILL_END_CELL "fillEndCell"
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
-// fluids.cl
-#define KERNEL_RANDOM_POS "randPosVertsFluid"
+// clouds.cl
+#define KERNEL_RANDOM_POS "randPosVertsCloud"
 #define KERNEL_PREDICT_POS "predictPosition"
 #define KERNEL_APPLY_BOUNDARY "applyBoundaryCondition"
 #define KERNEL_DENSITY "computeDensity"
@@ -117,7 +117,7 @@ bool Clouds::createProgram() const
   clBuildOptions << " -DMAX_VEL=" << Utils::FloatToStr(30.0f);
 
   LOG_INFO(clBuildOptions.str());
-  clContext.createProgram(PROGRAM_CLOUDS, std::vector<std::string>({ "fluids.cl", "clouds.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
+  clContext.createProgram(PROGRAM_CLOUDS, std::vector<std::string>({ "clouds.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
 
   return true;
 }
