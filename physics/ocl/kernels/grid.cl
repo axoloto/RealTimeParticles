@@ -4,8 +4,9 @@
 // GRID_CELL_SIZE          - size of a cell, size / res of grid
 // GRID_NUM_CELLS          - total number of cells in the grid
 // NUM_MAX_PARTS_IN_CELL   - maximum number of particles taking into account in a single cell in simplified mode
-#define FLOAT_EPSILON 0.01f
-#define ID            get_global_id(0)
+
+// Most defines are in define.cl
+// define.cl must be included as first file.cl to create OpenCL program
 
 /*
   Compute 3D index of the cell containing given position

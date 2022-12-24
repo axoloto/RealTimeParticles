@@ -31,15 +31,15 @@ using namespace Physics;
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
 // boids.cl
-#define KERNEL_RANDOM_POS "randPosVertsBoids"
-#define KERNEL_FILL_COLOR "fillBoidsColor"
-#define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
-#define KERNEL_UPDATE_POS_CYCLIC "updatePosWithCyclicWalls"
-#define KERNEL_UPDATE_VEL "updateVel"
+#define KERNEL_RANDOM_POS "bd_randPosVertsBoids"
+#define KERNEL_FILL_COLOR "bd_fillBoidsColor"
+#define KERNEL_UPDATE_POS_BOUNCING "bd_updatePosWithBouncingWalls"
+#define KERNEL_UPDATE_POS_CYCLIC "bd_updatePosWithCyclicWalls"
+#define KERNEL_UPDATE_VEL "bd_updateVel"
 #define KERNEL_FILL_TEXT "fillBoidsTexture"
-#define KERNEL_BOIDS_RULES_GRID_2D "applyBoidsRulesWithGrid2D"
-#define KERNEL_BOIDS_RULES_GRID_3D "applyBoidsRulesWithGrid3D"
-#define KERNEL_ADD_TARGET_RULE "addTargetRule"
+#define KERNEL_BOIDS_RULES_GRID_2D "bd_applyBoidsRulesWithGrid2D"
+#define KERNEL_BOIDS_RULES_GRID_3D "bd_applyBoidsRulesWithGrid3D"
+#define KERNEL_ADD_TARGET_RULE "bd_addTargetRule"
 
 Boids::Boids(ModelParams params)
     : Model(params)
@@ -68,7 +68,7 @@ Boids::Boids(ModelParams params)
 }
 
 // Must be defined on implementation side to have RadixSort complete
-Boids::~Boids(){};
+Boids::~Boids() {};
 
 bool Boids::createProgram() const
 {
@@ -83,7 +83,8 @@ bool Boids::createProgram() const
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
 
   LOG_INFO(clBuildOptions.str());
-  clContext.createProgram(PROGRAM_BOIDS, std::vector<std::string>({ "boids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
+  // file.cl order matters, define.cl must be first
+  clContext.createProgram(PROGRAM_BOIDS, std::vector<std::string>({ "define.cl", "boids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
 
   return true;
 }
@@ -232,7 +233,8 @@ void Boids::initBoidsParticles()
   std::vector<std::array<float, 4>> pos(m_maxNbParticles, std::array<float, 4>({ inf, inf, inf, 0.0f }));
 
   std::transform(gridVerts.cbegin(), gridVerts.cend(), pos.begin(),
-      [](const Math::float3& vertPos) -> std::array<float, 4> { return { vertPos.x, vertPos.y, vertPos.z, 0.0f }; });
+      [](const Math::float3& vertPos) -> std::array<float, 4>
+      { return { vertPos.x, vertPos.y, vertPos.z, 0.0f }; });
 
   clContext.loadBufferFromHost("p_pos", 0, 4 * sizeof(float) * pos.size(), pos.data());
   // Using same buffer to initialize vel, giving interesting patterns

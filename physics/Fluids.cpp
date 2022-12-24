@@ -37,19 +37,18 @@ using namespace Physics;
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
 // fluids.cl
-#define KERNEL_RANDOM_POS "randPosVertsFluid"
-#define KERNEL_PREDICT_POS "predictPosition"
-#define KERNEL_APPLY_BOUNDARY "applyBoundaryCondition"
-#define KERNEL_DENSITY "computeDensity"
-#define KERNEL_CONSTRAINT_FACTOR "computeConstraintFactor"
-#define KERNEL_CONSTRAINT_CORRECTION "computeConstraintCorrection"
-#define KERNEL_CORRECT_POS "correctPosition"
-#define KERNEL_UPDATE_VEL "updateVel"
-#define KERNEL_COMPUTE_VORTICITY "computeVorticity"
-#define KERNEL_VORTICITY_CONFINEMENT "applyVorticityConfinement"
-#define KERNEL_XSPH_VISCOSITY "applyXsphViscosityCorrection"
-#define KERNEL_UPDATE_POS "updatePosition"
-#define KERNEL_FILL_COLOR "fillFluidColor"
+#define KERNEL_PREDICT_POS "fld_predictPosition"
+#define KERNEL_APPLY_BOUNDARY "fld_applyBoundaryCondition"
+#define KERNEL_DENSITY "fld_computeDensity"
+#define KERNEL_CONSTRAINT_FACTOR "fld_computeConstraintFactor"
+#define KERNEL_CONSTRAINT_CORRECTION "fld_computeConstraintCorrection"
+#define KERNEL_CORRECT_POS "fld_correctPosition"
+#define KERNEL_UPDATE_VEL "fld_updateVel"
+#define KERNEL_COMPUTE_VORTICITY "fld_computeVorticity"
+#define KERNEL_VORTICITY_CONFINEMENT "fld_applyVorticityConfinement"
+#define KERNEL_XSPH_VISCOSITY "fld_applyXsphViscosityCorrection"
+#define KERNEL_UPDATE_POS "fld_updatePosition"
+#define KERNEL_FILL_COLOR "fld_fillFluidColor"
 
 namespace Physics
 {
@@ -119,7 +118,8 @@ bool Fluids::createProgram() const
   clBuildOptions << " -DMAX_VEL=" << Utils::FloatToStr(30.0f);
 
   LOG_INFO(clBuildOptions.str());
-  clContext.createProgram(PROGRAM_FLUIDS, std::vector<std::string>({ "fluids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
+  // file.cl order matters, define.cl must be first
+  clContext.createProgram(PROGRAM_FLUIDS, std::vector<std::string>({ "define.cl", "fluids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
 
   return true;
 }
@@ -154,7 +154,6 @@ bool Fluids::createKernels() const
 
   // Init only
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_INFINITE_POS, { "p_pos" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RANDOM_POS, { "", "p_pos", "p_vel" });
 
   // For rendering purpose only
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_PART_DETECTOR, { "c_partDetector" });
@@ -205,7 +204,6 @@ void Fluids::updateFluidsParamsInKernel()
   const float effectRadius = ((float)m_boxSize) / m_gridRes;
   m_kernelInputs->effectRadius = effectRadius;
 
-  clContext.setKernelArg(KERNEL_RANDOM_POS, 0, sizeof(FluidKernelInputs), m_kernelInputs.get());
   clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
   clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());

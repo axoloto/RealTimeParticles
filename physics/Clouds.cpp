@@ -36,20 +36,22 @@ using namespace Physics;
 #define KERNEL_FILL_END_CELL "fillEndCell"
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
+// fluids.cl
+#define KERNEL_APPLY_BOUNDARY "fld_applyBoundaryCondition"
+#define KERNEL_DENSITY "fld_computeDensity"
+#define KERNEL_CONSTRAINT_FACTOR "fld_computeConstraintFactor"
+#define KERNEL_CONSTRAINT_CORRECTION "fld_computeConstraintCorrection"
+#define KERNEL_CORRECT_POS "fld_correctPosition"
+#define KERNEL_UPDATE_VEL "fld_updateVel"
+#define KERNEL_COMPUTE_VORTICITY "fld_computeVorticity"
+#define KERNEL_VORTICITY_CONFINEMENT "fld_applyVorticityConfinement"
+#define KERNEL_XSPH_VISCOSITY "fld_applyXsphViscosityCorrection"
+#define KERNEL_UPDATE_POS "fld_updatePosition"
+#define KERNEL_FILL_COLOR "fld_fillFluidColor"
+
 // clouds.cl
-#define KERNEL_RANDOM_POS "randPosVertsCloud"
-#define KERNEL_PREDICT_POS "predictPosition"
-#define KERNEL_APPLY_BOUNDARY "applyBoundaryCondition"
-#define KERNEL_DENSITY "computeDensity"
-#define KERNEL_CONSTRAINT_FACTOR "computeConstraintFactor"
-#define KERNEL_CONSTRAINT_CORRECTION "computeConstraintCorrection"
-#define KERNEL_CORRECT_POS "correctPosition"
-#define KERNEL_UPDATE_VEL "updateVel"
-#define KERNEL_COMPUTE_VORTICITY "computeVorticity"
-#define KERNEL_VORTICITY_CONFINEMENT "applyVorticityConfinement"
-#define KERNEL_XSPH_VISCOSITY "applyXsphViscosityCorrection"
-#define KERNEL_UPDATE_POS "updatePosition"
-#define KERNEL_FILL_COLOR "fillFluidColor"
+#define KERNEL_RANDOM_POS "cld_randPosVertsClouds"
+#define KERNEL_PREDICT_POS "cld_predictPosition"
 
 namespace Physics
 {
@@ -117,7 +119,11 @@ bool Clouds::createProgram() const
   clBuildOptions << " -DMAX_VEL=" << Utils::FloatToStr(30.0f);
 
   LOG_INFO(clBuildOptions.str());
-  clContext.createProgram(PROGRAM_CLOUDS, std::vector<std::string>({ "clouds.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
+  // file.cl order matters
+  // 1/ define.cl must be first as it defines variables used by other kernels
+  // 2/ fluids.cl contains Position Based Fluids algorithms needed for the fluids part of the cloud sim
+  // 3/ clouds.cl contains Clouds-specific physics and constraint on temperature field, it needs PBF framework
+  clContext.createProgram(PROGRAM_CLOUDS, std::vector<std::string>({ "define.cl", "fluids.cl", "clouds.cl", "grid.cl", "utils.cl" }), clBuildOptions.str());
 
   return true;
 }
@@ -131,6 +137,7 @@ bool Clouds::createBuffers() const
   clContext.createGLBuffer("p_col", m_particleColVBO, CL_MEM_READ_WRITE);
   clContext.createGLBuffer("c_partDetector", m_gridVBO, CL_MEM_READ_WRITE);
 
+  // Position Based Fluids
   clContext.createBuffer("p_density", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_predPos", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_corrPos", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
@@ -140,6 +147,11 @@ bool Clouds::createBuffers() const
   clContext.createBuffer("p_vort", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_cellID", m_maxNbParticles * sizeof(unsigned int), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_cameraDist", m_maxNbParticles * sizeof(unsigned int), CL_MEM_READ_WRITE);
+
+  // Clouds specific
+  clContext.createBuffer("p_temp", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_vaporDens", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_cloudDens", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
 
   clContext.createBuffer("c_startEndPartID", 2 * m_nbCells * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
@@ -152,7 +164,7 @@ bool Clouds::createKernels() const
 
   // Init only
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_INFINITE_POS, { "p_pos" });
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RANDOM_POS, { "", "p_pos", "p_vel" });
+  // clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RANDOM_POS, { "", "p_pos", "p_vel" });
 
   // For rendering purpose only
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_PART_DETECTOR, { "c_partDetector" });
@@ -203,7 +215,7 @@ void Clouds::updateCloudsParamsInKernel()
   const float effectRadius = ((float)m_boxSize) / m_gridRes;
   m_kernelInputs->effectRadius = effectRadius;
 
-  clContext.setKernelArg(KERNEL_RANDOM_POS, 0, sizeof(FluidKernelInputs), m_kernelInputs.get());
+  // clContext.setKernelArg(KERNEL_RANDOM_POS, 0, sizeof(FluidKernelInputs), m_kernelInputs.get());
   clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
   clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
@@ -309,6 +321,15 @@ void Clouds::initCloudsParticles()
 
   std::vector<std::array<float, 4>> col(m_maxNbParticles, std::array<float, 4>({ 0.0f, 0.1f, 1.0f, 0.0f }));
   clContext.loadBufferFromHost("p_col", 0, 4 * sizeof(float) * col.size(), col.data());
+
+  std::vector<float> temp(m_maxNbParticles, 0.0f);
+  clContext.loadBufferFromHost("p_temp", 0, sizeof(float) * temp.size(), temp.data());
+
+  std::vector<float> vaporDens(m_maxNbParticles, 0.0f);
+  clContext.loadBufferFromHost("p_vaporDens", 0, sizeof(float) * vaporDens.size(), vaporDens.data());
+
+  std::vector<float> cloudDens(m_maxNbParticles, 0.0f);
+  clContext.loadBufferFromHost("p_cloudDens", 0, sizeof(float) * cloudDens.size(), cloudDens.data());
 
   clContext.releaseGLBuffers({ "p_pos", "p_col" });
 }

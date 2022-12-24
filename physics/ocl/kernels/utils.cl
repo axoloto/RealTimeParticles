@@ -1,6 +1,5 @@
-
-#define FAR_DIST      100000000.0f
-#define ID            get_global_id(0)
+// Most defines are in define.cl
+// define.cl must be included as first file.cl to create OpenCL program
 
 /*
   Random unsigned integer number generator

@@ -12,9 +12,9 @@
 // POLY6_COEFF             - coefficient of the Poly6 kernel, depending on EFFECT_RADIUS
 // SPIKY_COEFF             - coefficient of the Spiky kernel, depending on EFFECT_RADIUS
 
-#define ID            get_global_id(0)
-#define GRAVITY_ACC   (float4)(0.0f, -9.81f, 0.0f, 0.0f)
-#define FLOAT_EPS     0.00000001f
+// Most defines are in define.cl
+// define.cl must be included as first file.cl to create OpenCL program
+#define WALL_COEFF 1000.0f
 
 // See FluidKernelInputs in Fluids.cpp
 typedef struct defFluidParams{
@@ -31,9 +31,6 @@ typedef struct defFluidParams{
   float vorticityConfCoeff;
   float xsphViscosityCoeff;
 } FluidParams;
-
-
-#define WALL_COEFF 1000.0f
 
 // Defined in utils.cl
 /*
@@ -107,42 +104,15 @@ inline float artPressure(const float4 vec, FluidParams fluid)
 }
 
 /*
-  Fill position buffer with random positions
-*/
-__kernel void randPosVertsFluid(//Param
-                                const FluidParams fluid, // 0
-                                //Output
-                                __global   float4 *pos,  // 1
-                                __global   float4 *vel)  // 2
-                                
-{
-  const unsigned int randomIntX = parallelRNG(ID);
-  const unsigned int randomIntY = parallelRNG(ID + 1);
-  const unsigned int randomIntZ = parallelRNG(ID + 2);
-
-  const float x = (float)(randomIntX & 0x0ff) * 2.0 - ABS_WALL_POS;
-  const float y = (float)(randomIntY & 0x0ff) * 2.0 - ABS_WALL_POS;
-  const float z = (float)(randomIntZ & 0x0ff) * 2.0 - ABS_WALL_POS;
-
-  const float3 randomXYZ = (float3)(x * convert_float(3 - fluid.dim), y, z);
-
-  pos[ID].xyz = clamp(randomXYZ, -ABS_WALL_POS, ABS_WALL_POS);
-  pos[ID].w = 0.0f;
-
-  vel[ID].xyz = (float3)(0.0f, 0.0f, 0.0f);
-  vel[ID].w = 0.0f;
-}
-
-/*
   Predict fluid particle position and update velocity by integrating external forces
 */
-__kernel void predictPosition(//Input
-                              const __global float4 *pos,        // 0
-                              const __global float4 *vel,        // 1
-                              //Param
-                              const     FluidParams fluid,       // 2
-                              //Output
-                                    __global float4 *predPos)    // 3
+__kernel void fld_predictPosition(//Input
+                                  const __global float4 *pos,        // 0
+                                  const __global float4 *vel,        // 1
+                                  //Param
+                                  const     FluidParams fluid,       // 2
+                                  //Output
+                                        __global float4 *predPos)    // 3
 {
   // No need to update global vel, as it will be reset later on
   const float4 newVel = vel[ID] + GRAVITY_ACC * fluid.timeStep;
@@ -154,13 +124,13 @@ __kernel void predictPosition(//Input
   Compute fluid density based on SPH model
   using predicted position and Poly6 kernel
 */
-__kernel void computeDensity(//Input
-                              const __global float4 *predPos,      // 0
-                              const __global uint2  *startEndCell, // 1
-                              //Param
-                              const     FluidParams fluid,         // 2
-                              //Output
-                                    __global float  *density)      // 3
+__kernel void fld_computeDensity(//Input
+                                 const __global float4 *predPos,      // 0
+                                 const __global uint2  *startEndCell, // 1
+                                 //Param
+                                 const     FluidParams fluid,         // 2
+                                 //Output
+                                       __global float  *density)      // 3
 {
   const float4 pos = predPos[ID];
   const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
@@ -212,14 +182,14 @@ __kernel void computeDensity(//Input
 /*
   Compute Constraint Factor (Lambda), coefficient along jacobian
 */
-__kernel void computeConstraintFactor(//Input
-                                      const __global float4 *predPos,       // 0
-                                      const __global float  *density,       // 1
-                                      const __global uint2  *startEndCell,  // 2
-                                      //Param
-                                      const     FluidParams fluid,          // 3
-                                      //Output
-                                            __global float  *constFactor)   // 4
+__kernel void fld_computeConstraintFactor(//Input
+                                          const __global float4 *predPos,       // 0
+                                          const __global float  *density,       // 1
+                                          const __global uint2  *startEndCell,  // 2
+                                          //Param
+                                          const     FluidParams fluid,          // 3
+                                          //Output
+                                                __global float  *constFactor)   // 4
 {
   const float4 pos = predPos[ID];
   const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
@@ -275,14 +245,14 @@ __kernel void computeConstraintFactor(//Input
 /*
   Compute Constraint Correction
 */
-__kernel void computeConstraintCorrection(//Input
-                                          const __global float  *constFactor,  // 0
-                                          const __global uint2  *startEndCell, // 1
-                                          const __global float4 *predPos,      // 2
-                                          //Param
-                                          const     FluidParams fluid,         // 3
-                                          //Output
-                                                __global float4 *corrPos)      // 4
+__kernel void fld_computeConstraintCorrection(//Input
+                                              const __global float  *constFactor,  // 0
+                                              const __global uint2  *startEndCell, // 1
+                                              const __global float4 *predPos,      // 2
+                                              //Param
+                                              const     FluidParams fluid,         // 3
+                                              //Output
+                                                    __global float4 *corrPos)      // 4
 {
   const float4 pos = predPos[ID];
   const float lambdaI = constFactor[ID];
@@ -328,10 +298,10 @@ __kernel void computeConstraintCorrection(//Input
 /*
   Correction position using Constraint correction value
 */
-__kernel void correctPosition(//Input
-                              const __global float4 *corrPos, // 0
-                              //Input/Output
-                                    __global float4 *predPos) // 2
+__kernel void fld_correctPosition(//Input
+                                  const __global float4 *corrPos, // 0
+                                  //Input/Output
+                                        __global float4 *predPos) // 2
 {
   predPos[ID] += corrPos[ID];
 }
@@ -339,14 +309,13 @@ __kernel void correctPosition(//Input
 /*
   Update velocity buffer
 */
-__kernel void updateVel(//Input
-                        const __global float4 *predPos,    // 0
-                        const __global float4 *pos,        // 1
-                        //Param
-                        const     FluidParams fluid,    // 2
-                        //Output
-                              __global float4 *vel)        // 3
-   
+__kernel void fld_updateVel(//Input
+                            const __global float4 *predPos,    // 0
+                            const __global float4 *pos,        // 1
+                            //Param
+                            const     FluidParams fluid,       // 2
+                            //Output
+                                  __global float4 *vel)        // 3
 {
   // Preventing division by 0
   vel[ID] =   vel[ID] = clamp((predPos[ID] - pos[ID]) / (fluid.timeStep + FLOAT_EPS), -MAX_VEL, MAX_VEL);
@@ -355,14 +324,14 @@ __kernel void updateVel(//Input
 /*
   Compute vorticity
 */
-__kernel void computeVorticity(//Input
-                               const __global float4 *predPos,      // 0
-                               const __global uint2  *startEndCell, // 1
-                               const __global float4 *vel,          // 2
-                               //Param
-                               const     FluidParams fluid,         // 3
-                               //Output
-                                     __global float4 *vorticity)    // 4
+__kernel void fld_computeVorticity(//Input
+                                   const __global float4 *predPos,      // 0
+                                   const __global uint2  *startEndCell, // 1
+                                   const __global float4 *vel,          // 2
+                                   //Param
+                                   const     FluidParams fluid,         // 3
+                                   //Output
+                                         __global float4 *vorticity)    // 4
 {
   const float4 pos = predPos[ID];
   const float4 velocity = vel[ID];
@@ -405,14 +374,14 @@ __kernel void computeVorticity(//Input
 /*
   Apply vorticity confinement
 */
-__kernel void applyVorticityConfinement(//Input
-                                        const __global float4 *predPos,      // 0
-                                        const __global uint2  *startEndCell, // 1
-                                        const __global float4 *vort,         // 2
-                                        //Param
-                                        const     FluidParams fluid,         // 3
-                                        //Output
-                                              __global float4 *vel)          // 4
+__kernel void fld_applyVorticityConfinement(//Input
+                                            const __global float4 *predPos,      // 0
+                                            const __global uint2  *startEndCell, // 1
+                                            const __global float4 *vort,         // 2
+                                            //Param
+                                            const     FluidParams fluid,         // 3
+                                            //Output
+                                                  __global float4 *vel)          // 4
 {
   const float4 pos = predPos[ID];
   const float4 vorticity = vort[ID];
@@ -458,14 +427,14 @@ __kernel void applyVorticityConfinement(//Input
 /*
   Apply xsph viscosity correction
 */
-__kernel void applyXsphViscosityCorrection(//Input
-                                        const __global float4 *predPos,      // 0
-                                        const __global uint2  *startEndCell, // 1
-                                        const __global float4 *velIn,        // 2
-                                        //Param
-                                        const     FluidParams fluid,         // 3
-                                        //Output
-                                              __global float4 *velOut)       // 4
+__kernel void fld_applyXsphViscosityCorrection(//Input
+                                               const __global float4 *predPos,      // 0
+                                               const __global uint2  *startEndCell, // 1
+                                               const __global float4 *velIn,        // 2
+                                               //Param
+                                               const     FluidParams fluid,         // 3
+                                               //Output
+                                                     __global float4 *velOut)       // 4
 {
   const float4 pos = predPos[ID];
   const float4 velocity = velIn[ID];
@@ -509,7 +478,7 @@ __kernel void applyXsphViscosityCorrection(//Input
 /*
   Apply Bouncing wall boundary conditions on position
 */
-__kernel void applyBoundaryCondition(__global float4 *predPos)
+__kernel void fld_applyBoundaryCondition(__global float4 *predPos)
 {
   predPos[ID] = clamp(predPos[ID], -ABS_WALL_POS + 0.01f, ABS_WALL_POS - 0.1f); //WIP, hack to deal with boundary conditions
 }
@@ -517,10 +486,10 @@ __kernel void applyBoundaryCondition(__global float4 *predPos)
 /*
   Update position using predicted one
 */
-__kernel void updatePosition(//Input
-                              const  __global float4 *predPos, // 0
-                              //Output
-                                     __global float4 *pos)     // 1
+__kernel void fld_updatePosition(//Input
+                                 const  __global float4 *predPos, // 0
+                                 //Output
+                                        __global float4 *pos)     // 1
 {
   pos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS);
 }
@@ -531,12 +500,12 @@ __kernel void updatePosition(//Input
   Light blue => constraint > 0, i.e density is smaller than rest density, system is not stabilized
   Dark blue => constraint < 0, i.e density is bigger than rest density, system is not stabilized
 */
-__kernel void fillFluidColor(//Input
-                             const  __global float  *density, // 0
-                             //Param
-                             const      FluidParams fluid,    // 1
-                             //Output
-                                    __global float4 *col)     // 2
+__kernel void fld_fillFluidColor(//Input
+                                 const  __global float  *density, // 0
+                                 //Param
+                                 const      FluidParams fluid,    // 1
+                                 //Output
+                                        __global float4 *col)     // 2
 {
   float4 blue      = (float4)(0.0f, 0.1f, 1.0f, 1.0f);
   float4 lightBlue = (float4)(0.7f, 0.7f, 1.0f, 1.0f);
