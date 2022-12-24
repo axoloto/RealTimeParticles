@@ -15,6 +15,11 @@
 // define.cl must be included as first file.cl to create OpenCL program
 #define WALL_COEFF 1000.0f
 
+// See CloudKernelInputs in Clouds.cpp
+typedef struct defCloudParams{
+  float test;
+} CloudParams;
+
 // Defined in utils.cl
 /*
   Random unsigned integer number generator
@@ -51,12 +56,11 @@ inline float4 gradSpiky(const float4 vec, const float effectRadius);
 /*
   Fill position buffer with random positions
 */
-__kernel void cld_randPosVertsCloud(//Param
-                                const FluidParams fluid, // 0
-                                //Output
-                                __global   float4 *pos,  // 1
-                                __global   float4 *vel)  // 2
-                                
+__kernel void cld_randPosVertsClouds(//Param
+                                     const FluidParams fluid, // 0
+                                     //Output
+                                     __global   float4 *pos,  // 1
+                                     __global   float4 *vel)  // 2
 {
   const unsigned int randomIntX = parallelRNG(ID);
   const unsigned int randomIntY = parallelRNG(ID + 1);
@@ -87,9 +91,95 @@ __kernel void cld_predictPosition(//Input
                                     __global float4 *predPos)    // 3
 {
   // No need to update global vel, as it will be reset later on
-  const float4 newVel = vel[ID]; //+ GRAVITY_ACC * fluid.timeStep;
+  const float4 newVel = vel[ID];// + GRAVITY_ACC * fluid.timeStep;
 
   predPos[ID] = pos[ID] + newVel * fluid.timeStep;
+}
+
+/*
+
+*/
+__kernel void cld_heatFromGround(//Input
+                                 const __global float  *tempIn, // 0
+                                 const __global float4 *pos,    // 1
+                                 //Param
+                                 const     CloudParams cloud,   // 2
+                                 //Output
+                                       __global float  *temp)   // 3
+{
+
+}
+
+/*
+
+*/
+__kernel void cld_computeBuoyancy(//Input
+                                  const __global float  *tempIn,    // 0
+                                  const __global float4 *pos,       // 1
+                                  const __global float  *cloudDens, // 2
+                                  //Param
+                                  const     CloudParams cloud,      // 3
+                                  //Output
+                                        __global float  *buoyancy)  // 4
+{
+
+}
+
+/*
+
+*/
+__kernel void cld_applyAdiabaticCooling(//Input
+                                        const __global float  *tempIn,  // 0
+                                        const __global float4 *vel,     // 1
+                                        //Param
+                                        const     CloudParams cloud,    // 2
+                                        //Output
+                                              __global float  *temp)    // 3
+{
+
+}
+
+/*
+
+*/
+__kernel void cld_generateCloud(//Input
+                                const __global float  *tempIn,    // 0
+                                const __global float  *vaporDens, // 1
+                                const __global float  *cloudDens, // 2
+                                //Output
+                                      __global float  *cloudGen)  // 3
+{
+
+}
+
+/*
+
+*/
+__kernel void cld_applyPhaseTransition(//Input
+                                       const __global float  *vaporDensIn,  // 0
+                                       const __global float  *cloudDensIn,  // 1
+                                       const __global float  *cloudGen,     // 2
+                                       //Param
+                                       const     CloudParams cloud,         // 3
+                                       //Output
+                                             __global float  *vaporDens,    // 4
+                                             __global float  *cloudDens)    // 5
+{
+
+}
+
+/*
+
+*/
+__kernel void cld_applyLatentHeat(//Input
+                                  const __global float  *tempIn,   // 0
+                                  const __global float  *cloudGen, // 1
+                                  //Param
+                                  const     CloudParams cloud,     // 2
+                                  //Output
+                                        __global float  *temp)     // 3
+{
+
 }
 
 /*

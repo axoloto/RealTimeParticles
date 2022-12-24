@@ -192,7 +192,7 @@ bool Fluids::createKernels() const
   return true;
 }
 
-void Fluids::updateFluidsParamsInKernel()
+void Fluids::updateFluidsParamsInKernels()
 {
   if (!m_init)
     return;
@@ -222,7 +222,7 @@ void Fluids::reset()
 
   CL::Context& clContext = CL::Context::Get();
 
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 
   initFluidsParticles();
 
@@ -442,7 +442,7 @@ void Fluids::setRestDensity(float restDensity)
   if (!m_init)
     return;
   m_kernelInputs->restDensity = (cl_float)restDensity;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
@@ -451,7 +451,7 @@ void Fluids::setRelaxCFM(float relaxCFM)
   if (!m_init)
     return;
   m_kernelInputs->relaxCFM = (cl_float)relaxCFM;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
@@ -460,7 +460,7 @@ void Fluids::setTimeStep(float timeStep)
   if (!m_init)
     return;
   m_kernelInputs->timeStep = (cl_float)timeStep;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
@@ -477,7 +477,7 @@ void Fluids::enableArtPressure(bool enable)
   if (!m_init)
     return;
   m_kernelInputs->isArtPressureEnabled = (cl_uint)enable;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
@@ -486,7 +486,7 @@ void Fluids::setArtPressureRadius(float radius)
   if (!m_init)
     return;
   m_kernelInputs->artPressureRadius = (cl_float)radius;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
@@ -495,7 +495,7 @@ void Fluids::setArtPressureExp(size_t exp)
   if (!m_init)
     return;
   m_kernelInputs->artPressureExp = (cl_uint)exp;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
@@ -504,7 +504,7 @@ void Fluids::setArtPressureCoeff(float coeff)
   if (!m_init)
     return;
   m_kernelInputs->artPressureCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
@@ -513,7 +513,7 @@ void Fluids::enableVorticityConfinement(bool enable)
   if (!m_init)
     return;
   m_kernelInputs->isVorticityConfEnabled = (cl_uint)enable;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
@@ -522,7 +522,7 @@ void Fluids::setVorticityConfinementCoeff(float coeff)
   if (!m_init)
     return;
   m_kernelInputs->vorticityConfCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
@@ -531,7 +531,7 @@ void Fluids::setXsphViscosityCoeff(float coeff)
   if (!m_init)
     return;
   m_kernelInputs->xsphViscosityCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 // Not giving access to it for now.
@@ -542,7 +542,7 @@ void Fluids::setEffectRadius(float effectRadius)
 {
   if(!m_init) return;
   m_kernelInputs.effectRadius = (cl_float)effectRadius;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 */
 float Fluids::getEffectRadius() const { return m_init ? (float)m_kernelInputs->effectRadius : 0.0f; }

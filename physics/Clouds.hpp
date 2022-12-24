@@ -11,6 +11,7 @@ namespace Physics
 {
 // Forward decl
 struct FluidKernelInputs;
+struct CloudKernelInputs;
 
 class Clouds : public Model
 {
@@ -87,7 +88,9 @@ class Clouds : public Model
   bool createKernels() const;
 
   void initCloudsParticles();
-  void updateCloudsParamsInKernel();
+
+  void updateFluidsParamsInKernels();
+  void updateCloudsParamsInKernels();
 
   bool m_simplifiedMode;
 
@@ -97,7 +100,8 @@ class Clouds : public Model
 
   RadixSort m_radixSort;
 
-  std::unique_ptr<FluidKernelInputs> m_kernelInputs;
+  std::unique_ptr<FluidKernelInputs> m_fluidKernelInputs;
+  std::unique_ptr<CloudKernelInputs> m_cloudKernelInputs;
 
   CaseType m_initialCase;
 };

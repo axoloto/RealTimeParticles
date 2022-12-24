@@ -96,7 +96,7 @@ class Fluids : public Model
   bool createKernels() const;
 
   void initFluidsParticles();
-  void updateFluidsParamsInKernel();
+  void updateFluidsParamsInKernels();
 
   bool m_simplifiedMode;
 

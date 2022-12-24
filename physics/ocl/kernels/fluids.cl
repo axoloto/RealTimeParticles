@@ -16,7 +16,7 @@
 // define.cl must be included as first file.cl to create OpenCL program
 #define WALL_COEFF 1000.0f
 
-// See FluidKernelInputs in Fluids.cpp
+// See FluidsKernelInputs in Fluids.cpp / Clouds.cpp
 typedef struct defFluidParams{
   float effectRadius;
   float restDensity;
