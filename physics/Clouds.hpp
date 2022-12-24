@@ -7,24 +7,20 @@
 #include <memory>
 #include <vector>
 
-// Position based fluids model based on NVIDIA paper
-// Macklin and Muller 2013. "Position Based Fluids"
-
 namespace Physics
 {
 // Forward decl
 struct FluidKernelInputs;
 
-class Fluids : public Model
+class Clouds : public Model
 {
   public:
   // List of implemented cases
   enum CaseType
   {
-    DAM = 0,
-    BOMB = 1,
-    DROP = 2
+    CUMULUS = 0
   };
+
   struct CompareCaseType
   {
     bool operator()(const CaseType& caseA, const CaseType& caseB) const
@@ -32,12 +28,11 @@ class Fluids : public Model
       return (int)caseA < (int)caseB;
     }
   };
-
   // Static member vars must be initialized outside of the class in the global scope
   static const std::map<CaseType, std::string, CompareCaseType> ALL_CASES;
 
-  Fluids(ModelParams params);
-  ~Fluids();
+  Clouds(ModelParams params);
+  ~Clouds();
 
   void update() override;
   void reset() override;
@@ -47,13 +42,9 @@ class Fluids : public Model
 
   // Not giving access to it for now.
   // Strongly connected to grid resolution which is not available as parameter,
-  // in order to maintain cohesion between boids and fluids models
+  // in order to maintain cohesion between boids and clouds models
   /*
-  void setEffectRadius(float effectRadius)
-  {
-    m_kernelInputs.effectRadius = (cl_float)effectRadius;
-    updateFluidsParamsInKernel();
-  }
+  void setEffectRadius(float effectRadius);
   */
   float getEffectRadius() const;
   //
@@ -95,8 +86,8 @@ class Fluids : public Model
   bool createBuffers() const;
   bool createKernels() const;
 
-  void initFluidsParticles();
-  void updateFluidsParamsInKernel();
+  void initCloudsParticles();
+  void updateCloudsParamsInKernel();
 
   bool m_simplifiedMode;
 

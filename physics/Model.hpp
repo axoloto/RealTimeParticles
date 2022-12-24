@@ -12,7 +12,8 @@ namespace Physics
 enum ModelType
 {
   BOIDS = 0,
-  FLUIDS = 1
+  FLUIDS = 1,
+  CLOUDS = 2
 };
 
 struct CompareModelType
@@ -26,6 +27,7 @@ struct CompareModelType
 static const std::map<ModelType, std::string, CompareModelType> ALL_MODELS {
   { ModelType::BOIDS, "Boids" }, // Craig Reynolds laws
   { ModelType::FLUIDS, "Fluids" }, // Position Based Fluids by NVIDIA team (Macklin and Muller)
+  { ModelType::CLOUDS, "Clouds" }, // Position Based Fluids + Clouds Physics + Constrained (smoothed) temperature field (CWT Barbosa, Dobashi & Yamamoto)
 };
 
 enum class Dimension

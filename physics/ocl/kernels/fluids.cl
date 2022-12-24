@@ -2,8 +2,8 @@
 // Position based fluids model based on NVIDIA paper 
 // Macklin and Muller 2013. "Position Based Fluids"
 
-// Preprocessor defines following constant variables in Boids.cpp
-// EFFECT_RADIUS           - radius around a particle where boids laws apply 
+// Preprocessor defines following constant variables in Fluids.cpp
+// EFFECT_RADIUS           - radius around a particle where SPH laws apply 
 // ABS_WALL_POS            - absolute position of the walls in x,y,z
 // GRID_RES                - resolution of the grid
 // GRID_NUM_CELLS          - total number of cells in the grid

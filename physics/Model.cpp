@@ -2,6 +2,7 @@
 
 #include "Fluids.hpp"
 #include "Boids.hpp"
+#include "Clouds.hpp"
 
 #include "ocl/Context.hpp"
 
@@ -13,6 +14,8 @@ std::unique_ptr<Physics::Model> Physics::CreateModel(Physics::ModelType type, Ph
     return std::make_unique<Physics::Boids>(params);
   case Physics::ModelType::FLUIDS:
     return std::make_unique<Physics::Fluids>(params);
+  case Physics::ModelType::CLOUDS:
+    return std::make_unique<Physics::Clouds>(params);
   default:
     return nullptr;
   }

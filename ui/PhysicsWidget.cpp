@@ -29,13 +29,13 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
   // Selection of the initial setup
   auto caseType = fluidsEngine->getInitialCase();
 
-  const auto& selCaseName = (Physics::ALL_FLUID_CASES.find(caseType) != Physics::ALL_FLUID_CASES.end())
-      ? Physics::ALL_FLUID_CASES.find(caseType)->second
-      : Physics::ALL_FLUID_CASES.cbegin()->second;
+  const auto& selCaseName = (Physics::Fluids::ALL_CASES.find(caseType) != Physics::Fluids::ALL_CASES.end())
+      ? Physics::Fluids::ALL_CASES.find(caseType)->second
+      : Physics::Fluids::ALL_CASES.cbegin()->second;
 
   if (ImGui::BeginCombo("Study case", selCaseName.c_str()))
   {
-    for (const auto& caseT : Physics::ALL_FLUID_CASES)
+    for (const auto& caseT : Physics::Fluids::ALL_CASES)
     {
       if (ImGui::Selectable(caseT.second.c_str(), caseType == caseT.first))
       {
@@ -44,7 +44,7 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
         fluidsEngine->setInitialCase(caseType);
         fluidsEngine->reset();
 
-        LOG_DEBUG("Fluids initial case correctly switched to {}", Physics::ALL_FLUID_CASES.find(caseType)->second);
+        LOG_DEBUG("Fluids initial case correctly switched to {}", Physics::Fluids::ALL_CASES.find(caseType)->second);
       }
     }
     ImGui::EndCombo();
