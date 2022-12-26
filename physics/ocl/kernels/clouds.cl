@@ -17,7 +17,12 @@
 
 // See CloudKernelInputs in Clouds.cpp
 typedef struct defCloudParams{
-  float test;
+  float timeStep;
+  float groundHeatCoeff;
+  float buoyancyCoeff;
+  float adiabaticLapseRate;
+  float phaseTransitionRate;
+  float latentHeatCoeff;
 } CloudParams;
 
 // Defined in utils.cl
@@ -52,6 +57,24 @@ inline float poly6L(const float vecLength, const float effectRadius);
 */
 inline float4 gradSpiky(const float4 vec, const float effectRadius);
 
+/*
+  Function representing the external heat source at ground level
+  Value of 1 at the ground level and then exponentially decreasing
+*/
+inline float externalHeatSource(const float altitude)
+{
+  return clamp(exp(-(altitude + ABS_WALL_POS)), 0.0f, 1.0f);
+}
+
+/*
+  Linear function describing the environment temperature
+*/
+inline float environmentTemp(const float altitude)
+{
+  float coeff = 1.0f; // to define
+  float cte = 1.0f; // to define
+  return - coeff * (altitude + ABS_WALL_POS) + cte;
+}
 
 /*
   Fill position buffer with random positions
@@ -80,23 +103,6 @@ __kernel void cld_randPosVertsClouds(//Param
 }
 
 /*
-  Predict fluid particle position and update velocity by integrating external forces
-*/
-__kernel void cld_predictPosition(//Input
-                              const __global float4 *pos,        // 0
-                              const __global float4 *vel,        // 1
-                              //Param
-                              const     FluidParams fluid,       // 2
-                              //Output
-                                    __global float4 *predPos)    // 3
-{
-  // No need to update global vel, as it will be reset later on
-  const float4 newVel = vel[ID];// + GRAVITY_ACC * fluid.timeStep;
-
-  predPos[ID] = pos[ID] + newVel * fluid.timeStep;
-}
-
-/*
 
 */
 __kernel void cld_heatFromGround(//Input
@@ -107,7 +113,7 @@ __kernel void cld_heatFromGround(//Input
                                  //Output
                                        __global float  *temp)   // 3
 {
-
+  temp[ID] = tempIn[ID] + externalHeatSource(pos[ID].y) * cloud.groundHeatCoeff * cloud.timeStep;
 }
 
 /*
@@ -122,7 +128,8 @@ __kernel void cld_computeBuoyancy(//Input
                                   //Output
                                         __global float  *buoyancy)  // 4
 {
-
+  float envTemp = environmentTemp(pos[ID].y);
+  buoyancy[ID] = cloud.buoyancyCoeff * (tempIn[ID] - envTemp) / envTemp - GRAVITY_ACC_Y * cloudDens[ID];
 }
 
 /*
@@ -136,7 +143,7 @@ __kernel void cld_applyAdiabaticCooling(//Input
                                         //Output
                                               __global float  *temp)    // 3
 {
-
+  temp[ID] = tempIn[ID] - cloud.adiabaticLapseRate * vel[ID].y;
 }
 
 /*
@@ -146,10 +153,15 @@ __kernel void cld_generateCloud(//Input
                                 const __global float  *tempIn,    // 0
                                 const __global float  *vaporDens, // 1
                                 const __global float  *cloudDens, // 2
+                                //Param
+                                const     CloudParams cloud,      // 3
                                 //Output
-                                      __global float  *cloudGen)  // 3
+                                      __global float  *cloudGen)  // 4
 {
-
+  float A = 100.0f;
+  float B = -3;
+  float C = 2.3;
+  cloudGen[ID] = cloud.phaseTransitionRate * (vaporDens[ID] - min(A * exp(B / (tempIn[ID] + C)), cloudDens[ID] + vaporDens[ID]));
 }
 
 /*
@@ -165,7 +177,8 @@ __kernel void cld_applyPhaseTransition(//Input
                                              __global float  *vaporDens,    // 4
                                              __global float  *cloudDens)    // 5
 {
-
+  cloudDens[ID] = cloudDensIn[ID] + cloudGen[ID] * cloud.timeStep;
+  vaporDens[ID] = vaporDensIn[ID] - cloudGen[ID] * cloud.timeStep;
 }
 
 /*
@@ -179,7 +192,25 @@ __kernel void cld_applyLatentHeat(//Input
                                   //Output
                                         __global float  *temp)     // 3
 {
+  temp[ID] = tempIn[ID] + cloud.latentHeatCoeff * cloudGen[ID] * cloud.timeStep;
+}
 
+/*
+  Predict fluid particle position and update velocity by integrating external forces
+*/
+__kernel void cld_predictPosition(//Input
+                                  const __global float4 *pos,        // 0
+                                  const __global float4 *vel,        // 1
+                                  const __global float  *buoyancy,   // 2
+                                  //Param
+                                  const     CloudParams cloud,       // 3
+                                  //Output
+                                        __global float4 *predPos)    // 4
+{
+  // No need to update global vel, as it will be reset later on
+  const float4 newVel = vel[ID] + (float4)(0.0f, buoyancy[ID], 0.0f, 0.0f) * cloud.timeStep;
+
+  predPos[ID] = pos[ID] + newVel * cloud.timeStep;
 }
 
 /*
@@ -189,11 +220,11 @@ __kernel void cld_applyLatentHeat(//Input
   Dark blue => constraint < 0, i.e density is bigger than rest density, system is not stabilized
 */
 __kernel void cld_fillCloudColor(//Input
-                             const  __global float  *density, // 0
-                             //Param
-                             const      FluidParams fluid,    // 1
-                             //Output
-                                    __global float4 *col)     // 2
+                                 const  __global float  *density, // 0
+                                 //Param
+                                 const      FluidParams fluid,    // 1
+                                 //Output
+                                        __global float4 *col)     // 2
 {
   float4 blue      = (float4)(0.0f, 0.1f, 1.0f, 1.0f);
   float4 lightBlue = (float4)(0.7f, 0.7f, 1.0f, 1.0f);

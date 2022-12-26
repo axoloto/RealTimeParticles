@@ -5,5 +5,6 @@
 
 #define FLOAT_EPS     0.00000001f
 
-#define GRAVITY_ACC   (float4)(0.0f, -9.81f, 0.0f, 0.0f)
+#define GRAVITY_ACC_Y -9.81f
+#define GRAVITY_ACC   (float4)(0.0f, GRAVITY_ACC_Y, 0.0f, 0.0f)
 #define FAR_DIST      100000000.0f
