@@ -47,9 +47,10 @@ using namespace Physics;
 #define KERNEL_VORTICITY_CONFINEMENT "fld_applyVorticityConfinement"
 #define KERNEL_XSPH_VISCOSITY "fld_applyXsphViscosityCorrection"
 #define KERNEL_UPDATE_POS "fld_updatePosition"
-#define KERNEL_FILL_COLOR "fld_fillFluidColor"
 
 // clouds.cl
+#define KERNEL_INIT_TEMP "cld_initTemperature"
+#define KERNEL_INIT_VAPOR_DENSITY "cld_initVaporDensity"
 #define KERNEL_RANDOM_POS "cld_randPosVertsClouds"
 #define KERNEL_HEAT_GROUND "cld_heatFromGround"
 #define KERNEL_BUOYANCY "cld_computeBuoyancy"
@@ -58,6 +59,7 @@ using namespace Physics;
 #define KERNEL_PHASE_TRANSITION "cld_applyPhaseTransition"
 #define KERNEL_LATENT_HEAT "cld_applyLatentHeat"
 #define KERNEL_PREDICT_POS "cld_predictPosition"
+#define KERNEL_FILL_COLOR "cld_fillCloudColor"
 
 namespace Physics
 {
@@ -65,7 +67,7 @@ namespace Physics
 struct FluidKernelInputs
 {
   cl_float effectRadius = 0.3f;
-  cl_float restDensity = 450.0f;
+  cl_float restDensity = 200.0f;
   cl_float relaxCFM = 600.0f;
   cl_float timeStep = 0.01f;
   cl_uint dim = 3;
@@ -83,16 +85,19 @@ struct FluidKernelInputs
 // Clouds params for clouds-specific physics
 struct CloudKernelInputs
 {
+  // Must be always equal to timeStep of FluidKernelInputs
   cl_float timeStep = 0.01f;
-  cl_float groundHeatCoeff = 1.0f;
+  // groundHeatCoeff * timeStep = max temperature increase due to heat source in ground for closest particles from ground
+  cl_float groundHeatCoeff = 500.0f; // i.e here 5K
   cl_float buoyancyCoeff = 1.0f;
-  cl_float adiabaticLapseRate = 1.0f;
+  cl_float adiabaticLapseRate = 50.0f;
   cl_float phaseTransitionRate = 1.0f;
   cl_float latentHeatCoeff = 1.0f;
 };
 
 const std::map<Clouds::CaseType, std::string, Clouds::CompareCaseType> Clouds::ALL_CASES {
-  { CaseType::CUMULUS, "Cumulus" }
+  { CaseType::CUMULUS, "Cumulus" },
+  { CaseType::HOMOGENEOUS, "Homogeneous" }
 };
 }
 
@@ -103,7 +108,7 @@ Clouds::Clouds(ModelParams params)
     , m_radixSort(params.maxNbParticles)
     , m_fluidKernelInputs(std::make_unique<FluidKernelInputs>())
     , m_cloudKernelInputs(std::make_unique<CloudKernelInputs>())
-    , m_initialCase(CaseType::CUMULUS)
+    , m_initialCase(CaseType::HOMOGENEOUS)
     , m_nbJacobiIters(2)
 {
   createProgram();
@@ -196,7 +201,7 @@ bool Clouds::createKernels() const
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_PART_DETECTOR, { "p_pos", "c_partDetector" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_CAMERA_DIST, { "p_cameraDist" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_COLOR, { "p_density", "", "p_col" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_COLOR, { "p_cloudDens", "", "p_col" });
 
   // Radix Sort based on 3D grid, using predicted positions, not corrected ones
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_CELL_ID, { "p_cellID" });
@@ -208,6 +213,10 @@ bool Clouds::createKernels() const
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_ADJUST_END_CELL, { "c_startEndPartID" });
 
   // Clouds thermodynamics
+  // Init steps
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_INIT_TEMP, { "p_pos", "p_temp" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_INIT_VAPOR_DENSITY, { "p_temp", "p_vaporDens" });
+  //
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_HEAT_GROUND, { "p_tempIn", "p_pos", "", "p_temp" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_BUOYANCY, { "p_temp", "p_pos", "p_cloudDens", "", "p_buoyancy" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_ADIABATIC_COOLING, { "p_temp", "p_vel", "", "p_tempIn" });
@@ -318,10 +327,15 @@ void Clouds::initCloudsParticles()
     {
     case CaseType::CUMULUS:
       m_currNbParticles = Utils::NbParticles::P4K;
-
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
       endFluidPos = { 0.0f, 0.0f, 0.0f };
+      break;
+    case CaseType::HOMOGENEOUS:
+      m_currNbParticles = Utils::NbParticles::P4K;
+      shape = Geometry::Shape2D::Rectangle;
+      startFluidPos = { 0.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
+      endFluidPos = { 0.0f, m_boxSize / 2.0f, m_boxSize / 2.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");
@@ -344,6 +358,12 @@ void Clouds::initCloudsParticles()
       shape = Geometry::Shape3D::Box;
       startFluidPos = { m_boxSize / -2.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
       endFluidPos = { m_boxSize / 2.0f, 0.0f, 0.0f };
+      break;
+    case CaseType::HOMOGENEOUS:
+      m_currNbParticles = Utils::NbParticles::P65K;
+      shape = Geometry::Shape3D::Box;
+      startFluidPos = { m_boxSize / -2.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
+      endFluidPos = { m_boxSize / 2.0f, m_boxSize / 2.0f, m_boxSize / 2.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");
@@ -371,14 +391,13 @@ void Clouds::initCloudsParticles()
   std::vector<std::array<float, 4>> col(m_maxNbParticles, std::array<float, 4>({ 0.0f, 0.1f, 1.0f, 0.0f }));
   clContext.loadBufferFromHost("p_col", 0, 4 * sizeof(float) * col.size(), col.data());
 
-  std::vector<float> temp(m_maxNbParticles, 0.0f);
-  clContext.loadBufferFromHost("p_temp", 0, sizeof(float) * temp.size(), temp.data());
-
-  std::vector<float> vaporDens(m_maxNbParticles, 0.0f);
-  clContext.loadBufferFromHost("p_vaporDens", 0, sizeof(float) * vaporDens.size(), vaporDens.data());
-
   std::vector<float> cloudDens(m_maxNbParticles, 0.0f);
   clContext.loadBufferFromHost("p_cloudDens", 0, sizeof(float) * cloudDens.size(), cloudDens.data());
+
+  // Temperature field must be initialized before vapor density
+  clContext.runKernel(KERNEL_INIT_TEMP, m_currNbParticles);
+
+  clContext.runKernel(KERNEL_INIT_VAPOR_DENSITY, m_currNbParticles);
 
   clContext.releaseGLBuffers({ "p_pos", "p_col" });
 }
@@ -395,11 +414,20 @@ void Clouds::update()
   if (!m_pause)
   {
     // Clouds thermodynamics
+    // Copying temperature to other buffer as HeatGround kernel need it as both input and output
+    clContext.copyBuffer("p_temp", "p_tempIn");
     clContext.runKernel(KERNEL_HEAT_GROUND, m_currNbParticles);
+    // Computing buoyancy and gravity forces exerced on particles
     clContext.runKernel(KERNEL_BUOYANCY, m_currNbParticles);
+    // Computing adiabatic cooling due to altitude increase
     clContext.runKernel(KERNEL_ADIABATIC_COOLING, m_currNbParticles);
+    // Computing
     clContext.runKernel(KERNEL_CLOUD_GENERATION, m_currNbParticles);
+    // Copying vapor and cloud density values to other buffers before running phase transition kernel using them as input/output
+    clContext.copyBuffer("p_vaporDens", "p_vaporDensIn");
+    clContext.copyBuffer("p_cloudDens", "p_cloudDensIn");
     clContext.runKernel(KERNEL_PHASE_TRANSITION, m_currNbParticles);
+    //
     clContext.runKernel(KERNEL_LATENT_HEAT, m_currNbParticles);
 
     // Predicting velocity and position
@@ -410,7 +438,7 @@ void Clouds::update()
     // NNS - spatial partitioning
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
-    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" });
+    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_vaporDens", "p_cloudDens" });
 
     clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
@@ -461,7 +489,7 @@ void Clouds::update()
   // Rendering purpose
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
 
-  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" });
+  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_vaporDens", "p_cloudDens" });
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }

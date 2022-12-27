@@ -19,7 +19,8 @@ class Clouds : public Model
   // List of implemented cases
   enum CaseType
   {
-    CUMULUS = 0
+    CUMULUS = 0,
+    HOMOGENEOUS = 1
   };
 
   struct CompareCaseType

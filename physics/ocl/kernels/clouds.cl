@@ -71,9 +71,42 @@ inline float externalHeatSource(const float altitude)
 */
 inline float environmentTemp(const float altitude)
 {
-  float coeff = 1.0f; // to define
-  float cte = 1.0f; // to define
-  return - coeff * (altitude + ABS_WALL_POS) + cte;
+  float coeff = 10.0f; // 293 - 2 * 10 = 273K = value of the temperature at the maximum altitude
+  float tempGround = 293.0f; // 293K = value of temperature at the ground in Kelvin
+  return - coeff * (altitude + ABS_WALL_POS) + tempGround;
+}
+
+/*
+
+*/
+inline float maxVaporDensity(const float temperature)
+{
+  float A = 100.0f;
+  float B = - 3.0f;
+  float C =   2.3f;
+  return A * exp(B / (temperature + C));
+}
+
+/*
+  Initialize environment temperature field using linear function defined above, same one used for buoyancy computation
+*/
+__kernel void cld_initTemperature(//Input
+                                  const __global float4 *pos,    // 0
+                                  //Output
+                                        __global float  *temp)   // 1
+{
+  temp[ID] = environmentTemp(pos[ID].y);
+}
+
+/*
+  Initialize vapor density value (cloud density set to 0)
+*/
+ __kernel void cld_initVaporDensity(//Input
+                                    const __global float *temp,        // 0
+                                    //Output
+                                          __global float *vaporDens)   // 1
+{
+  vaporDens[ID] = 0.5f * maxVaporDensity(temp[ID]);
 }
 
 /*
@@ -143,7 +176,7 @@ __kernel void cld_applyAdiabaticCooling(//Input
                                         //Output
                                               __global float  *temp)    // 3
 {
-  temp[ID] = tempIn[ID] - cloud.adiabaticLapseRate * vel[ID].y;
+  temp[ID] = tempIn[ID] - cloud.adiabaticLapseRate * vel[ID].y * cloud.timeStep;
 }
 
 /*
@@ -158,10 +191,7 @@ __kernel void cld_generateCloud(//Input
                                 //Output
                                       __global float  *cloudGen)  // 4
 {
-  float A = 100.0f;
-  float B = -3;
-  float C = 2.3;
-  cloudGen[ID] = cloud.phaseTransitionRate * (vaporDens[ID] - min(A * exp(B / (tempIn[ID] + C)), cloudDens[ID] + vaporDens[ID]));
+  cloudGen[ID] = cloud.phaseTransitionRate * (vaporDens[ID] - min(maxVaporDensity(tempIn[ID]), cloudDens[ID] + vaporDens[ID]));
 }
 
 /*
@@ -230,7 +260,8 @@ __kernel void cld_fillCloudColor(//Input
   float4 lightBlue = (float4)(0.7f, 0.7f, 1.0f, 1.0f);
   float4 darkBlue  = (float4)(0.0f, 0.0f, 0.8f, 1.0f);
 
-  float constraint = (1.0f - density[ID] / fluid.restDensity);
+  //float constraint = (1.0f - density[ID] / fluid.restDensity);
+  float constraint =  clamp(density[ID], 0.0f, 1.0f);
 
   float4 color = blue;
 

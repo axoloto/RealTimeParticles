@@ -5,8 +5,8 @@
 
 #include <algorithm>
 #include <chrono>
-#include <random>
 #include <iostream>
+#include <random>
 
 namespace Physics
 {
@@ -39,7 +39,9 @@ class RadixSort
   RadixSort(size_t numEntities);
   ~RadixSort() = default;
 
-  void sort(const std::string& inputKeyBufferName, const std::vector<std::string>& optionalInputBufferNames = {});
+  void sort(const std::string& inputKeyBufferName,
+      const std::vector<std::string>& optionalInputBufferNamesFloat4 = {},
+      const std::vector<std::string>& optionalInputBufferNamesFloat = {});
 
   private:
   bool createProgram() const;
