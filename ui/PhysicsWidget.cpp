@@ -75,7 +75,7 @@ void displayCloudsParameters(Physics::Clouds* cloudsEngine)
   ImGui::Value("Particles", (int)cloudsEngine->nbParticles());
 
   ImGui::Spacing();
-  ImGui::Text("Cloud parameters");
+  ImGui::Text("Position Based Fluids Parameters");
   ImGui::Spacing();
 
   ImGui::Value("Kernel radius", (float)cloudsEngine->getEffectRadius());
@@ -148,6 +148,40 @@ void displayCloudsParameters(Physics::Clouds* cloudsEngine)
     {
       cloudsEngine->setXsphViscosityCoeff(xsphViscosityCoeff);
     }
+  }
+
+  ImGui::Spacing();
+  ImGui::Text("Clouds Parameters");
+  ImGui::Spacing();
+
+  float groundHeatCoeff = cloudsEngine->getGroundHeatCoeff();
+  if (ImGui::SliderFloat("Ground Heat Coefficient", &groundHeatCoeff, 0.0f, 1000.0f, "%.4f"))
+  {
+    cloudsEngine->setGroundHeatCoeff(groundHeatCoeff);
+  }
+
+  float buoyancyCoeff = cloudsEngine->getBuoyancyCoeff();
+  if (ImGui::SliderFloat("Buoyancy Coefficient", &buoyancyCoeff, 0.0f, 0.15f, "%.3f"))
+  {
+    cloudsEngine->setBuoyancyCoeff(buoyancyCoeff);
+  }
+
+  float adiabaticLapseRate = cloudsEngine->getAdiabaticLapseRate();
+  if (ImGui::SliderFloat("Adiabatic Lapse Rate", &adiabaticLapseRate, 0.0f, 200.0f, "%.3f"))
+  {
+    cloudsEngine->setAdiabaticLapseRate(adiabaticLapseRate);
+  }
+
+  float phaseTransitionRate = cloudsEngine->getPhaseTransitionRate();
+  if (ImGui::SliderFloat("Phase Transition Rate", &phaseTransitionRate, 0.0f, 3000.0f, "%.4f"))
+  {
+    cloudsEngine->setPhaseTransitionRate(phaseTransitionRate);
+  }
+
+  float latentHeatCoeff = cloudsEngine->getLatentHeatCoeff();
+  if (ImGui::SliderFloat("Latent Heat Coefficient", &latentHeatCoeff, 0.0f, 0.100f, "%.4f"))
+  {
+    cloudsEngine->setLatentHeatCoeff(latentHeatCoeff);
   }
 
   ImGui::End();

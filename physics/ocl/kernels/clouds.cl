@@ -71,9 +71,9 @@ inline float externalHeatSource(const float altitude)
 */
 inline float environmentTemp(const float altitude)
 {
-  float coeff = 10.0f; // 293 - 2 * 10 = 273K = value of the temperature at the maximum altitude
+  float coeff = 6.0f; // 293 - 6 * 10 = 233K = value of the temperature at the maximum altitude
   float tempGround = 293.0f; // 293K = value of temperature at the ground in Kelvin
-  return - coeff * (altitude + ABS_WALL_POS) + tempGround;
+  return -coeff * (altitude + ABS_WALL_POS) + tempGround;
 }
 
 /*
@@ -81,10 +81,8 @@ inline float environmentTemp(const float altitude)
 */
 inline float maxVaporDensity(const float temperature)
 {
-  float A = 100.0f;
-  float B = - 3.0f;
-  float C =   2.3f;
-  return A * exp(B / (temperature + C));
+  // Values given by CWF Barbosa et al. paper
+  return 100.0f * exp(-3.0f / (temperature + 2.3f));
 }
 
 /*
@@ -176,7 +174,7 @@ __kernel void cld_applyAdiabaticCooling(//Input
                                         //Output
                                               __global float  *temp)    // 3
 {
-  temp[ID] = tempIn[ID] - cloud.adiabaticLapseRate * vel[ID].y * cloud.timeStep;
+  temp[ID] = tempIn[ID] - cloud.adiabaticLapseRate * max(vel[ID].y, 0.0f) * cloud.timeStep;
 }
 
 /*
@@ -256,19 +254,45 @@ __kernel void cld_fillCloudColor(//Input
                                  //Output
                                         __global float4 *col)     // 2
 {
-  float4 blue      = (float4)(0.0f, 0.1f, 1.0f, 1.0f);
+  float4 blue      = (float4)(0.0f, 0.0f, 0.0f, 1.0f);
   float4 lightBlue = (float4)(0.7f, 0.7f, 1.0f, 1.0f);
   float4 darkBlue  = (float4)(0.0f, 0.0f, 0.8f, 1.0f);
 
   //float constraint = (1.0f - density[ID] / fluid.restDensity);
-  float constraint =  clamp(density[ID], 0.0f, 1.0f);
+  float constraint =  (density[ID] - 290) / 290;
 
   float4 color = blue;
+  color.x = constraint;
 
-  if(constraint > 0.0f)
-    color += constraint * (lightBlue - blue) / 0.35f;
-  else if(constraint < 0.0f)
-    color += constraint * (blue - darkBlue) / 0.35f;
+ // if(constraint > 0.0f)
+ //   color += constraint * (lightBlue - blue) / 0.35f;
+ // else if(constraint < 0.0f)
+ //   color += constraint * (blue - darkBlue) / 0.35f;
 
   col[ID] = color;
+}
+
+/*
+  Apply Cyclic wall boundary conditions for xz directions
+  Apply Boucing wall boundary conditions for y direction
+*/
+__kernel void cld_applyBoundaryCondWithMixedWalls(//Input/output
+                                                  __global float4 *predPos, // 0
+                                                  __global float4 *vel)     // 1
+{
+  float4 newPos = predPos[ID];
+  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
+
+  if (!isequal(clampedNewPos.x, newPos.x))
+  {
+    predPos[ID].x *= -0.5f;
+  }
+  if (!all(isequal(clampedNewPos.y, newPos.y)))
+  {
+    vel[ID].y *= -0.5f;
+  }  
+  if (!isequal(clampedNewPos.z, newPos.z))
+  {
+    predPos[ID].z *= -0.4f;
+  }
 }

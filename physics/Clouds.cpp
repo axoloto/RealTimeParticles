@@ -67,7 +67,7 @@ namespace Physics
 struct FluidKernelInputs
 {
   cl_float effectRadius = 0.3f;
-  cl_float restDensity = 200.0f;
+  cl_float restDensity = 700.0f;
   cl_float relaxCFM = 600.0f;
   cl_float timeStep = 0.01f;
   cl_uint dim = 3;
@@ -88,11 +88,11 @@ struct CloudKernelInputs
   // Must be always equal to timeStep of FluidKernelInputs
   cl_float timeStep = 0.01f;
   // groundHeatCoeff * timeStep = max temperature increase due to heat source in ground for closest particles from ground
-  cl_float groundHeatCoeff = 500.0f; // i.e here 5K
-  cl_float buoyancyCoeff = 1.0f;
-  cl_float adiabaticLapseRate = 50.0f;
-  cl_float phaseTransitionRate = 1.0f;
-  cl_float latentHeatCoeff = 1.0f;
+  cl_float groundHeatCoeff = 800.0f; // i.e here 8K
+  cl_float buoyancyCoeff = 0.075f;
+  cl_float adiabaticLapseRate = 100.0f;
+  cl_float phaseTransitionRate = 2000.0f;
+  cl_float latentHeatCoeff = 0.01f;
 };
 
 const std::map<Clouds::CaseType, std::string, Clouds::CompareCaseType> Clouds::ALL_CASES {
@@ -201,7 +201,7 @@ bool Clouds::createKernels() const
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_PART_DETECTOR, { "p_pos", "c_partDetector" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_CAMERA_DIST, { "p_cameraDist" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_COLOR, { "p_cloudDens", "", "p_col" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_COLOR, { "p_temp", "", "p_col" });
 
   // Radix Sort based on 3D grid, using predicted positions, not corrected ones
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_CELL_ID, { "p_cellID" });
@@ -435,6 +435,8 @@ void Clouds::update()
     // where we apply clouds buoyancy and gravity forces on fluids particles
     clContext.runKernel(KERNEL_PREDICT_POS, m_currNbParticles);
 
+    // clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
+
     // NNS - spatial partitioning
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
@@ -592,6 +594,51 @@ void Clouds::setXsphViscosityCoeff(float coeff)
   updateFluidsParamsInKernels();
 }
 
+//
+void Clouds::setGroundHeatCoeff(float coeff)
+{
+  if (!m_init)
+    return;
+  m_cloudKernelInputs->groundHeatCoeff = (cl_float)coeff;
+  updateCloudsParamsInKernels();
+}
+
+//
+void Clouds::setBuoyancyCoeff(float coeff)
+{
+  if (!m_init)
+    return;
+  m_cloudKernelInputs->buoyancyCoeff = (cl_float)coeff;
+  updateCloudsParamsInKernels();
+}
+
+//
+void Clouds::setAdiabaticLapseRate(float rate)
+{
+  if (!m_init)
+    return;
+  m_cloudKernelInputs->adiabaticLapseRate = (cl_float)rate;
+  updateCloudsParamsInKernels();
+}
+
+//
+void Clouds::setPhaseTransitionRate(float rate)
+{
+  if (!m_init)
+    return;
+  m_cloudKernelInputs->phaseTransitionRate = (cl_float)rate;
+  updateCloudsParamsInKernels();
+}
+
+//
+void Clouds::setLatentHeatCoeff(float coeff)
+{
+  if (!m_init)
+    return;
+  m_cloudKernelInputs->latentHeatCoeff = (cl_float)coeff;
+  updateCloudsParamsInKernels();
+}
+
 // Not giving access to it for now.
 // Strongly connected to grid resolution which is not available as parameter,
 // in order to maintain cohesion between boids and clouds models
@@ -637,3 +684,18 @@ float Clouds::getVorticityConfinementCoeff() const { return m_init ? (float)m_fl
 
 //
 float Clouds::getXsphViscosityCoeff() const { return m_init ? (float)m_fluidKernelInputs->xsphViscosityCoeff : 0.0f; }
+
+//
+float Clouds::getGroundHeatCoeff() const { return m_init ? (float)m_cloudKernelInputs->groundHeatCoeff : 0.0f; }
+
+//
+float Clouds::getBuoyancyCoeff() const { return m_init ? (float)m_cloudKernelInputs->buoyancyCoeff : 0.0f; }
+
+//
+float Clouds::getAdiabaticLapseRate() const { return m_init ? (float)m_cloudKernelInputs->adiabaticLapseRate : 0.0f; }
+
+//
+float Clouds::getPhaseTransitionRate() const { return m_init ? (float)m_cloudKernelInputs->phaseTransitionRate : 0.0f; }
+
+//
+float Clouds::getLatentHeatCoeff() const { return m_init ? (float)m_cloudKernelInputs->latentHeatCoeff : 0.0f; }

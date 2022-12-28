@@ -82,6 +82,21 @@ class Clouds : public Model
   //
   void setXsphViscosityCoeff(float coeff);
   float getXsphViscosityCoeff() const;
+  //
+  void setGroundHeatCoeff(float coeff);
+  float getGroundHeatCoeff() const;
+  //
+  void setBuoyancyCoeff(float coeff);
+  float getBuoyancyCoeff() const;
+  //
+  void setAdiabaticLapseRate(float rate);
+  float getAdiabaticLapseRate() const;
+  //
+  void setPhaseTransitionRate(float rate);
+  float getPhaseTransitionRate() const;
+  //
+  void setLatentHeatCoeff(float coeff);
+  float getLatentHeatCoeff() const;
 
   private:
   bool createProgram() const;
