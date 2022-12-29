@@ -407,6 +407,26 @@ void ParticleSystemApp::displayMainWidget()
     ImGui::EndCombo();
   }
 
+  const auto& allVisibleParamNames = m_physicsEngine->availableVisibleBufferNames();
+  if (allVisibleParamNames.size() > 0)
+  {
+    // Selection of the physical parameter to display (filling color buffer used by fragment shader)
+    const auto& selVisibleParamName = m_physicsEngine->currentVisibleBufferName();
+
+    if (ImGui::BeginCombo("Physical Parameter", selVisibleParamName.c_str()))
+    {
+      for (const auto& paramName : allVisibleParamNames)
+      {
+        if (ImGui::Selectable(paramName.c_str(), selVisibleParamName == paramName))
+        {
+          m_physicsEngine->setCurrentVisibleBufferName(paramName);
+          LOG_INFO("Visible physics parameter switched to {}", paramName);
+        }
+      }
+      ImGui::EndCombo();
+    }
+  }
+
   bool isOnPaused = m_physicsEngine->onPause();
   std::string pauseRun = isOnPaused ? "  Start  " : "  Pause  ";
   if (ImGui::Button(pauseRun.c_str()))

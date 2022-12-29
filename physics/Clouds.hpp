@@ -100,7 +100,7 @@ class Clouds : public Model
 
   private:
   bool createProgram() const;
-  bool createBuffers() const;
+  bool createBuffers();
   bool createKernels() const;
 
   void initCloudsParticles();

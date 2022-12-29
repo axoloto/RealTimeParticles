@@ -44,3 +44,14 @@ __kernel void infPosVerts(__global float4 *pos)
 {
   pos[ID] = (float4)(FAR_DIST, FAR_DIST, FAR_DIST, 0.0f);
 }
+
+/*
+  Fill color buffer with physical buffer for display and analysis
+*/
+__kernel void fillColorFloat(//Input
+                             const  __global float  *physicalBuffer, // 0
+                            //Output
+                                    __global float4 *col)     // 1
+{
+  col[ID] = (float4)(physicalBuffer[ID], 0.0f, 0.0f, 1.0f);
+}

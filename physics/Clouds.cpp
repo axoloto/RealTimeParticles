@@ -25,6 +25,7 @@ using namespace Physics;
 #define KERNEL_INFINITE_POS "infPosVerts"
 #define KERNEL_RESET_CAMERA_DIST "resetCameraDist"
 #define KERNEL_FILL_CAMERA_DIST "fillCameraDist"
+#define KERNEL_FILL_COLOR "fillColorFloat"
 
 // grid.cl
 #define KERNEL_RESET_PART_DETECTOR "resetGridDetector"
@@ -59,7 +60,6 @@ using namespace Physics;
 #define KERNEL_PHASE_TRANSITION "cld_applyPhaseTransition"
 #define KERNEL_LATENT_HEAT "cld_applyLatentHeat"
 #define KERNEL_PREDICT_POS "cld_predictPosition"
-#define KERNEL_FILL_COLOR "cld_fillCloudColor"
 
 namespace Physics
 {
@@ -152,7 +152,7 @@ bool Clouds::createProgram() const
   return true;
 }
 
-bool Clouds::createBuffers() const
+bool Clouds::createBuffers()
 {
   CL::Context& clContext = CL::Context::Get();
 
@@ -185,6 +185,10 @@ bool Clouds::createBuffers() const
 
   clContext.createBuffer("c_startEndPartID", 2 * m_nbCells * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
+  // Physical parameters visible in UI for display, only m_maxNbParts * sizeof(float) size supported for now
+  m_currentVisibleBufferName = "p_temp";
+  m_availableVisibleBufferNames = { "p_density", "p_temp", "p_vaporDens", "p_cloudDens", "p_buoyancy", "p_cloudGen" };
+
   return true;
 }
 
@@ -201,7 +205,7 @@ bool Clouds::createKernels() const
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_PART_DETECTOR, { "p_pos", "c_partDetector" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_CAMERA_DIST, { "p_cameraDist" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_COLOR, { "p_cloudDens", "p_vaporDens", "", "p_col" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_COLOR, { "", "p_col" });
 
   // Radix Sort based on 3D grid, using predicted positions, not corrected ones
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_CELL_ID, { "p_cellID" });
@@ -262,7 +266,6 @@ void Clouds::updateFluidsParamsInKernels()
   clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_FILL_COLOR, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
@@ -485,8 +488,11 @@ void Clouds::update()
     // Rendering purpose
     clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
     clContext.runKernel(KERNEL_FILL_PART_DETECTOR, m_currNbParticles);
-    clContext.runKernel(KERNEL_FILL_COLOR, m_currNbParticles);
   }
+
+  // Sending selected physical parameter to color buffer for rendering
+  clContext.setKernelArg(KERNEL_FILL_COLOR, 0, m_currentVisibleBufferName);
+  clContext.runKernel(KERNEL_FILL_COLOR, m_currNbParticles);
 
   // Rendering purpose
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);

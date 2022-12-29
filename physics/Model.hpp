@@ -73,7 +73,8 @@ class Model
       , m_dimension(params.dimension)
       , m_boundary(Boundary::BouncingWall)
       , m_init(false)
-      , m_pause(false) {};
+      , m_pause(false)
+      , m_currentVisibleBufferName("") {};
 
   virtual ~Model();
 
@@ -110,6 +111,10 @@ class Model
   virtual bool isTargetActivated() const { return false; }
   virtual bool isTargetVisible() const { return false; }
 
+  void setCurrentVisibleBufferName(const std::string& name) { m_currentVisibleBufferName = name; }
+  const std::string& currentVisibleBufferName() { return m_currentVisibleBufferName; }
+  const std::vector<std::string>& availableVisibleBufferNames() { return m_availableVisibleBufferNames; }
+
   bool isProfilingEnabled() const;
   void enableProfiling(bool enable);
   bool isUsingIGPU() const;
@@ -137,5 +142,9 @@ class Model
   unsigned int m_particleColVBO;
   unsigned int m_cameraVBO;
   unsigned int m_gridVBO;
+
+  // Physics buffer to render
+  std::string m_currentVisibleBufferName;
+  std::vector<std::string> m_availableVisibleBufferNames;
 };
 }
