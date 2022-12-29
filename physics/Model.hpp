@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Geometry.hpp"
 #include "Math.hpp"
 
 #include <array>
@@ -30,12 +31,6 @@ static const std::map<ModelType, std::string, CompareModelType> ALL_MODELS {
   { ModelType::CLOUDS, "Clouds" }, // Position Based Fluids + Clouds Physics + Constrained (smoothed) temperature field (CWT Barbosa, Dobashi & Yamamoto, 2015)
 };
 
-enum class Dimension
-{
-  dim2D,
-  dim3D
-};
-
 enum class Boundary
 {
   BouncingWall,
@@ -53,6 +48,7 @@ struct ModelParams
   unsigned int particleColVBO = 0;
   unsigned int cameraVBO = 0;
   unsigned int gridVBO = 0;
+  Geometry::Dimension dimension = Geometry::Dimension::dim3D;
 };
 
 class Model;
@@ -63,7 +59,7 @@ std::unique_ptr<Model> CreateModel(ModelType type, ModelParams params);
 class Model
 {
   public:
-  Model(ModelParams params, Dimension dimension = Dimension::dim2D)
+  Model(ModelParams params)
       : m_maxNbParticles(params.maxNbParticles)
       , m_currNbParticles(params.currNbParticles)
       , m_boxSize(params.boxSize)
@@ -74,7 +70,7 @@ class Model
       , m_particleColVBO(params.particleColVBO)
       , m_cameraVBO(params.cameraVBO)
       , m_gridVBO(params.gridVBO)
-      , m_dimension(dimension)
+      , m_dimension(params.dimension)
       , m_boundary(Boundary::BouncingWall)
       , m_init(false)
       , m_pause(false) {};
@@ -86,12 +82,12 @@ class Model
   void setNbParticles(size_t nbSelParticles) { m_currNbParticles = nbSelParticles; }
   size_t nbParticles() const { return m_currNbParticles; }
 
-  void setDimension(Dimension dim)
+  void setDimension(Geometry::Dimension dim)
   {
     m_dimension = dim;
     reset();
   }
-  Dimension dimension() const { return m_dimension; }
+  Geometry::Dimension dimension() const { return m_dimension; }
 
   void setBoundary(Boundary boundary)
   {
@@ -132,7 +128,7 @@ class Model
 
   float m_velocity;
 
-  Dimension m_dimension;
+  Geometry::Dimension m_dimension;
 
   Boundary m_boundary;
 

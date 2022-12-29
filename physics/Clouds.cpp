@@ -91,7 +91,7 @@ struct CloudKernelInputs
   cl_float groundHeatCoeff = 800.0f; // i.e here 8K
   cl_float buoyancyCoeff = 0.075f;
   cl_float adiabaticLapseRate = 100.0f;
-  cl_float phaseTransitionRate = 2000.0f;
+  cl_float phaseTransitionRate = 100.0f;
   cl_float latentHeatCoeff = 0.01f;
 };
 
@@ -201,7 +201,7 @@ bool Clouds::createKernels() const
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_PART_DETECTOR, { "p_pos", "c_partDetector" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_CAMERA_DIST, { "p_cameraDist" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_COLOR, { "p_temp", "", "p_col" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_COLOR, { "p_cloudDens", "p_vaporDens", "", "p_col" });
 
   // Radix Sort based on 3D grid, using predicted positions, not corrected ones
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_CELL_ID, { "p_cellID" });
@@ -252,7 +252,7 @@ void Clouds::updateFluidsParamsInKernels()
 
   CL::Context& clContext = CL::Context::Get();
 
-  m_fluidKernelInputs->dim = (m_dimension == Dimension::dim2D) ? 2 : 3;
+  m_fluidKernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
 
   const float effectRadius = ((float)m_boxSize) / m_gridRes;
   m_fluidKernelInputs->effectRadius = effectRadius;
@@ -262,7 +262,7 @@ void Clouds::updateFluidsParamsInKernels()
   clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_FILL_COLOR, 1, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
+  clContext.setKernelArg(KERNEL_FILL_COLOR, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
@@ -319,7 +319,7 @@ void Clouds::initCloudsParticles()
   Math::float3 startFluidPos = { 0.0f, 0.0f, 0.0f };
   Math::float3 endFluidPos = { 0.0f, 0.0f, 0.0f };
 
-  if (m_dimension == Dimension::dim2D)
+  if (m_dimension == Geometry::Dimension::dim2D)
   {
     Geometry::Shape2D shape = Geometry::Shape2D::Rectangle;
 
@@ -347,7 +347,7 @@ void Clouds::initCloudsParticles()
 
     gridVerts = Geometry::Generate2DGrid(shape, Geometry::Plane::YZ, grid2DRes, startFluidPos, endFluidPos);
   }
-  else if (m_dimension == Dimension::dim3D)
+  else if (m_dimension == Geometry::Dimension::dim3D)
   {
     Geometry::Shape3D shape = Geometry::Shape3D::Box;
 
@@ -395,9 +395,9 @@ void Clouds::initCloudsParticles()
   clContext.loadBufferFromHost("p_cloudDens", 0, sizeof(float) * cloudDens.size(), cloudDens.data());
 
   // Temperature field must be initialized before vapor density
-  clContext.runKernel(KERNEL_INIT_TEMP, m_currNbParticles);
+  clContext.runKernel(KERNEL_INIT_TEMP, m_maxNbParticles);
 
-  clContext.runKernel(KERNEL_INIT_VAPOR_DENSITY, m_currNbParticles);
+  clContext.runKernel(KERNEL_INIT_VAPOR_DENSITY, m_maxNbParticles);
 
   clContext.releaseGLBuffers({ "p_pos", "p_col" });
 }

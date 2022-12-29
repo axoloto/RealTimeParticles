@@ -249,20 +249,24 @@ __kernel void cld_predictPosition(//Input
 */
 __kernel void cld_fillCloudColor(//Input
                                  const  __global float  *density, // 0
+                                 const  __global float  *densityV, // 1
                                  //Param
-                                 const      FluidParams fluid,    // 1
+                                 const      FluidParams fluid,    // 2
                                  //Output
-                                        __global float4 *col)     // 2
+                                        __global float4 *col)     // 3
 {
   float4 blue      = (float4)(0.0f, 0.0f, 0.0f, 1.0f);
   float4 lightBlue = (float4)(0.7f, 0.7f, 1.0f, 1.0f);
   float4 darkBlue  = (float4)(0.0f, 0.0f, 0.8f, 1.0f);
 
   //float constraint = (1.0f - density[ID] / fluid.restDensity);
-  float constraint =  (density[ID] - 290) / 290;
+  //float constraint =  (density[ID] - 233) / 60;
+  float constraint =  (density[ID]);
+  //float constraint = density[ID];
 
   float4 color = blue;
-  color.x = constraint;
+  color.x = constraint * 3;
+  color.y = densityV[ID] / 100;
 
  // if(constraint > 0.0f)
  //   color += constraint * (lightBlue - blue) / 0.35f;

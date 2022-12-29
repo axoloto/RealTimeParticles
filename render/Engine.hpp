@@ -1,7 +1,9 @@
 #pragma once
 
 #include "Camera.hpp"
+#include "Geometry.hpp"
 #include "Shader.hpp"
+
 #include <array>
 #include <glad/glad.h>
 #include <memory>
@@ -24,6 +26,7 @@ struct EngineParams
   size_t gridRes = 0;
   size_t pointSize = 4;
   float aspectRatio = 0.0f;
+  Geometry::Dimension dimension = Geometry::Dimension::dim3D;
 };
 
 class Engine
@@ -70,6 +73,9 @@ class Engine
   inline void setTargetVisibility(bool isVisible) { m_isTargetVisible = isVisible; }
 
   inline void setTargetPos(const Math::float3& pos) { m_targetPos = pos; }
+
+  void setDimension(Geometry::Dimension dim) { m_dimension = dim; }
+  Geometry::Dimension dimension() const { return m_dimension; }
 
   inline GLuint pointCloudCoordVBO() const { return m_pointCloudCoordVBO; }
   inline GLuint pointCloudColorVBO() const { return m_pointCloudColorVBO; }
@@ -128,34 +134,9 @@ class Engine
 
   std::unique_ptr<Camera> m_camera;
 
+  Geometry::Dimension m_dimension;
+
   void* m_pointCloudCoordsBufferStart;
   void* m_pointCloudColorsBufferStart;
-
-  typedef std::array<float, 3> Vertex;
-  const std::array<Vertex, 8> m_refCubeVertices {
-    Vertex({ 1.f, -1.f, -1.f }),
-    Vertex({ 1.f, 1.f, -1.f }),
-    Vertex({ -1.f, 1.f, -1.f }),
-    Vertex({ -1.f, -1.f, -1.f }),
-    Vertex({ 1.f, -1.f, 1.f }),
-    Vertex({ 1.f, 1.f, 1.f }),
-    Vertex({ -1.f, 1.f, 1.f }),
-    Vertex({ -1.f, -1.f, 1.f })
-  };
-
-  const std::array<GLuint, 24> m_refCubeIndices {
-    0, 1,
-    1, 2,
-    2, 3,
-    3, 0,
-    4, 5,
-    5, 6,
-    6, 7,
-    7, 4,
-    0, 4,
-    1, 5,
-    2, 6,
-    3, 7
-  };
 };
 }

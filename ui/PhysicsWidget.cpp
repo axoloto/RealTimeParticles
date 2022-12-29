@@ -161,7 +161,7 @@ void displayCloudsParameters(Physics::Clouds* cloudsEngine)
   }
 
   float buoyancyCoeff = cloudsEngine->getBuoyancyCoeff();
-  if (ImGui::SliderFloat("Buoyancy Coefficient", &buoyancyCoeff, 0.0f, 0.15f, "%.3f"))
+  if (ImGui::SliderFloat("Buoyancy Coefficient", &buoyancyCoeff, 0.0f, 0.15f, "%.4f"))
   {
     cloudsEngine->setBuoyancyCoeff(buoyancyCoeff);
   }
@@ -173,7 +173,7 @@ void displayCloudsParameters(Physics::Clouds* cloudsEngine)
   }
 
   float phaseTransitionRate = cloudsEngine->getPhaseTransitionRate();
-  if (ImGui::SliderFloat("Phase Transition Rate", &phaseTransitionRate, 0.0f, 3000.0f, "%.4f"))
+  if (ImGui::SliderFloat("Phase Transition Rate", &phaseTransitionRate, 0.0f, 200.0f, "%.4f"))
   {
     cloudsEngine->setPhaseTransitionRate(phaseTransitionRate);
   }

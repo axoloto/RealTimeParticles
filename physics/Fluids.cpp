@@ -199,7 +199,7 @@ void Fluids::updateFluidsParamsInKernels()
 
   CL::Context& clContext = CL::Context::Get();
 
-  m_kernelInputs->dim = (m_dimension == Dimension::dim2D) ? 2 : 3;
+  m_kernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
 
   const float effectRadius = ((float)m_boxSize) / m_gridRes;
   m_kernelInputs->effectRadius = effectRadius;
@@ -249,7 +249,7 @@ void Fluids::initFluidsParticles()
   Math::float3 startFluidPos = { 0.0f, 0.0f, 0.0f };
   Math::float3 endFluidPos = { 0.0f, 0.0f, 0.0f };
 
-  if (m_dimension == Dimension::dim2D)
+  if (m_dimension == Geometry::Dimension::dim2D)
   {
     Geometry::Shape2D shape = Geometry::Shape2D::Rectangle;
 
@@ -297,7 +297,7 @@ void Fluids::initFluidsParticles()
       gridVerts.insert(gridVerts.end(), bottomGridVerts.begin(), bottomGridVerts.end());
     }
   }
-  else if (m_dimension == Dimension::dim3D)
+  else if (m_dimension == Geometry::Dimension::dim3D)
   {
     Geometry::Shape3D shape = Geometry::Shape3D::Box;
 

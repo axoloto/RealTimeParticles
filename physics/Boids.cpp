@@ -149,7 +149,7 @@ void Boids::updateBoidsParamsInKernel()
 {
   CL::Context& clContext = CL::Context::Get();
 
-  float dim = (m_dimension == Dimension::dim2D) ? 2.0f : 3.0f;
+  float dim = (m_dimension == Geometry::Dimension::dim2D) ? 2.0f : 3.0f;
   clContext.setKernelArg(KERNEL_RANDOM_POS, 2, sizeof(float), &dim);
 
   float vel = m_velocity;
@@ -210,7 +210,7 @@ void Boids::initBoidsParticles()
 
   std::vector<Math::float3> gridVerts;
 
-  if (m_dimension == Dimension::dim2D)
+  if (m_dimension == Geometry::Dimension::dim2D)
   {
     const auto& subdiv2D = Utils::GetNbParticlesSubdiv2D((Utils::NbParticles)m_currNbParticles);
     Math::int2 grid2DRes = { subdiv2D[0], subdiv2D[1] };
@@ -219,7 +219,7 @@ void Boids::initBoidsParticles()
 
     gridVerts = Geometry::Generate2DGrid(Geometry::Shape2D::Circle, Geometry::Plane::YZ, grid2DRes, start2D, end2D);
   }
-  else if (m_dimension == Dimension::dim3D)
+  else if (m_dimension == Geometry::Dimension::dim3D)
   {
     const auto& subdiv3D = Utils::GetNbParticlesSubdiv3D((Utils::NbParticles)m_currNbParticles);
     Math::int3 grid3DRes = { subdiv3D[0], subdiv3D[1], subdiv3D[2] };
@@ -266,7 +266,7 @@ void Boids::update()
     if (m_simplifiedMode)
       clContext.runKernel(KERNEL_ADJUST_END_CELL, m_nbCells);
 
-    if (m_dimension == Dimension::dim2D)
+    if (m_dimension == Geometry::Dimension::dim2D)
       clContext.runKernel(KERNEL_BOIDS_RULES_GRID_2D, m_currNbParticles);
     else
       clContext.runKernel(KERNEL_BOIDS_RULES_GRID_3D, m_currNbParticles);

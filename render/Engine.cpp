@@ -14,6 +14,7 @@ Engine::Engine(EngineParams params)
     , m_isBoxVisible(false)
     , m_isGridVisible(false)
     , m_targetPos({ 0.0f, 0.0f, 0.0f })
+    , m_dimension(params.dimension)
 {
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_PROGRAM_POINT_SIZE);
@@ -177,7 +178,7 @@ void Engine::drawTarget()
 
 void Engine::initBox()
 {
-  std::array<Vertex, 8> boxVertices = m_refCubeVertices;
+  auto boxVertices = Geometry::RefCubeVertices;
   for (auto& vertex : boxVertices)
   {
     float x = vertex[0] * m_boxSize / 2.0f;
@@ -195,14 +196,14 @@ void Engine::initBox()
 
   glGenBuffers(1, &m_boxEBO);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boxEBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(m_refCubeIndices), m_refCubeIndices.data(), GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Geometry::RefCubeIndices), Geometry::RefCubeIndices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 void Engine::initGrid()
 {
   float cellSize = 1.0f * m_boxSize / m_gridRes;
-  std::array<Vertex, 8> localCellCoords = m_refCubeVertices;
+  auto localCellCoords = Geometry::RefCubeVertices;
   for (auto& vertex : localCellCoords)
   {
     float x = vertex[0] * cellSize * 0.5f;
@@ -214,7 +215,7 @@ void Engine::initGrid()
   size_t centerIndex = 0;
   size_t numCells = m_gridRes * m_gridRes * m_gridRes;
   float firstPos = -(float)m_boxSize / 2.0f + 0.5f * cellSize;
-  std::vector<Vertex> globalCellCenterCoords(numCells);
+  std::vector<Geometry::Vertex3D> globalCellCenterCoords(numCells);
   for (int x = 0; x < m_gridRes; ++x)
   {
     float xCoord = firstPos + x * cellSize;
@@ -230,7 +231,7 @@ void Engine::initGrid()
   }
 
   size_t cornerIndex = 0;
-  std::vector<Vertex> globalCellCoords(numCells * 8);
+  std::vector<Geometry::Vertex3D> globalCellCoords(numCells * 8);
   for (const auto& centerCoords : globalCellCenterCoords)
   {
     for (const auto& cornerCoords : localCellCoords)
@@ -262,9 +263,9 @@ void Engine::initGrid()
   std::vector<GLuint> globalCellIndices(numCells * 24);
   for (const auto& centerCoords : globalCellCenterCoords)
   {
-    for (const auto& localIndex : m_refCubeIndices)
+    for (const auto& localIndex : Geometry::RefCubeIndices)
     {
-      globalCellIndices.at(index++) = localIndex + globalOffset;
+      globalCellIndices.at(index++) = (GLuint)localIndex + globalOffset;
     }
     globalOffset += 8;
   }

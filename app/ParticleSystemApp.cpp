@@ -248,6 +248,7 @@ bool ParticleSystemApp::initGraphicsEngine()
   params.boxSize = Utils::BOX_SIZE;
   params.gridRes = Utils::GRID_RES;
   params.aspectRatio = (float)m_windowSize.x / m_windowSize.y;
+  params.dimension = Geometry::Dimension::dim3D;
 
   m_graphicsEngine = std::make_unique<Render::Engine>(params);
 
@@ -272,6 +273,7 @@ bool ParticleSystemApp::initPhysicsEngine()
   params.particleColVBO = (unsigned int)m_graphicsEngine->pointCloudColorVBO();
   params.cameraVBO = (unsigned int)m_graphicsEngine->cameraCoordVBO();
   params.gridVBO = (unsigned int)m_graphicsEngine->gridDetectorVBO();
+  params.dimension = Geometry::Dimension::dim3D;
 
   if (m_physicsEngine)
   {
@@ -417,18 +419,20 @@ void ParticleSystemApp::displayMainWidget()
     m_physicsEngine->reset();
   }
 
-  bool isSystemDim2D = (m_physicsEngine->dimension() == Physics::Dimension::dim2D);
+  bool isSystemDim2D = (m_physicsEngine->dimension() == Geometry::Dimension::dim2D);
   if (ImGui::Checkbox("2D", &isSystemDim2D))
   {
-    m_physicsEngine->setDimension(isSystemDim2D ? Physics::Dimension::dim2D : Physics::Dimension::dim3D);
+    m_physicsEngine->setDimension(isSystemDim2D ? Geometry::Dimension::dim2D : Geometry::Dimension::dim3D);
+    m_graphicsEngine->setDimension(isSystemDim2D ? Geometry::Dimension::dim2D : Geometry::Dimension::dim3D);
   }
 
   ImGui::SameLine();
 
-  bool isSystemDim3D = (m_physicsEngine->dimension() == Physics::Dimension::dim3D);
+  bool isSystemDim3D = (m_physicsEngine->dimension() == Geometry::Dimension::dim3D);
   if (ImGui::Checkbox("3D", &isSystemDim3D))
   {
-    m_physicsEngine->setDimension(isSystemDim3D ? Physics::Dimension::dim3D : Physics::Dimension::dim2D);
+    m_physicsEngine->setDimension(isSystemDim3D ? Geometry::Dimension::dim3D : Geometry::Dimension::dim2D);
+    m_graphicsEngine->setDimension(isSystemDim3D ? Geometry::Dimension::dim3D : Geometry::Dimension::dim2D);
   }
 
   ImGui::SameLine();

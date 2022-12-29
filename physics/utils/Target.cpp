@@ -24,7 +24,7 @@ Target::Target(size_t boxSize, Math::float3 initPos)
 
 static constexpr float PI = 3.14f;
 
-void Target::updatePos(Dimension dim, float particlesVel)
+void Target::updatePos(Geometry::Dimension dim, float particlesVel)
 {
   // Generating perlin noise moving in a cartesian 3D grid with pseudo random gradients value at grid vertices
   float dx = 0.001f;
@@ -44,7 +44,7 @@ void Target::updatePos(Dimension dim, float particlesVel)
   float velRatio = particlesVel / 35.0f;
   // Mapping it to spheric coordinates to generate a pseudo random 3D trajectory remaining inside radius
   float radius = m_maxRadius * cos(12 * velRatio * PI * nR);
-  m_pos.x = (dim == Dimension::dim3D) ? (radius * cos(5 * velRatio * PI * nBeta)) : 0.0f;
+  m_pos.x = (dim == Geometry::Dimension::dim3D) ? (radius * cos(5 * velRatio * PI * nBeta)) : 0.0f;
   m_pos.y = radius * sin(5 * velRatio * PI * nBeta) * cos(4 * velRatio * PI * nTheta);
   m_pos.z = radius * sin(5 * velRatio * PI * nBeta) * sin(4 * velRatio * PI * nTheta);
 }
