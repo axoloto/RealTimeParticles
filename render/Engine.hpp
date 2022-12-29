@@ -103,20 +103,23 @@ class Engine
 
   const GLuint m_pointCloudPosAttribIndex { 0 };
   const GLuint m_pointCloudColAttribIndex { 1 };
-  const GLuint m_boxPosAttribIndex { 2 };
-  const GLuint m_gridPosAttribIndex { 3 };
-  const GLuint m_gridDetectorAttribIndex { 4 };
-  const GLuint m_targetPosAttribIndex { 5 };
+  const GLuint m_box2DPosAttribIndex { 2 };
+  const GLuint m_box3DPosAttribIndex { 3 };
+  const GLuint m_gridPosAttribIndex { 4 };
+  const GLuint m_gridDetectorAttribIndex { 5 };
+  const GLuint m_targetPosAttribIndex { 6 };
 
   GLuint m_VAO;
   GLuint m_pointCloudCoordVBO, m_pointCloudColorVBO;
-  GLuint m_boxVBO, m_boxEBO;
+  GLuint m_box2DVBO, m_box2DEBO;
+  GLuint m_box3DVBO, m_box3DEBO;
   GLuint m_gridPosVBO, m_gridDetectorVBO, m_gridEBO;
   GLuint m_targetVBO;
   GLuint m_cameraVBO;
 
   std::unique_ptr<Shader> m_pointCloudShader;
-  std::unique_ptr<Shader> m_boxShader;
+  std::unique_ptr<Shader> m_box2DShader;
+  std::unique_ptr<Shader> m_box3DShader;
   std::unique_ptr<Shader> m_gridShader;
   std::unique_ptr<Shader> m_targetShader;
 

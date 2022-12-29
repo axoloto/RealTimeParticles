@@ -43,7 +43,8 @@ Engine::~Engine()
 {
   glDeleteBuffers(1, &m_pointCloudCoordVBO);
   glDeleteBuffers(1, &m_pointCloudColorVBO);
-  glDeleteBuffers(1, &m_boxVBO);
+  glDeleteBuffers(1, &m_box2DVBO);
+  glDeleteBuffers(1, &m_box3DVBO);
   glDeleteBuffers(1, &m_cameraVBO);
   glDeleteBuffers(1, &m_targetVBO);
 }
@@ -51,7 +52,8 @@ Engine::~Engine()
 void Engine::buildShaders()
 {
   m_pointCloudShader = std::make_unique<Shader>(Render::PointCloudVertShader, Render::PointCloudFragShader);
-  m_boxShader = std::make_unique<Shader>(Render::BoxVertShader, Render::FragShader);
+  m_box2DShader = std::make_unique<Shader>(Render::Box2DVertShader, Render::FragShader);
+  m_box3DShader = std::make_unique<Shader>(Render::Box3DVertShader, Render::FragShader);
   m_gridShader = std::make_unique<Shader>(Render::GridVertShader, Render::FragShader);
   m_targetShader = std::make_unique<Shader>(Render::TargetVertShader, Render::FragShader);
 }
@@ -136,15 +138,30 @@ void Engine::drawPointCloud()
 
 void Engine::drawBox()
 {
-  m_boxShader->activate();
+  if (m_dimension == Geometry::Dimension::dim2D)
+  {
+    m_box2DShader->activate();
 
-  m_boxShader->setUniform("u_projView", m_camera->getProjViewMat());
+    m_box2DShader->setUniform("u_projView", m_camera->getProjViewMat());
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boxEBO);
-  glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_box2DEBO);
+    glDrawElements(GL_LINES, 8, GL_UNSIGNED_INT, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-  m_boxShader->deactivate();
+    m_box2DShader->deactivate();
+  }
+  else
+  {
+    m_box3DShader->activate();
+
+    m_box3DShader->setUniform("u_projView", m_camera->getProjViewMat());
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_box3DEBO);
+    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    m_box3DShader->deactivate();
+  }
 }
 
 void Engine::drawGrid()
@@ -178,8 +195,30 @@ void Engine::drawTarget()
 
 void Engine::initBox()
 {
-  auto boxVertices = Geometry::RefCubeVertices;
-  for (auto& vertex : boxVertices)
+  // 2D
+  auto box2DVertices = Geometry::RefSquareVertices;
+  for (auto& vertex : box2DVertices)
+  {
+    float y = vertex[0] * m_boxSize / 2.0f;
+    float z = vertex[1] * m_boxSize / 2.0f;
+    vertex = { y, z };
+  }
+
+  glGenBuffers(1, &m_box2DVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, m_box2DVBO);
+  glVertexAttribPointer(m_box2DPosAttribIndex, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+  glEnableVertexAttribArray(m_box2DPosAttribIndex);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(box2DVertices.front()) * box2DVertices.size(), box2DVertices.data(), GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  glGenBuffers(1, &m_box2DEBO);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_box2DEBO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Geometry::RefSquareIndices), Geometry::RefSquareIndices.data(), GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+  // 3D
+  auto box3DVertices = Geometry::RefCubeVertices;
+  for (auto& vertex : box3DVertices)
   {
     float x = vertex[0] * m_boxSize / 2.0f;
     float y = vertex[1] * m_boxSize / 2.0f;
@@ -187,15 +226,15 @@ void Engine::initBox()
     vertex = { x, y, z };
   }
 
-  glGenBuffers(1, &m_boxVBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_boxVBO);
-  glVertexAttribPointer(m_boxPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-  glEnableVertexAttribArray(m_boxPosAttribIndex);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(boxVertices.front()) * boxVertices.size(), boxVertices.data(), GL_STATIC_DRAW);
+  glGenBuffers(1, &m_box3DVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, m_box3DVBO);
+  glVertexAttribPointer(m_box3DPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+  glEnableVertexAttribArray(m_box3DPosAttribIndex);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(box3DVertices.front()) * box3DVertices.size(), box3DVertices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  glGenBuffers(1, &m_boxEBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boxEBO);
+  glGenBuffers(1, &m_box3DEBO);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_box3DEBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Geometry::RefCubeIndices), Geometry::RefCubeIndices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }

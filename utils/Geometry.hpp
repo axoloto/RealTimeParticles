@@ -63,8 +63,8 @@ constexpr std::array<std::uint32_t, 24> RefCubeIndices {
 };
 
 // 2D Box
-typedef std::array<float, 3> Vertex2D;
-constexpr std::array<Vertex2D, 8> RefSquareVertices {
+typedef std::array<float, 2> Vertex2D;
+constexpr std::array<Vertex2D, 4> RefSquareVertices {
   Vertex2D({ -1.f, -1.f }),
   Vertex2D({ -1.f, 1.f }),
   Vertex2D({ 1.f, 1.f }),

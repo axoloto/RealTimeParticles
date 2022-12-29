@@ -52,8 +52,22 @@ constexpr char PointCloudFragShader[] = R"(#version 330 core
     }
     )";
 
-constexpr char BoxVertShader[] = R"(#version 330 core
-    layout(location = 2) in vec3 aPos;
+constexpr char Box2DVertShader[] = R"(#version 330 core
+    layout(location = 2) in vec2 aPos;
+
+    uniform mat4 u_projView;
+    out vec4 vertexColor;
+
+    void main()
+    {
+        vertexColor = vec4(1.0, 1.0, 1.0, 1.0);
+        gl_Position = u_projView * vec4(0.0, aPos, 1.0);
+        gl_PointSize = 4.0;
+    }
+    )";
+
+constexpr char Box3DVertShader[] = R"(#version 330 core
+    layout(location = 3) in vec3 aPos;
 
     uniform mat4 u_projView;
     out vec4 vertexColor;
@@ -67,8 +81,8 @@ constexpr char BoxVertShader[] = R"(#version 330 core
     )";
 
 constexpr char GridVertShader[] = R"(#version 330 core
-    layout(location = 3) in vec3 aPos;
-    layout(location = 4) in float vertexDetector;
+    layout(location = 4) in vec3 aPos;
+    layout(location = 5) in float vertexDetector;
 
     uniform mat4 u_projView;
     out vec4 vertexColor;
@@ -87,7 +101,7 @@ constexpr char GridVertShader[] = R"(#version 330 core
     )";
 
 constexpr char TargetVertShader[] = R"(#version 330 core
-    layout(location = 5) in vec3 aPos;
+    layout(location = 6) in vec3 aPos;
 
     uniform mat4 u_projView;
     out vec4 vertexColor;

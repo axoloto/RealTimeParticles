@@ -399,6 +399,8 @@ void ParticleSystemApp::displayMainWidget()
           return;
         }
 
+        m_graphicsEngine->setDimension(m_physicsEngine->dimension());
+
         LOG_INFO("Application correctly switched to {}", Physics::ALL_MODELS.find(m_modelType)->second);
       }
     }
