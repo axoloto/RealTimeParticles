@@ -6,6 +6,7 @@
 #include <array>
 #include <map>
 #include <string>
+#include <utility>
 
 namespace Physics
 {
@@ -31,10 +32,27 @@ static const std::map<ModelType, std::string, CompareModelType> ALL_MODELS {
   { ModelType::CLOUDS, "Clouds" }, // Position Based Fluids + Clouds Physics + Constrained (smoothed) temperature field (CWT Barbosa, Dobashi & Yamamoto, 2015)
 };
 
+// Boundary Condition types
 enum class Boundary
 {
+  // Particle bounces the wall and goes into the other direction
   BouncingWall,
+  // Particle goes through the wall to appear at the opposite wall
   CyclicWall
+};
+
+// Quantified physical properties that can be visualized at UI level through particles color
+struct PhysicalQuantity
+{
+  // Name of the physical quantity (visible in UI)
+  const std::string name;
+  // Name of the OpenCL buffer containing the values of this quanity for all the particles
+  const std::string bufferName;
+  // For rendering purpose, color intensity will vary between two user-selected values (umin/umax)
+  // Those user-selected values will vary inside the developer-defined static range (smin/smax) defined below
+  std::pair<float, float> staticRange;
+  // The user-selected values are defined here, umin belongs to [smin, umax] | umax belongs to [umin, smax]
+  std::pair<float, float> userRange;
 };
 
 struct ModelParams
@@ -74,7 +92,7 @@ class Model
       , m_boundary(Boundary::BouncingWall)
       , m_init(false)
       , m_pause(false)
-      , m_currentVisibleBufferName("") {};
+      , m_currentDisplayedQuantityName("") {};
 
   virtual ~Model();
 
@@ -111,9 +129,21 @@ class Model
   virtual bool isTargetActivated() const { return false; }
   virtual bool isTargetVisible() const { return false; }
 
-  void setCurrentVisibleBufferName(const std::string& name) { m_currentVisibleBufferName = name; }
-  const std::string& currentVisibleBufferName() { return m_currentVisibleBufferName; }
-  const std::vector<std::string>& availableVisibleBufferNames() { return m_availableVisibleBufferNames; }
+  void setCurrentDisplayedQuantity(const std::string& name);
+  // Name of currently displayed physical quantity, only one for which some specific fields can be modified
+  std::string currentDisplayedPhysicalQuantityName() { return m_currentDisplayedQuantityName; }
+  // Currently displayed physical quantity
+  PhysicalQuantity& currentDisplayedPhysicalQuantity()
+  {
+    auto it = m_allDisplayableQuantities.find(m_currentDisplayedQuantityName);
+    return (it != m_allDisplayableQuantities.end()) ? it->second : m_allDisplayableQuantities.begin()->second;
+  }
+  // All available physical quantities to be displayed, read-only
+  std::map<const std::string, PhysicalQuantity>::iterator beginDisplayablePhysicalQuantities() { return m_allDisplayableQuantities.begin(); }
+  std::map<const std::string, PhysicalQuantity>::iterator endDisplayablePhysicalQuantities() { return m_allDisplayableQuantities.end(); }
+
+  std::map<const std::string, PhysicalQuantity>::const_iterator cbeginDisplayablePhysicalQuantities() { return m_allDisplayableQuantities.cbegin(); }
+  std::map<const std::string, PhysicalQuantity>::const_iterator cendDisplayablePhysicalQuantities() { return m_allDisplayableQuantities.cend(); }
 
   bool isProfilingEnabled() const;
   void enableProfiling(bool enable);
@@ -143,8 +173,9 @@ class Model
   unsigned int m_cameraVBO;
   unsigned int m_gridVBO;
 
-  // Physics buffer to render
-  std::string m_currentVisibleBufferName;
-  std::vector<std::string> m_availableVisibleBufferNames;
+  // Name of the PhysicalQuantity currently sent to color buffer and rendered by fragment shader
+  std::string m_currentDisplayedQuantityName;
+  // All PhysicalQuantities that can be rendered
+  std::map<const std::string, PhysicalQuantity> m_allDisplayableQuantities;
 };
 }

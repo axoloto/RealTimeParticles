@@ -407,26 +407,6 @@ void ParticleSystemApp::displayMainWidget()
     ImGui::EndCombo();
   }
 
-  const auto& allVisibleParamNames = m_physicsEngine->availableVisibleBufferNames();
-  if (allVisibleParamNames.size() > 0)
-  {
-    // Selection of the physical parameter to display (filling color buffer used by fragment shader)
-    const auto& selVisibleParamName = m_physicsEngine->currentVisibleBufferName();
-
-    if (ImGui::BeginCombo("Physical Parameter", selVisibleParamName.c_str()))
-    {
-      for (const auto& paramName : allVisibleParamNames)
-      {
-        if (ImGui::Selectable(paramName.c_str(), selVisibleParamName == paramName))
-        {
-          m_physicsEngine->setCurrentVisibleBufferName(paramName);
-          LOG_INFO("Visible physics parameter switched to {}", paramName);
-        }
-      }
-      ImGui::EndCombo();
-    }
-  }
-
   bool isOnPaused = m_physicsEngine->onPause();
   std::string pauseRun = isOnPaused ? "  Start  " : "  Pause  ";
   if (ImGui::Button(pauseRun.c_str()))
@@ -471,6 +451,43 @@ void ParticleSystemApp::displayMainWidget()
   if (ImGui::Checkbox("Grid", &isGridVisible))
   {
     m_graphicsEngine->setGridVisibility(isGridVisible);
+  }
+
+  ImGui::Spacing();
+  ImGui::Separator();
+  ImGui::Spacing();
+
+  // Selection of the physical quantity to render through particles intensity color (will fill color buffer used by fragment shader)
+  // const auto& allDisplayableQuantities = m_physicsEngine->allDisplayablePhysicalQuantities();
+  if (m_physicsEngine->cbeginDisplayablePhysicalQuantities() != m_physicsEngine->cendDisplayablePhysicalQuantities())
+  {
+    const auto& selDisplayedQuantityName = m_physicsEngine->currentDisplayedPhysicalQuantityName();
+
+    if (ImGui::BeginCombo("Physical Quantity", selDisplayedQuantityName.c_str()))
+    {
+      for (auto it = m_physicsEngine->beginDisplayablePhysicalQuantities(); it != m_physicsEngine->endDisplayablePhysicalQuantities(); ++it)
+      {
+        if (ImGui::Selectable(it->first.c_str(), selDisplayedQuantityName == it->first))
+        {
+          m_physicsEngine->setCurrentDisplayedQuantity(it->first);
+
+          LOG_INFO("Visible physics quantity switched to {}", it->first);
+        }
+      }
+      ImGui::EndCombo();
+    }
+
+    auto& currentQuantity = m_physicsEngine->currentDisplayedPhysicalQuantity();
+
+    float sMin = currentQuantity.staticRange.first;
+    float sMax = currentQuantity.staticRange.second;
+    float uMin = currentQuantity.userRange.first;
+    float uMax = currentQuantity.userRange.second;
+    float eps = 0.001f; // To avoid empty range if two sliders values meet each other
+    const std::string minStr = "Min [ " + Utils::FloatToStr(sMin, 2) + ", " + Utils::FloatToStr(uMax, 2) + " [";
+    ImGui::SliderFloat(minStr.c_str(), &currentQuantity.userRange.first, sMin, uMax - eps, "%.3f");
+    const std::string maxStr = "Max ] " + Utils::FloatToStr(uMin, 2) + ", " + Utils::FloatToStr(sMax, 2) + " ]";
+    ImGui::SliderFloat(maxStr.c_str(), &currentQuantity.userRange.second, uMin + eps, sMax, "%.3f");
   }
 
   ImGui::Spacing();

@@ -49,9 +49,15 @@ __kernel void infPosVerts(__global float4 *pos)
   Fill color buffer with physical buffer for display and analysis
 */
 __kernel void fillColorFloat(//Input
-                             const  __global float  *physicalBuffer, // 0
+                             const  __global float  *physicalQuantity, // 0
+                            //Param
+                             const           float minVal, // 1
+                             const           float maxVal, // 2
                             //Output
-                                    __global float4 *col)     // 1
+                                    __global float4 *col)  // 3
 {
-  col[ID] = (float4)(physicalBuffer[ID], 0.0f, 0.0f, 1.0f);
+  float val = (physicalQuantity[ID] - minVal) / (maxVal - minVal);
+  float coeff = step(0.0f, val) * step(val, 1.0f);
+  val *= coeff;
+  col[ID] = (float4)(val, val, val, 1.0f);
 }

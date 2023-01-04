@@ -117,7 +117,7 @@ Clouds::Clouds(ModelParams params)
 
   createKernels();
 
-  m_init = (m_fluidKernelInputs && m_cloudKernelInputs);
+  m_init = (m_fluidKernelInputs && m_cloudKernelInputs && !m_allDisplayableQuantities.empty());
 
   reset();
 }
@@ -185,9 +185,17 @@ bool Clouds::createBuffers()
 
   clContext.createBuffer("c_startEndPartID", 2 * m_nbCells * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
-  // Physical parameters visible in UI for display, only m_maxNbParts * sizeof(float) size supported for now
-  m_currentVisibleBufferName = "p_temp";
-  m_availableVisibleBufferNames = { "p_density", "p_temp", "p_vaporDens", "p_cloudDens", "p_buoyancy", "p_cloudGen" };
+  // Physical parameters displayable in UI, only m_maxNbParts * sizeof(float) size supported for now
+  PhysicalQuantity vaporDens { "Vapor Density", "p_vaporDens", { 0.0f, 100.0f }, { 0.0f, 40.0f } };
+  m_allDisplayableQuantities.insert(std::make_pair(vaporDens.name, vaporDens));
+  PhysicalQuantity cloudDens { "Cloud Density", "p_cloudDens", { 0.0f, 100.0f }, { 0.0f, 50.0f } };
+  m_allDisplayableQuantities.insert(std::make_pair(cloudDens.name, cloudDens));
+  PhysicalQuantity netForce { "Net Force", "p_buoyancy", { -10.0f, 10.0f }, { -1.0f, 1.0f } };
+  m_allDisplayableQuantities.insert(std::make_pair(netForce.name, netForce));
+  PhysicalQuantity temp { "Temperature", "p_temp", { 0.0f, 1400.0f }, { 263.0f, 500.0f } };
+  m_allDisplayableQuantities.insert(std::make_pair(temp.name, temp));
+
+  m_currentDisplayedQuantityName = temp.name;
 
   return true;
 }
@@ -205,7 +213,7 @@ bool Clouds::createKernels() const
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_PART_DETECTOR, { "p_pos", "c_partDetector" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_CAMERA_DIST, { "p_cameraDist" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_CAMERA_DIST, { "p_pos", "u_cameraPos", "p_cameraDist" });
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_COLOR, { "", "p_col" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_FILL_COLOR, { "", "", "", "p_col" });
 
   // Radix Sort based on 3D grid, using predicted positions, not corrected ones
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_CELL_ID, { "p_cellID" });
@@ -424,7 +432,7 @@ void Clouds::update()
     clContext.runKernel(KERNEL_BUOYANCY, m_currNbParticles);
     // Computing adiabatic cooling due to altitude increase
     clContext.runKernel(KERNEL_ADIABATIC_COOLING, m_currNbParticles);
-    // Computing
+    // Computing cloud generation value
     clContext.runKernel(KERNEL_CLOUD_GENERATION, m_currNbParticles);
     // Copying vapor and cloud density values to other buffers before running phase transition kernel using them as input/output
     clContext.copyBuffer("p_vaporDens", "p_vaporDensIn");
@@ -443,7 +451,7 @@ void Clouds::update()
     // NNS - spatial partitioning
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
-    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_vaporDens", "p_cloudDens" });
+    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_buoyancy", "p_vaporDens", "p_cloudDens" });
 
     clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
@@ -491,13 +499,18 @@ void Clouds::update()
   }
 
   // Sending selected physical parameter to color buffer for rendering
-  clContext.setKernelArg(KERNEL_FILL_COLOR, 0, m_currentVisibleBufferName);
+  const auto& currentPhysicalQuantity = currentDisplayedPhysicalQuantity();
+  cl_float minVal = (cl_float)currentPhysicalQuantity.userRange.first;
+  cl_float maxVal = (cl_float)currentPhysicalQuantity.userRange.second;
+  clContext.setKernelArg(KERNEL_FILL_COLOR, 0, currentPhysicalQuantity.bufferName);
+  clContext.setKernelArg(KERNEL_FILL_COLOR, 1, sizeof(cl_float), &minVal);
+  clContext.setKernelArg(KERNEL_FILL_COLOR, 2, sizeof(cl_float), &maxVal);
   clContext.runKernel(KERNEL_FILL_COLOR, m_currNbParticles);
 
   // Rendering purpose
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
 
-  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_vaporDens", "p_cloudDens" });
+  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_buoyancy", "p_vaporDens", "p_cloudDens" });
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }
@@ -656,52 +669,103 @@ void Clouds::setEffectRadius(float effectRadius)
   updateFluidsParamsInKernels();
 }
 */
-float Clouds::getEffectRadius() const { return m_init ? (float)m_fluidKernelInputs->effectRadius : 0.0f; }
+float Clouds::getEffectRadius() const
+{
+  return m_init ? (float)m_fluidKernelInputs->effectRadius : 0.0f;
+}
 
 //
-float Clouds::getRestDensity() const { return m_init ? (float)m_fluidKernelInputs->restDensity : 0.0f; }
+float Clouds::getRestDensity() const
+{
+  return m_init ? (float)m_fluidKernelInputs->restDensity : 0.0f;
+}
 
 //
-float Clouds::getRelaxCFM() const { return m_init ? (float)m_fluidKernelInputs->relaxCFM : 0.0f; }
+float Clouds::getRelaxCFM() const
+{
+  return m_init ? (float)m_fluidKernelInputs->relaxCFM : 0.0f;
+}
 
 //
-float Clouds::getTimeStep() const { return m_init ? (float)m_fluidKernelInputs->timeStep : 0.0f; }
+float Clouds::getTimeStep() const
+{
+  return m_init ? (float)m_fluidKernelInputs->timeStep : 0.0f;
+}
 
 //
-size_t Clouds::getNbJacobiIters() const { return m_init ? m_nbJacobiIters : 0; }
+size_t Clouds::getNbJacobiIters() const
+{
+  return m_init ? m_nbJacobiIters : 0;
+}
 
 //
-bool Clouds::isArtPressureEnabled() const { return m_init ? (bool)m_fluidKernelInputs->isArtPressureEnabled : false; }
+bool Clouds::isArtPressureEnabled() const
+{
+  return m_init ? (bool)m_fluidKernelInputs->isArtPressureEnabled : false;
+}
 
 //
-float Clouds::getArtPressureRadius() const { return m_init ? (float)m_fluidKernelInputs->artPressureRadius : 0.0f; }
+float Clouds::getArtPressureRadius() const
+{
+  return m_init ? (float)m_fluidKernelInputs->artPressureRadius : 0.0f;
+}
 
 //
-size_t Clouds::getArtPressureExp() const { return m_init ? (size_t)m_fluidKernelInputs->artPressureExp : 0; }
+size_t Clouds::getArtPressureExp() const
+{
+  return m_init ? (size_t)m_fluidKernelInputs->artPressureExp : 0;
+}
 
 //
-float Clouds::getArtPressureCoeff() const { return m_init ? (float)m_fluidKernelInputs->artPressureCoeff : 0.0f; }
+float Clouds::getArtPressureCoeff() const
+{
+  return m_init ? (float)m_fluidKernelInputs->artPressureCoeff : 0.0f;
+}
 
 //
-bool Clouds::isVorticityConfinementEnabled() const { return m_init ? (bool)m_fluidKernelInputs->isVorticityConfEnabled : 0.0f; }
+bool Clouds::isVorticityConfinementEnabled() const
+{
+  return m_init ? (bool)m_fluidKernelInputs->isVorticityConfEnabled : 0.0f;
+}
 
 //
-float Clouds::getVorticityConfinementCoeff() const { return m_init ? (float)m_fluidKernelInputs->vorticityConfCoeff : 0.0f; }
+float Clouds::getVorticityConfinementCoeff() const
+{
+  return m_init ? (float)m_fluidKernelInputs->vorticityConfCoeff : 0.0f;
+}
 
 //
-float Clouds::getXsphViscosityCoeff() const { return m_init ? (float)m_fluidKernelInputs->xsphViscosityCoeff : 0.0f; }
+float Clouds::getXsphViscosityCoeff() const
+{
+  return m_init ? (float)m_fluidKernelInputs->xsphViscosityCoeff : 0.0f;
+}
 
 //
-float Clouds::getGroundHeatCoeff() const { return m_init ? (float)m_cloudKernelInputs->groundHeatCoeff : 0.0f; }
+float Clouds::getGroundHeatCoeff() const
+{
+  return m_init ? (float)m_cloudKernelInputs->groundHeatCoeff : 0.0f;
+}
 
 //
-float Clouds::getBuoyancyCoeff() const { return m_init ? (float)m_cloudKernelInputs->buoyancyCoeff : 0.0f; }
+float Clouds::getBuoyancyCoeff() const
+{
+  return m_init ? (float)m_cloudKernelInputs->buoyancyCoeff : 0.0f;
+}
 
 //
-float Clouds::getAdiabaticLapseRate() const { return m_init ? (float)m_cloudKernelInputs->adiabaticLapseRate : 0.0f; }
+float Clouds::getAdiabaticLapseRate() const
+{
+  return m_init ? (float)m_cloudKernelInputs->adiabaticLapseRate : 0.0f;
+}
 
 //
-float Clouds::getPhaseTransitionRate() const { return m_init ? (float)m_cloudKernelInputs->phaseTransitionRate : 0.0f; }
+float Clouds::getPhaseTransitionRate() const
+{
+  return m_init ? (float)m_cloudKernelInputs->phaseTransitionRate : 0.0f;
+}
 
 //
-float Clouds::getLatentHeatCoeff() const { return m_init ? (float)m_cloudKernelInputs->latentHeatCoeff : 0.0f; }
+float Clouds::getLatentHeatCoeff() const
+{
+  return m_init ? (float)m_cloudKernelInputs->latentHeatCoeff : 0.0f;
+}
