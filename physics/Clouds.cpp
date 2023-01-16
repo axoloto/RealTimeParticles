@@ -38,7 +38,8 @@ using namespace Physics;
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
 // fluids.cl
-#define KERNEL_APPLY_BOUNDARY "fld_applyBoundaryCondition"
+#define KERNEL_APPLY_BOUNDARY "cld_applyBoundaryCondWithMixedWalls"
+// #define KERNEL_APPLY_BOUNDARY "fld_applyBoundaryCondition"
 #define KERNEL_DENSITY "fld_computeDensity"
 #define KERNEL_CONSTRAINT_FACTOR "fld_computeConstraintFactor"
 #define KERNEL_CONSTRAINT_CORRECTION "fld_computeConstraintCorrection"
@@ -72,12 +73,12 @@ struct FluidKernelInputs
   cl_float timeStep = 0.01f;
   cl_uint dim = 3;
   // Artifical pressure if enabled will try to reduce tensile instability
-  cl_uint isArtPressureEnabled = 1;
+  cl_uint isArtPressureEnabled = 0;
   cl_float artPressureRadius = 0.006f;
   cl_float artPressureCoeff = 0.001f;
   cl_uint artPressureExp = 4;
   // Vorticity confinement if enabled will try to replace lost energy due to virtual damping
-  cl_uint isVorticityConfEnabled = 1;
+  cl_uint isVorticityConfEnabled = 0;
   cl_float vorticityConfCoeff = 0.0004f;
   cl_float xsphViscosityCoeff = 0.0001f;
 };
@@ -88,11 +89,11 @@ struct CloudKernelInputs
   // Must be always equal to timeStep of FluidKernelInputs
   cl_float timeStep = 0.01f;
   // groundHeatCoeff * timeStep = max temperature increase due to heat source in ground for closest particles from ground
-  cl_float groundHeatCoeff = 800.0f; // i.e here 8K
+  cl_float groundHeatCoeff = 200.0f; // i.e here 2K/iteration
   cl_float buoyancyCoeff = 0.075f;
-  cl_float adiabaticLapseRate = 100.0f;
+  cl_float adiabaticLapseRate = 80.0f;
   cl_float phaseTransitionRate = 100.0f;
-  cl_float latentHeatCoeff = 0.01f;
+  cl_float latentHeatCoeff = 0.003f;
 };
 
 const std::map<Clouds::CaseType, std::string, Clouds::CompareCaseType> Clouds::ALL_CASES {
@@ -108,7 +109,7 @@ Clouds::Clouds(ModelParams params)
     , m_radixSort(params.maxNbParticles)
     , m_fluidKernelInputs(std::make_unique<FluidKernelInputs>())
     , m_cloudKernelInputs(std::make_unique<CloudKernelInputs>())
-    , m_initialCase(CaseType::HOMOGENEOUS)
+    , m_initialCase(CaseType::CUMULUS)
     , m_nbJacobiIters(2)
 {
   createProgram();
@@ -192,7 +193,7 @@ bool Clouds::createBuffers()
   m_allDisplayableQuantities.insert(std::make_pair(cloudDens.name, cloudDens));
   PhysicalQuantity netForce { "Net Force", "p_buoyancy", { -10.0f, 10.0f }, { -1.0f, 1.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(netForce.name, netForce));
-  PhysicalQuantity temp { "Temperature", "p_temp", { 0.0f, 1400.0f }, { 263.0f, 500.0f } };
+  PhysicalQuantity temp { "Temperature", "p_temp", { 0.0f, 1400.0f }, { 200.0f, 1200.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(temp.name, temp));
 
   m_currentDisplayedQuantityName = temp.name;
@@ -240,7 +241,7 @@ bool Clouds::createKernels() const
   /// Position prediction
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_PREDICT_POS, { "p_pos", "p_vel", "p_buoyancy", "", "p_predPos" });
   /// Boundary conditions
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_APPLY_BOUNDARY, { "p_predPos" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_APPLY_BOUNDARY, { "p_pos" });
   /// Jacobi solver to correct position
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_DENSITY, { "p_predPos", "c_startEndPartID", "", "p_density" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CONSTRAINT_FACTOR, { "p_predPos", "p_density", "c_startEndPartID", "", "p_constFactor" });
@@ -340,7 +341,7 @@ void Clouds::initCloudsParticles()
       m_currNbParticles = Utils::NbParticles::P4K;
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
-      endFluidPos = { 0.0f, 0.0f, 0.0f };
+      endFluidPos = { 0.0f, 0.0f, m_boxSize / 2.0f };
       break;
     case CaseType::HOMOGENEOUS:
       m_currNbParticles = Utils::NbParticles::P4K;
@@ -368,7 +369,7 @@ void Clouds::initCloudsParticles()
       m_currNbParticles = Utils::NbParticles::P130K;
       shape = Geometry::Shape3D::Box;
       startFluidPos = { m_boxSize / -2.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
-      endFluidPos = { m_boxSize / 2.0f, 0.0f, 0.0f };
+      endFluidPos = { m_boxSize / 2.0f, 0.0f, m_boxSize / 2.0f };
       break;
     case CaseType::HOMOGENEOUS:
       m_currNbParticles = Utils::NbParticles::P65K;
@@ -441,12 +442,12 @@ void Clouds::update()
     //
     clContext.runKernel(KERNEL_LATENT_HEAT, m_currNbParticles);
 
+    clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
+
     // Predicting velocity and position
     // Step coupling fluids and clouds physics
     // where we apply clouds buoyancy and gravity forces on fluids particles
     clContext.runKernel(KERNEL_PREDICT_POS, m_currNbParticles);
-
-    // clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
 
     // NNS - spatial partitioning
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
@@ -464,7 +465,7 @@ void Clouds::update()
     for (int iter = 0; iter < m_nbJacobiIters; ++iter)
     {
       // Clamping to boundary
-      clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
+      // clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
       // Computing density using SPH method
       clContext.runKernel(KERNEL_DENSITY, m_currNbParticles);
       // Computing constraint factor Lambda

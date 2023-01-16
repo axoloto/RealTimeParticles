@@ -281,22 +281,22 @@ __kernel void cld_fillCloudColor(//Input
   Apply Boucing wall boundary conditions for y direction
 */
 __kernel void cld_applyBoundaryCondWithMixedWalls(//Input/output
-                                                  __global float4 *predPos, // 0
-                                                  __global float4 *vel)     // 1
+                                                  __global float4 *predPos // 0
+                                                  )     // 1
 {
   float4 newPos = predPos[ID];
   float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
 
   if (!isequal(clampedNewPos.x, newPos.x))
   {
-    predPos[ID].x *= -0.5f;
+    predPos[ID].x = -clampedNewPos.x;
   }
-  if (!all(isequal(clampedNewPos.y, newPos.y)))
+  if (!isequal(clampedNewPos.y, newPos.y))
   {
-    vel[ID].y *= -0.5f;
+    predPos[ID].y = clampedNewPos.y;
   }  
   if (!isequal(clampedNewPos.z, newPos.z))
   {
-    predPos[ID].z *= -0.4f;
+    predPos[ID].z = -clampedNewPos.z;
   }
 }

@@ -491,7 +491,8 @@ __kernel void fld_updatePosition(//Input
                                  //Output
                                         __global float4 *pos)     // 1
 {
-  pos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS);
+  pos[ID] = predPos[ID];
+  //pos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS);
 }
 
 /*

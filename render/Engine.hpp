@@ -24,7 +24,7 @@ struct EngineParams
   size_t maxNbParticles = 0;
   size_t boxSize = 0;
   size_t gridRes = 0;
-  size_t pointSize = 4;
+  size_t pointSize = 10;
   float aspectRatio = 0.0f;
   Geometry::Dimension dimension = Geometry::Dimension::dim3D;
 };
