@@ -3,12 +3,12 @@ from conans import ConanFile, tools, CMake
 class Conanfile(ConanFile):
     name = "RealTimeParticles"
     version = "1.0.1"
-    requires = ["sdl/[>=2.0.12]",
-                "glad/[>=0.1.29]",
-                "opencl-headers/[>=2022.09.30]",
-                "opencl-icd-loader/[>=2022.09.30]", # might need to be disabled for macos
-                "spdlog/[>=1.9.2]",
-                "imgui/[>=1.85]"
+    requires = ["sdl/[==2.24]",
+                "glad/[==0.1.36]",
+                "opencl-headers/[==2022.09.30]",
+                "opencl-icd-loader/[==2022.09.30]", # might need to be disabled for macos
+                "spdlog/[==1.10.0]",
+                "imgui/[==1.88]"
                 ]
     settings = "os", "compiler", "arch", "build_type"
     exports = "*"

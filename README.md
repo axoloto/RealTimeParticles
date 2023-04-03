@@ -23,7 +23,7 @@ Minimalist real-time application combining DearImGui/OpenGL and OpenCL to admire
 
 - [Gitbash](https://git-scm.com/downloads)
 - [Python](https://www.python.org/) (>= 3.5) + [pip](https://pypi.org/project/pip/)
-- [Conan](https://conan.io/) (>=1.56)
+- [Conan](https://conan.io/) (==1.59)
 - [CMake](https://cmake.org/download/) (>=3.16)
 - [NSIS](http://nsis.sourceforge.net/) (only for packaging the installer)
 - C++ compiler (Cpp17)
@@ -32,7 +32,7 @@ Minimalist real-time application combining DearImGui/OpenGL and OpenCL to admire
 ### Setup Conan
 
 ```
-pip install conan
+pip install conan==1.59.0 #Not supporting Conan 2.0 yet
 conan remote add conan-center https://conan.io/center/
 ```
 
