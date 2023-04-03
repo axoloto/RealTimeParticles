@@ -13,6 +13,9 @@ macro(run_conan)
 
   include(${CMAKE_BINARY_DIR}/conan.cmake)
 
+  # Latest version before Conan 2.0
+  conan_check(VERSION 1.59.0 REQUIRED)
+
   conan_add_remote(NAME cci URL https://center.conan.io INDEX 0)
   conan_add_remote(NAME bincrafters URL https://bincrafters.jfrog.io/artifactory/api/conan/public-conan)
 
