@@ -48,6 +48,9 @@ constexpr char PointCloudFragShader[] = R"(#version 330 core
       //fragColor.a = 2.5* exp(-r2 / 100000)+0.75;
       //fragColor.rgb = vertexCol.rgb * fragColor.a;
 
+      // We discard particles whose physical quantity is out of range
+      if(vertexCol.r <= 0.0f || vertexCol.r >= 1.0f) discard;
+
       fragColor = vec4(vertexCol.rgb, 1.0);
     }
     )";

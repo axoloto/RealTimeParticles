@@ -162,6 +162,8 @@ bool Clouds::createBuffers()
   clContext.createGLBuffer("p_col", m_particleColVBO, CL_MEM_READ_WRITE);
   clContext.createGLBuffer("c_partDetector", m_gridVBO, CL_MEM_READ_WRITE);
 
+  clContext.createBuffer("p_partID", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+
   // Position Based Fluids
   clContext.createBuffer("p_density", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_predPos", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
@@ -187,6 +189,8 @@ bool Clouds::createBuffers()
   clContext.createBuffer("c_startEndPartID", 2 * m_nbCells * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
   // Physical parameters displayable in UI, only m_maxNbParts * sizeof(float) size supported for now
+  PhysicalQuantity partID { "Particle ID", "p_partID", { 0.0f, (float)(m_maxNbParticles - 1) }, { 0.0f, (float)(m_maxNbParticles - 1) } };
+  m_allDisplayableQuantities.insert(std::make_pair(partID.name, partID));
   PhysicalQuantity vaporDens { "Vapor Density", "p_vaporDens", { 0.0f, 100.0f }, { 0.0f, 40.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(vaporDens.name, vaporDens));
   PhysicalQuantity cloudDens { "Cloud Density", "p_cloudDens", { 0.0f, 100.0f }, { 0.0f, 50.0f } };
@@ -392,9 +396,7 @@ void Clouds::initCloudsParticles()
   std::vector<std::array<float, 4>> pos(m_maxNbParticles, std::array<float, 4>({ inf, inf, inf, 0.0f }));
 
   std::transform(gridVerts.cbegin(), gridVerts.cend(), pos.begin(),
-      [](const Math::float3& vertPos) -> std::array<float, 4>
-      { return { vertPos.x, vertPos.y, vertPos.z, 0.0f }; });
-
+      [](const Math::float3& vertPos) -> std::array<float, 4> { return { vertPos.x, vertPos.y, vertPos.z, 0.0f }; });
   clContext.loadBufferFromHost("p_pos", 0, 4 * sizeof(float) * pos.size(), pos.data());
 
   std::vector<std::array<float, 4>> vel(m_maxNbParticles, std::array<float, 4>({ 0.0f, 0.0f, 0.0f, 0.0f }));
@@ -405,6 +407,11 @@ void Clouds::initCloudsParticles()
 
   std::vector<float> cloudDens(m_maxNbParticles, 0.0f);
   clContext.loadBufferFromHost("p_cloudDens", 0, sizeof(float) * cloudDens.size(), cloudDens.data());
+
+  std::vector<float> partID(m_maxNbParticles, 0.0f);
+  for (int i = 0; i != partID.size(); ++i)
+    partID[i] = (float)i;
+  clContext.loadBufferFromHost("p_partID", 0, sizeof(float) * partID.size(), partID.data());
 
   // Temperature field must be initialized before vapor density
   clContext.runKernel(KERNEL_INIT_TEMP, m_maxNbParticles);
@@ -452,7 +459,7 @@ void Clouds::update()
     // NNS - spatial partitioning
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
-    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_buoyancy", "p_vaporDens", "p_cloudDens" });
+    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_buoyancy", "p_vaporDens", "p_cloudDens", "p_partID" });
 
     clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
@@ -511,7 +518,7 @@ void Clouds::update()
   // Rendering purpose
   clContext.runKernel(KERNEL_FILL_CAMERA_DIST, m_currNbParticles);
 
-  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_buoyancy", "p_vaporDens", "p_cloudDens" });
+  m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_buoyancy", "p_vaporDens", "p_cloudDens", "p_partID" });
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }

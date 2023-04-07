@@ -5,6 +5,7 @@
 
 #include <array>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -46,7 +47,7 @@ struct PhysicalQuantity
 {
   // Name of the physical quantity (visible in UI)
   const std::string name;
-  // Name of the OpenCL buffer containing the values of this quanity for all the particles
+  // Name of the OpenCL buffer containing the values of this quantity for all the particles
   const std::string bufferName;
   // For rendering purpose, color intensity will vary between two user-selected values (umin/umax)
   // Those user-selected values will vary inside the developer-defined static range (smin/smax) defined below

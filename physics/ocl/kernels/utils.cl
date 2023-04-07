@@ -57,7 +57,7 @@ __kernel void fillColorFloat(//Input
                                     __global float4 *col)  // 3
 {
   float val = (physicalQuantity[ID] - minVal) / (maxVal - minVal);
-  float coeff = step(0.0f, val) * step(val, 1.0f);
-  val *= coeff;
-  col[ID] = (float4)(val, val, val, 1.0f);
+  val *= step(0.0f, val);
+  val *= step(val, 1.0f);
+  col[ID] = (float4)(val, 0.0f, 0.3f, 1.0f);
 }
