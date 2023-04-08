@@ -41,8 +41,8 @@ using namespace Physics;
 #define KERNEL_APPLY_BOUNDARY "cld_applyBoundaryCondWithMixedWalls"
 // #define KERNEL_APPLY_BOUNDARY "fld_applyBoundaryCondition"
 #define KERNEL_DENSITY "fld_computeDensity"
-#define KERNEL_CONSTRAINT_FACTOR "fld_computeConstraintFactor"
-#define KERNEL_CONSTRAINT_CORRECTION "fld_computeConstraintCorrection"
+#define KERNEL_CONSTRAINT_FACTOR_FLUIDS "fld_computeConstraintFactor"
+#define KERNEL_CONSTRAINT_CORRECTION_FLUIDS "fld_computeConstraintCorrection"
 #define KERNEL_CORRECT_POS "fld_correctPosition"
 #define KERNEL_UPDATE_VEL "fld_updateVel"
 #define KERNEL_COMPUTE_VORTICITY "fld_computeVorticity"
@@ -61,6 +61,11 @@ using namespace Physics;
 #define KERNEL_PHASE_TRANSITION "cld_applyPhaseTransition"
 #define KERNEL_LATENT_HEAT "cld_applyLatentHeat"
 #define KERNEL_PREDICT_POS "cld_predictPosition"
+//
+#define KERNEL_LAPLACIAN_TEMP "cld_computeLaplacianTemp"
+#define KERNEL_CONSTRAINT_FACTOR_TEMP "cld_computeConstraintFactor"
+#define KERNEL_CONSTRAINT_CORRECTION_TEMP "cld_computeConstraintCorrection"
+#define KERNEL_CORRECT_TEMP "cld_correctTemperature"
 
 namespace Physics
 {
@@ -94,6 +99,11 @@ struct CloudKernelInputs
   cl_float adiabaticLapseRate = 80.0f;
   cl_float phaseTransitionRate = 100.0f;
   cl_float latentHeatCoeff = 0.003f;
+  // Enable constraint on temperature field, forcing its Laplacian field to be null
+  cl_uint isTempSmoothingEnabled = 1;
+  cl_float effectRadius = 0.3f; // must be equal to fluids one
+  cl_float restDensity = 700.0f; // must be equal to fluids one
+  cl_float relaxCFM = 600.0f; // must be equal to fluids one
 };
 
 const std::map<Clouds::CaseType, std::string, Clouds::CompareCaseType> Clouds::ALL_CASES {
@@ -168,7 +178,7 @@ bool Clouds::createBuffers()
   clContext.createBuffer("p_density", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_predPos", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_corrPos", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
-  clContext.createBuffer("p_constFactor", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_constFactorFld", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_vel", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_velInViscosity", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_vort", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
@@ -179,6 +189,9 @@ bool Clouds::createBuffers()
   // Some buffers are duplicated because they are both input/output of some kernels
   clContext.createBuffer("p_temp", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_tempIn", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_laplacianTemp", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_corrTemp", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_constFactorTemp", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_vaporDens", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_vaporDensIn", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_cloudDens", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
@@ -240,6 +253,11 @@ bool Clouds::createKernels() const
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CLOUD_GENERATION, { "p_tempIn", "p_vaporDens", "p_cloudDens", "", "p_cloudGen" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_PHASE_TRANSITION, { "p_vaporDensIn", "p_cloudDensIn", "p_cloudGen", "", "p_vaporDens", "p_cloudDens" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_LATENT_HEAT, { "p_tempIn", "p_cloudGen", "", "p_temp" });
+  // Jacobi solver to correct temperature
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_LAPLACIAN_TEMP, { "p_pos", "p_temp", "c_startEndPartID", "", "p_laplacianTemp" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CONSTRAINT_FACTOR_TEMP, { "p_pos", "p_laplacianTemp", "c_startEndPartID", "", "p_constFactorTemp" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CONSTRAINT_CORRECTION_TEMP, { "p_constFactorTemp", "c_startEndPartID", "p_pos", "", "p_corrTemp" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CORRECT_TEMP, { "p_corrTemp", "p_temp" });
 
   // Position Based Fluids - connected to clouds physics through buoyancy force applied on particles
   /// Position prediction
@@ -248,8 +266,8 @@ bool Clouds::createKernels() const
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_APPLY_BOUNDARY, { "p_pos" });
   /// Jacobi solver to correct position
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_DENSITY, { "p_predPos", "c_startEndPartID", "", "p_density" });
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CONSTRAINT_FACTOR, { "p_predPos", "p_density", "c_startEndPartID", "", "p_constFactor" });
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CONSTRAINT_CORRECTION, { "p_constFactor", "c_startEndPartID", "p_predPos", "", "p_corrPos" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CONSTRAINT_FACTOR_FLUIDS, { "p_predPos", "p_density", "c_startEndPartID", "", "p_constFactorFld" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CONSTRAINT_CORRECTION_FLUIDS, { "p_constFactorFld", "c_startEndPartID", "p_predPos", "", "p_corrPos" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CORRECT_POS, { "p_corrPos", "p_predPos" });
   /// Velocity update and correction using vorticity confinement and xsph viscosity
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_UPDATE_VEL, { "p_predPos", "p_pos", "", "p_vel" });
@@ -277,8 +295,8 @@ void Clouds::updateFluidsParamsInKernels()
   clContext.setKernelArg(KERNEL_RANDOM_POS, 0, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
+  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
+  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
@@ -291,6 +309,9 @@ void Clouds::updateCloudsParamsInKernels()
 
   CL::Context& clContext = CL::Context::Get();
 
+  const float effectRadius = ((float)m_boxSize) / m_gridRes;
+  m_cloudKernelInputs->effectRadius = effectRadius;
+
   clContext.setKernelArg(KERNEL_HEAT_GROUND, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_BUOYANCY, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_ADIABATIC_COOLING, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
@@ -298,6 +319,9 @@ void Clouds::updateCloudsParamsInKernels()
   clContext.setKernelArg(KERNEL_PHASE_TRANSITION, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_LATENT_HEAT, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_PREDICT_POS, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
+  clContext.setKernelArg(KERNEL_LAPLACIAN_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
+  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
+  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
 }
 
 void Clouds::reset()
@@ -449,6 +473,24 @@ void Clouds::update()
     //
     clContext.runKernel(KERNEL_LATENT_HEAT, m_currNbParticles);
 
+    // Apply constraint on temperature field in a similar way than position based fluids constraint on mass
+    // This time, the constraint aims to homogenize temperature field, forcing its Laplacian field to be null
+    if (m_cloudKernelInputs->isTempSmoothingEnabled)
+    {
+      for (int iter = 0; iter < m_nbJacobiIters; ++iter)
+      {
+        // Computing Laplacian of temperature field using SPH method, it is the constrained variable
+        clContext.runKernel(KERNEL_LAPLACIAN_TEMP, m_currNbParticles);
+        // Computing constraint factor Lambda
+        clContext.runKernel(KERNEL_CONSTRAINT_FACTOR_TEMP, m_currNbParticles);
+        // Computing constraint correction
+        clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION_TEMP, m_currNbParticles);
+        // Applying correction on temperature field
+        clContext.runKernel(KERNEL_CORRECT_TEMP, m_currNbParticles);
+      }
+    }
+
+    // Apply boundary only once per frame for now
     clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
 
     // Predicting velocity and position
@@ -476,9 +518,9 @@ void Clouds::update()
       // Computing density using SPH method
       clContext.runKernel(KERNEL_DENSITY, m_currNbParticles);
       // Computing constraint factor Lambda
-      clContext.runKernel(KERNEL_CONSTRAINT_FACTOR, m_currNbParticles);
+      clContext.runKernel(KERNEL_CONSTRAINT_FACTOR_FLUIDS, m_currNbParticles);
       // Computing position correction
-      clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION, m_currNbParticles);
+      clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION_FLUIDS, m_currNbParticles);
       // Correcting predicted position
       clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
     }

@@ -23,6 +23,10 @@ typedef struct defCloudParams{
   float adiabaticLapseRate;
   float phaseTransitionRate;
   float latentHeatCoeff;
+  uint  isTempSmoothingEnabled;
+  float effectRadius;
+  float restDensity;
+  float relaxCFM;
 } CloudParams;
 
 // Defined in utils.cl
@@ -299,4 +303,184 @@ __kernel void cld_applyBoundaryCondWithMixedWalls(//Input/output
   {
     predPos[ID].z = -clampedNewPos.z;
   }
+}
+
+
+//
+//Compute Laplacian temperature based on SPH model
+//using position and Poly6 kernel
+//
+__kernel void cld_computeLaplacianTemp(//Input
+                                       const __global float4 *posP,           // 0
+                                       const __global float  *temp,           // 1
+                                       const __global uint2  *startEndCell,   // 2
+                                       //Param
+                                       const     CloudParams cloud,           // 3
+                                       //Output
+                                             __global float  *laplacianTemp)  // 4
+{
+  const float4 pos = posP[ID];
+  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
+
+  float laplacian = 0.0f;
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0, 0);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+
+        // Removing out of range cells
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+          continue;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          laplacian += poly6(pos - posP[e], cloud.effectRadius);
+        }
+      }
+    }
+  }
+
+  laplacianTemp[ID] = laplacian;
+}
+
+
+//
+//Compute Constraint Factor (Lambda), coefficient along jacobian
+//
+__kernel void cld_computeConstraintFactor(//Input
+                                          const __global float4 *posP,             // 0
+                                          const __global float  *laplacianTemp,    // 1
+                                          const __global uint2  *startEndCell,     // 2
+                                          //Param
+                                          const     CloudParams cloud,             // 3
+                                          //Output
+                                                __global float  *constFactorTemp)  // 4
+{
+  const float4 pos = posP[ID];
+  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
+  const float densityC = laplacianTemp[ID] / cloud.restDensity - 1.0f;
+
+  float4 vec = (float4)(0.0f);
+  float4 grad = (float4)(0.0f);
+  float4 sumGradCi = (float4)(0.0f);
+  float  sumSqGradC = 0.0f;
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+
+        // Removing out of range cells
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+          continue;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          vec = pos - posP[e];
+
+          // Supposed to be null if vec = 0.0f;
+          grad = gradSpiky(vec, cloud.effectRadius);
+          // Contribution from the ID particle
+          sumGradCi += grad;
+          // Contribution from its neighbors
+          sumSqGradC += dot(grad, grad);
+        }
+      }
+    }
+  }
+
+  sumSqGradC += dot(sumGradCi, sumGradCi);
+  sumSqGradC /= cloud.restDensity * cloud.restDensity;
+
+  constFactorTemp[ID] = - densityC / (sumSqGradC + cloud.relaxCFM);
+}
+
+
+//
+//Compute Constraint Correction for temperature
+//
+__kernel void cld_computeConstraintCorrection(//Input
+                                              const __global float  *constFactorTemp,// 0
+                                              const __global uint2  *startEndCell,   // 1
+                                              const __global float4 *posP,            // 2
+                                              //Param
+                                              const     CloudParams cloud,           // 3
+                                              //Output
+                                                    __global float4 *corrTemp)       // 4
+{
+  const float4 pos = posP[ID];
+  const float lambdaI = constFactorTemp[ID];
+  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
+
+  float4 vec = (float4)(0.0f);
+  float4 corr = (float4)(0.0f);
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  uint2 startEndN = (uint2)(0, 0);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+
+        // Removing out of range cells
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+          continue;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          vec = pos - posP[e];
+         // corr += (lambdaI + constFactorTemp[e] + artPressure(vec, cloud)) * gradSpiky(vec, cloud.effectRadius);
+        }
+      }
+    }
+  }
+
+  corrTemp[ID] = corr / cloud.restDensity;
+}
+
+
+//
+// Correction on temperature field using Constraint correction value
+//
+__kernel void cld_correctTemperature(//Input
+                                     const __global float4 *corrTemp, // 0
+                                     //Output
+                                           __global float4 *temp) // 2
+{
+  temp[ID] += corrTemp[ID];
 }

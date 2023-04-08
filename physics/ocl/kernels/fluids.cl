@@ -300,8 +300,8 @@ __kernel void fld_computeConstraintCorrection(//Input
 */
 __kernel void fld_correctPosition(//Input
                                   const __global float4 *corrPos, // 0
-                                  //Input/Output
-                                        __global float4 *predPos) // 2
+                                  //Output
+                                        __global float4 *predPos) // 1
 {
   predPos[ID] += corrPos[ID];
 }
