@@ -103,7 +103,7 @@ struct CloudKernelInputs
   cl_uint isTempSmoothingEnabled = 1;
   cl_float effectRadius = 0.3f; // must be equal to fluids one
   cl_float restDensity = 700.0f; // must be equal to fluids one
-  cl_float relaxCFM = 600.0f; // must be equal to fluids one
+  cl_float relaxCFM = 600.0f;
 };
 
 const std::map<Clouds::CaseType, std::string, Clouds::CompareCaseType> Clouds::ALL_CASES {
@@ -260,10 +260,10 @@ bool Clouds::createKernels() const
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CORRECT_TEMP, { "p_corrTemp", "p_temp" });
 
   // Position Based Fluids - connected to clouds physics through buoyancy force applied on particles
-  /// Position prediction
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_PREDICT_POS, { "p_pos", "p_vel", "p_buoyancy", "", "p_predPos" });
   /// Boundary conditions
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_APPLY_BOUNDARY, { "p_pos" });
+  /// Position prediction
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_PREDICT_POS, { "p_pos", "p_vel", "p_buoyancy", "", "p_predPos" });
   /// Jacobi solver to correct position
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_DENSITY, { "p_predPos", "c_startEndPartID", "", "p_density" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CONSTRAINT_FACTOR_FLUIDS, { "p_predPos", "p_density", "c_startEndPartID", "", "p_constFactorFld" });
@@ -473,23 +473,6 @@ void Clouds::update()
     //
     clContext.runKernel(KERNEL_LATENT_HEAT, m_currNbParticles);
 
-    // Apply constraint on temperature field in a similar way than position based fluids constraint on mass
-    // This time, the constraint aims to homogenize temperature field, forcing its Laplacian field to be null
-    if (m_cloudKernelInputs->isTempSmoothingEnabled)
-    {
-      for (int iter = 0; iter < m_nbJacobiIters; ++iter)
-      {
-        // Computing Laplacian of temperature field using SPH method, it is the constrained variable
-        clContext.runKernel(KERNEL_LAPLACIAN_TEMP, m_currNbParticles);
-        // Computing constraint factor Lambda
-        clContext.runKernel(KERNEL_CONSTRAINT_FACTOR_TEMP, m_currNbParticles);
-        // Computing constraint correction
-        clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION_TEMP, m_currNbParticles);
-        // Applying correction on temperature field
-        clContext.runKernel(KERNEL_CORRECT_TEMP, m_currNbParticles);
-      }
-    }
-
     // Apply boundary only once per frame for now
     clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
 
@@ -510,11 +493,27 @@ void Clouds::update()
     if (m_simplifiedMode)
       clContext.runKernel(KERNEL_ADJUST_END_CELL, m_nbCells);
 
+    // Apply constraint on temperature field in a similar way than position based fluids constraint on mass
+    // This time, the constraint aims to homogenize temperature field, forcing its Laplacian field to be null
+    if (m_cloudKernelInputs->isTempSmoothingEnabled)
+    {
+      for (int iter = 0; iter < 1; ++iter)
+      {
+        // Computing Laplacian of temperature field using SPH method, it is the constrained variable
+        clContext.runKernel(KERNEL_LAPLACIAN_TEMP, m_currNbParticles);
+        // Computing constraint factor Lambda
+        clContext.runKernel(KERNEL_CONSTRAINT_FACTOR_TEMP, m_currNbParticles);
+        // Computing constraint correction
+        clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION_TEMP, m_currNbParticles);
+        // Applying correction on temperature field
+        clContext.runKernel(KERNEL_CORRECT_TEMP, m_currNbParticles);
+      }
+    }
     // Correcting positions to fit constraints
     for (int iter = 0; iter < m_nbJacobiIters; ++iter)
     {
       // Clamping to boundary
-      // clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
+      //clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
       // Computing density using SPH method
       clContext.runKernel(KERNEL_DENSITY, m_currNbParticles);
       // Computing constraint factor Lambda

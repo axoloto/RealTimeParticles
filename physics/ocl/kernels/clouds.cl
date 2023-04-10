@@ -308,11 +308,11 @@ __kernel void cld_applyBoundaryCondWithMixedWalls(//Input/output
 
 //
 //Compute Laplacian temperature based on SPH model
-//using position and Poly6 kernel
+//using position and gradSpiky kernel
 //
 __kernel void cld_computeLaplacianTemp(//Input
                                        const __global float4 *posP,           // 0
-                                       const __global float  *temp,           // 1
+                                       const __global float  *tempP,          // 1
                                        const __global uint2  *startEndCell,   // 2
                                        //Param
                                        const     CloudParams cloud,           // 3
@@ -320,6 +320,7 @@ __kernel void cld_computeLaplacianTemp(//Input
                                              __global float  *laplacianTemp)  // 4
 {
   const float4 pos = posP[ID];
+  const float temp = tempP[ID];
   const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
 
   float laplacian = 0.0f;
@@ -327,6 +328,7 @@ __kernel void cld_computeLaplacianTemp(//Input
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
   uint2 startEndN = (uint2)(0, 0);
+  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -347,13 +349,15 @@ __kernel void cld_computeLaplacianTemp(//Input
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
-          laplacian += poly6(pos - posP[e], cloud.effectRadius);
+          vec = pos - posP[e];
+
+          laplacian += (temp - tempP[e]) * dot(vec, gradSpiky(vec, cloud.effectRadius)) / (dot(vec, vec) + FLOAT_EPS);
         }
       }
     }
   }
 
-  laplacianTemp[ID] = laplacian;
+  laplacianTemp[ID] = laplacian / cloud.restDensity;
 }
 
 
@@ -370,12 +374,13 @@ __kernel void cld_computeConstraintFactor(//Input
                                                 __global float  *constFactorTemp)  // 4
 {
   const float4 pos = posP[ID];
+  const float laplacian = laplacianTemp[ID];
   const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
-  const float densityC = laplacianTemp[ID] / cloud.restDensity - 1.0f;
 
   float4 vec = (float4)(0.0f);
   float4 grad = (float4)(0.0f);
-  float4 sumGradCi = (float4)(0.0f);
+  float derivativeTemp = 0.0f;
+  float sumGradCi = 0.0f;
   float  sumSqGradC = 0.0f;
 
   uint cellNIndex1D = 0;
@@ -405,19 +410,20 @@ __kernel void cld_computeConstraintFactor(//Input
 
           // Supposed to be null if vec = 0.0f;
           grad = gradSpiky(vec, cloud.effectRadius);
+
+          derivativeTemp = dot(vec, grad) / (dot(vec, vec) * cloud.restDensity + FLOAT_EPS);
           // Contribution from the ID particle
-          sumGradCi += grad;
+          sumGradCi += derivativeTemp;
           // Contribution from its neighbors
-          sumSqGradC += dot(grad, grad);
+          sumSqGradC += derivativeTemp * derivativeTemp;
         }
       }
     }
   }
 
-  sumSqGradC += dot(sumGradCi, sumGradCi);
-  sumSqGradC /= cloud.restDensity * cloud.restDensity;
+  sumSqGradC += sumGradCi * sumGradCi;
 
-  constFactorTemp[ID] = - densityC / (sumSqGradC + cloud.relaxCFM);
+  constFactorTemp[ID] = - laplacian / (sumSqGradC + cloud.relaxCFM);
 }
 
 
@@ -427,18 +433,20 @@ __kernel void cld_computeConstraintFactor(//Input
 __kernel void cld_computeConstraintCorrection(//Input
                                               const __global float  *constFactorTemp,// 0
                                               const __global uint2  *startEndCell,   // 1
-                                              const __global float4 *posP,            // 2
+                                              const __global float4 *posP,           // 2
                                               //Param
                                               const     CloudParams cloud,           // 3
                                               //Output
-                                                    __global float4 *corrTemp)       // 4
+                                                    __global float *corrTemp)       // 4
 {
   const float4 pos = posP[ID];
   const float lambdaI = constFactorTemp[ID];
   const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
 
   float4 vec = (float4)(0.0f);
-  float4 corr = (float4)(0.0f);
+  float4 grad = (float4)(0.0f);
+  float derivativeTemp = 0.0f;
+  float corr = 0.0f;
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
@@ -464,13 +472,19 @@ __kernel void cld_computeConstraintCorrection(//Input
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
           vec = pos - posP[e];
-         // corr += (lambdaI + constFactorTemp[e] + artPressure(vec, cloud)) * gradSpiky(vec, cloud.effectRadius);
+          
+          // Supposed to be null if vec = 0.0f;
+          grad = gradSpiky(vec, cloud.effectRadius);
+
+          derivativeTemp = dot(vec, grad) / (dot(vec, vec) * cloud.restDensity + FLOAT_EPS);
+
+          corr += (lambdaI + constFactorTemp[e]) * derivativeTemp;
         }
       }
     }
   }
 
-  corrTemp[ID] = corr / cloud.restDensity;
+  corrTemp[ID] = corr;
 }
 
 
@@ -478,9 +492,9 @@ __kernel void cld_computeConstraintCorrection(//Input
 // Correction on temperature field using Constraint correction value
 //
 __kernel void cld_correctTemperature(//Input
-                                     const __global float4 *corrTemp, // 0
+                                     const __global float *corrTemp, // 0
                                      //Output
-                                           __global float4 *temp) // 2
+                                           __global float *temp)     // 2
 {
-  temp[ID] += corrTemp[ID];
+  temp[ID] += 0.3f * corrTemp[ID];
 }
