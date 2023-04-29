@@ -8,7 +8,7 @@ Camera::Camera(float sceneAspectRatio)
     , m_aspectRatio(sceneAspectRatio)
     , m_zNear(0.01f)
     , m_zFar(6000.f)
-    , m_cameraInitPos({ 25.0, -1.0, 0.0 })
+    , m_cameraInitPos({ 40.0, -1.5, 0.0 }) //25 -1
     , m_focusInitPos({ 0.0, 0.0, 0.0 })
     , m_isAutoRotating(false)
 {

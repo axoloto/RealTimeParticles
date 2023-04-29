@@ -215,10 +215,10 @@ bool Clouds::createBuffers()
   m_allDisplayableQuantities.insert(std::make_pair(cloudDens.name, cloudDens));
   PhysicalQuantity netForce { "Net Force", "p_buoyancy", { -10.0f, 10.0f }, { -1.0f, 1.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(netForce.name, netForce));
-  PhysicalQuantity temp { "Temperature", "p_temp", { 0.0f, 1400.0f }, { 200.0f, 1200.0f } };
+  PhysicalQuantity temp { "Temperature", "p_temp", { 0.0f, 2000.0f }, { 0.0f, 2000.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(temp.name, temp));
 
-  m_currentDisplayedQuantityName = temp.name;
+  m_currentDisplayedQuantityName = partID.name;
 
   return true;
 }
