@@ -22,8 +22,8 @@ struct EngineParams
 {
   size_t currNbParticles = 0;
   size_t maxNbParticles = 0;
-  size_t boxSize = 0;
-  size_t gridRes = 0;
+  Geometry::BoxSize3D boxSize = { 0, 0, 0 };
+  Geometry::BoxSize3D gridRes = { 0, 0, 0 };
   size_t pointSize = 10;
   float aspectRatio = 0.0f;
   Geometry::Dimension dimension = Geometry::Dimension::dim3D;
@@ -123,8 +123,8 @@ class Engine
   std::unique_ptr<Shader> m_gridShader;
   std::unique_ptr<Shader> m_targetShader;
 
-  size_t m_boxSize;
-  size_t m_gridRes;
+  Geometry::BoxSize3D m_boxSize;
+  Geometry::BoxSize3D m_gridRes;
   size_t m_nbParticles;
   size_t m_maxNbParticles;
   size_t m_pointSize;

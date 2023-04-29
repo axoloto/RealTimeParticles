@@ -4,8 +4,8 @@
 
 // Preprocessor defines following constant variables in Fluids.cpp
 // EFFECT_RADIUS           - radius around a particle where SPH laws apply 
-// ABS_WALL_POS            - absolute position of the walls in x,y,z
-// GRID_RES                - resolution of the grid
+// ABS_WALL_X            - absolute position of the walls in x,y,z
+// GRID_RES_X                - resolution of the grid
 // GRID_NUM_CELLS          - total number of cells in the grid
 // NUM_MAX_PARTS_IN_CELL   - maximum number of particles taking into account in a single cell in simplified mode
 // REST_DENSITY            - rest density of the fluid
@@ -18,7 +18,6 @@
 
 // See FluidsKernelInputs in Fluids.cpp / Clouds.cpp
 typedef struct defFluidParams{
-  float effectRadius;
   float restDensity;
   float relaxCFM;
   float timeStep;
@@ -100,7 +99,7 @@ inline float artPressure(const float4 vec, FluidParams fluid)
   if(fluid.isArtPressureEnabled == 0)
     return 0.0f;
 
-  return - fluid.artPressureCoeff * pow((poly6(vec, fluid.effectRadius) / poly6L(fluid.artPressureRadius * fluid.effectRadius, fluid.effectRadius)), fluid.artPressureExp);
+  return - fluid.artPressureCoeff * pow((poly6(vec, EFFECT_RADIUS) / poly6L(fluid.artPressureRadius * EFFECT_RADIUS, EFFECT_RADIUS)), fluid.artPressureExp);
 }
 
 /*
@@ -151,30 +150,30 @@ __kernel void fld_computeDensity(//Input
         cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
           continue;
 
-        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
         startEndN = startEndCell[cellNIndex1D];
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
-          fluidDensity += poly6(pos - predPos[e], fluid.effectRadius);
+          fluidDensity += poly6(pos - predPos[e], EFFECT_RADIUS);
         }
       }
     }
   }
 
   // Boundary walls effect on density
-  //fluidDensity += applyWallBoundaryConditions(fabs(pos.x + ABS_WALL_POS), fluid.effectRadius);
-  //fluidDensity += applyWallBoundaryConditions(fabs(pos.x - ABS_WALL_POS), fluid.effectRadius);
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.x + ABS_WALL_X), EFFECT_RADIUS);
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.x - ABS_WALL_X), EFFECT_RADIUS);
   
-  //fluidDensity += applyWallBoundaryConditions(fabs(pos.y + ABS_WALL_POS), fluid.effectRadius);
-  //fluidDensity += applyWallBoundaryConditions(fabs(pos.y - ABS_WALL_POS), fluid.effectRadius);
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.y + ABS_WALL_X), EFFECT_RADIUS);
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.y - ABS_WALL_X), EFFECT_RADIUS);
   
-  //fluidDensity += applyWallBoundaryConditions(fabs(pos.z + ABS_WALL_POS), fluid.effectRadius);
-  //fluidDensity += applyWallBoundaryConditions(fabs(pos.z - ABS_WALL_POS), fluid.effectRadius);
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.z + ABS_WALL_X), EFFECT_RADIUS);
+  //fluidDensity += applyWallBoundaryConditions(fabs(pos.z - ABS_WALL_X), EFFECT_RADIUS);
 
   density[ID] = fluidDensity;
 }
@@ -214,10 +213,10 @@ __kernel void fld_computeConstraintFactor(//Input
         cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
           continue;
 
-        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
         startEndN = startEndCell[cellNIndex1D];
 
@@ -226,7 +225,7 @@ __kernel void fld_computeConstraintFactor(//Input
           vec = pos - predPos[e];
 
           // Supposed to be null if vec = 0.0f;
-          grad = gradSpiky(vec, fluid.effectRadius);
+          grad = gradSpiky(vec, EFFECT_RADIUS);
           // Contribution from the ID particle
           sumGradCi += grad;
           // Contribution from its neighbors
@@ -275,10 +274,10 @@ __kernel void fld_computeConstraintCorrection(//Input
         cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
           continue;
 
-        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
         startEndN = startEndCell[cellNIndex1D];
 
@@ -286,7 +285,7 @@ __kernel void fld_computeConstraintCorrection(//Input
         {
           vec = pos - predPos[e];
 
-          corr += (lambdaI + constFactor[e] + artPressure(vec, fluid)) * gradSpiky(vec, fluid.effectRadius);
+          corr += (lambdaI + constFactor[e] + artPressure(vec, fluid)) * gradSpiky(vec, EFFECT_RADIUS);
         }
       }
     }
@@ -353,16 +352,16 @@ __kernel void fld_computeVorticity(//Input
         cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
           continue;
 
-        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
         startEndN = startEndCell[cellNIndex1D];
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
-          vort += cross((vel[e] - velocity), gradSpiky(pos - predPos[e], fluid.effectRadius));
+          vort += cross((vel[e] - velocity), gradSpiky(pos - predPos[e], EFFECT_RADIUS));
         }
       }
     }
@@ -404,16 +403,16 @@ __kernel void fld_applyVorticityConfinement(//Input
         cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
           continue;
 
-        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
         startEndN = startEndCell[cellNIndex1D];
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
-          n += fast_length(vort[e]) * gradSpiky(pos - predPos[e], fluid.effectRadius);
+          n += fast_length(vort[e]) * gradSpiky(pos - predPos[e], EFFECT_RADIUS);
         }
       }
     }
@@ -456,16 +455,16 @@ __kernel void fld_applyXsphViscosityCorrection(//Input
         cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
           continue;
 
-        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
         startEndN = startEndCell[cellNIndex1D];
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
-          viscosity += (velIn[e] - velocity) * poly6(pos - predPos[e], fluid.effectRadius);
+          viscosity += (velIn[e] - velocity) * poly6(pos - predPos[e], EFFECT_RADIUS);
         }
       }
     }
@@ -480,7 +479,8 @@ __kernel void fld_applyXsphViscosityCorrection(//Input
 */
 __kernel void fld_applyBoundaryCondition(__global float4 *predPos)
 {
-  predPos[ID] = clamp(predPos[ID], -ABS_WALL_POS + 0.01f, ABS_WALL_POS - 0.1f); //WIP, hack to deal with boundary conditions
+  predPos[ID] = clamp(predPos[ID], (float4)(-ABS_WALL_X + 0.01f, -ABS_WALL_Y + 0.01f, -ABS_WALL_Z + 0.01f, 0.0f)
+                                 , (float4)(ABS_WALL_X - 0.1f, ABS_WALL_Y - 0.1f, ABS_WALL_Z - 0.1f, 0.0f)); //WIP, hack to deal with boundary conditions
 }
 
 /*
@@ -492,7 +492,7 @@ __kernel void fld_updatePosition(//Input
                                         __global float4 *pos)     // 1
 {
   pos[ID] = predPos[ID];
-  //pos[ID] = clamp(predPos[ID], -ABS_WALL_POS, ABS_WALL_POS);
+  //pos[ID] = clamp(predPos[ID], -ABS_WALL_X, ABS_WALL_X);
 }
 
 /*

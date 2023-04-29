@@ -78,8 +78,6 @@ void displayCloudsParameters(Physics::Clouds* cloudsEngine)
   ImGui::Text("Position Based Fluids Parameters");
   ImGui::Spacing();
 
-  ImGui::Value("Kernel radius", (float)cloudsEngine->getEffectRadius());
-
   float restDensity = cloudsEngine->getRestDensity();
   if (ImGui::SliderFloat("Rest Density", &restDensity, 10.0f, 1000.0f))
   {
@@ -224,8 +222,6 @@ void displayFluidsParameters(Physics::Fluids* fluidsEngine)
   ImGui::Spacing();
   ImGui::Text("Fluid parameters");
   ImGui::Spacing();
-
-  ImGui::Value("Kernel radius", (float)fluidsEngine->getEffectRadius());
 
   float restDensity = fluidsEngine->getRestDensity();
   if (ImGui::SliderFloat("Rest Density", &restDensity, 10.0f, 1000.0f))

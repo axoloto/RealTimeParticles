@@ -245,8 +245,8 @@ bool ParticleSystemApp::initGraphicsEngine()
 {
   Render::EngineParams params;
   params.maxNbParticles = Utils::ALL_NB_PARTICLES.crbegin()->first;
-  params.boxSize = Utils::BOX_SIZE;
-  params.gridRes = Utils::GRID_RES;
+  params.boxSize = Geometry::BOX_SIZE_3D;
+  params.gridRes = Geometry::GRID_RES_3D;
   params.aspectRatio = (float)m_windowSize.x / m_windowSize.y;
   params.dimension = Geometry::Dimension::dim3D;
 
@@ -266,8 +266,8 @@ bool ParticleSystemApp::initPhysicsEngine()
 {
   Physics::ModelParams params;
   params.maxNbParticles = Utils::ALL_NB_PARTICLES.crbegin()->first;
-  params.boxSize = Utils::BOX_SIZE;
-  params.gridRes = Utils::GRID_RES;
+  params.boxSize = Geometry::BOX_SIZE_3D;
+  params.gridRes = Geometry::GRID_RES_3D;
   params.velocity = 1.0f;
   params.particlePosVBO = (unsigned int)m_graphicsEngine->pointCloudCoordVBO();
   params.particleColVBO = (unsigned int)m_graphicsEngine->pointCloudColorVBO();

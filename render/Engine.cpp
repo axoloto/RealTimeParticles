@@ -19,8 +19,8 @@ Engine::Engine(EngineParams params)
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_PROGRAM_POINT_SIZE);
   glEnable(GL_POINT_SMOOTH);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-  glEnable(GL_BLEND);
+  //glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+  //glEnable(GL_BLEND);
   glEnable(GL_MULTISAMPLE);
 
   buildShaders();
@@ -170,7 +170,7 @@ void Engine::drawGrid()
 
   m_gridShader->setUniform("u_projView", m_camera->getProjViewMat());
 
-  GLsizei numGridCells = (GLsizei)(m_gridRes * m_gridRes * m_gridRes);
+  GLsizei numGridCells = (GLsizei)(m_gridRes.x * m_gridRes.y * m_gridRes.z);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_gridEBO);
   glDrawElements(GL_LINES, 24 * numGridCells, GL_UNSIGNED_INT, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -199,8 +199,8 @@ void Engine::initBox()
   auto box2DVertices = Geometry::RefSquareVertices;
   for (auto& vertex : box2DVertices)
   {
-    float y = vertex[0] * m_boxSize / 2.0f;
-    float z = vertex[1] * m_boxSize / 2.0f;
+    float y = vertex[0] * m_boxSize.y / 2.0f;
+    float z = vertex[1] * m_boxSize.z / 2.0f;
     vertex = { y, z };
   }
 
@@ -220,9 +220,9 @@ void Engine::initBox()
   auto box3DVertices = Geometry::RefCubeVertices;
   for (auto& vertex : box3DVertices)
   {
-    float x = vertex[0] * m_boxSize / 2.0f;
-    float y = vertex[1] * m_boxSize / 2.0f;
-    float z = vertex[2] * m_boxSize / 2.0f;
+    float x = vertex[0] * m_boxSize.x / 2.0f;
+    float y = vertex[1] * m_boxSize.y / 2.0f;
+    float z = vertex[2] * m_boxSize.z / 2.0f;
     vertex = { x, y, z };
   }
 
@@ -241,29 +241,36 @@ void Engine::initBox()
 
 void Engine::initGrid()
 {
-  float cellSize = 1.0f * m_boxSize / m_gridRes;
+  Geometry::Vertex3D cellDims;
+  cellDims[0] = (float)m_boxSize.x / m_gridRes.x;
+  cellDims[1] = (float)m_boxSize.y / m_gridRes.y;
+  cellDims[2] = (float)m_boxSize.z / m_gridRes.z;
+
   auto localCellCoords = Geometry::RefCubeVertices;
   for (auto& vertex : localCellCoords)
   {
-    float x = vertex[0] * cellSize * 0.5f;
-    float y = vertex[1] * cellSize * 0.5f;
-    float z = vertex[2] * cellSize * 0.5f;
+    float x = vertex[0] * cellDims[0] * 0.5f;
+    float y = vertex[1] * cellDims[1] * 0.5f;
+    float z = vertex[2] * cellDims[2] * 0.5f;
     vertex = { x, y, z };
   }
 
   size_t centerIndex = 0;
-  size_t numCells = m_gridRes * m_gridRes * m_gridRes;
-  float firstPos = -(float)m_boxSize / 2.0f + 0.5f * cellSize;
+  size_t numCells = m_gridRes.x * m_gridRes.y * m_gridRes.z;
+  Geometry::Vertex3D firstPos;
+  firstPos[0] = -(float)m_boxSize.x / 2.0f + 0.5f * cellDims[0];
+  firstPos[1] = -(float)m_boxSize.y / 2.0f + 0.5f * cellDims[1];
+  firstPos[2] = -(float)m_boxSize.z / 2.0f + 0.5f * cellDims[2];
   std::vector<Geometry::Vertex3D> globalCellCenterCoords(numCells);
-  for (int x = 0; x < m_gridRes; ++x)
+  for (int x = 0; x < m_gridRes.x; ++x)
   {
-    float xCoord = firstPos + x * cellSize;
-    for (int y = 0; y < m_gridRes; ++y)
+    float xCoord = firstPos[0] + x * cellDims[0];
+    for (int y = 0; y < m_gridRes.y; ++y)
     {
-      float yCoord = firstPos + y * cellSize;
-      for (int z = 0; z < m_gridRes; ++z)
+      float yCoord = firstPos[1] + y * cellDims[1];
+      for (int z = 0; z < m_gridRes.z; ++z)
       {
-        float zCoord = firstPos + z * cellSize;
+        float zCoord = firstPos[2] + z * cellDims[2];
         globalCellCenterCoords.at(centerIndex++) = { xCoord, yCoord, zCoord };
       }
     }

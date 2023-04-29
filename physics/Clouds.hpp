@@ -42,13 +42,6 @@ class Clouds : public Model
   void setInitialCase(CaseType caseT) { m_initialCase = caseT; }
   const CaseType getInitialCase() const { return m_initialCase; }
 
-  // Not giving access to it for now.
-  // Strongly connected to grid resolution which is not available as parameter,
-  // in order to maintain cohesion between boids and clouds models
-  /*
-  void setEffectRadius(float effectRadius);
-  */
-  float getEffectRadius() const;
   //
   void setRestDensity(float restDensity);
   float getRestDensity() const;

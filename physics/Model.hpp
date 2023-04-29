@@ -60,8 +60,8 @@ struct ModelParams
 {
   size_t currNbParticles = 0;
   size_t maxNbParticles = 0;
-  size_t boxSize = 0;
-  size_t gridRes = 0;
+  Geometry::BoxSize3D boxSize = { 0, 0, 0 };
+  Geometry::BoxSize3D gridRes = { 0, 0, 0 };
   float velocity = 0.0f;
   unsigned int particlePosVBO = 0;
   unsigned int particleColVBO = 0;
@@ -73,8 +73,8 @@ struct ModelParams
 class Model;
 std::unique_ptr<Model> CreateModel(ModelType type, ModelParams params);
 
-// Abstrac class defining physical model foundations to implement
-// Currently all models are CL-based but that could change
+// Abstract class defining physical model foundations to implement
+// Currently all models are OpenCL-based but that could change
 class Model
 {
   public:
@@ -83,7 +83,7 @@ class Model
       , m_currNbParticles(params.currNbParticles)
       , m_boxSize(params.boxSize)
       , m_gridRes(params.gridRes)
-      , m_nbCells(params.gridRes * params.gridRes * params.gridRes)
+      , m_nbCells(params.gridRes.x * params.gridRes.y * params.gridRes.z)
       , m_velocity(params.velocity)
       , m_particlePosVBO(params.particlePosVBO)
       , m_particleColVBO(params.particleColVBO)
@@ -157,9 +157,9 @@ class Model
   size_t m_maxNbParticles;
   size_t m_currNbParticles;
 
-  size_t m_boxSize;
+  Geometry::BoxSize3D m_boxSize;
 
-  size_t m_gridRes;
+  Geometry::BoxSize3D m_gridRes;
   size_t m_nbCells;
 
   float m_velocity;

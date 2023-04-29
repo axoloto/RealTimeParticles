@@ -62,9 +62,4 @@ static std::array<int, 3> GetNbParticlesSubdiv3D(NbParticles nbParts)
     return { 0, 0, 0 };
 };
 
-// Length of one side of the bounding box where the particles evolve
-static constexpr int BOX_SIZE = 10;
-
-// Length of one side of the cells forming the 3D grid containing all the particles
-static constexpr int GRID_RES = 30;
 }

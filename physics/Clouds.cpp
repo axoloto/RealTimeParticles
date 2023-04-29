@@ -72,7 +72,6 @@ namespace Physics
 // Fluids params for Position Based Fluids part of clouds sim
 struct FluidKernelInputs
 {
-  cl_float effectRadius = 0.3f;
   cl_float restDensity = 700.0f;
   cl_float relaxCFM = 600.0f;
   cl_float timeStep = 0.01f;
@@ -101,7 +100,6 @@ struct CloudKernelInputs
   cl_float latentHeatCoeff = 0.003f;
   // Enable constraint on temperature field, forcing its Laplacian field to be null
   cl_uint isTempSmoothingEnabled = 1;
-  cl_float effectRadius = 0.3f; // must be equal to fluids one
   cl_float restDensity = 700.0f; // must be equal to fluids one
   cl_float relaxCFM = 600.0f;
 };
@@ -140,13 +138,20 @@ bool Clouds::createProgram() const
 {
   CL::Context& clContext = CL::Context::Get();
 
-  float effectRadius = ((float)m_boxSize) / m_gridRes;
+  assert(m_boxSize.x / m_gridRes.x == m_boxSize.y / m_gridRes.y);
+  assert(m_boxSize.z / m_gridRes.z == m_boxSize.y / m_gridRes.y);
+
+  float effectRadius = ((float)m_boxSize.x) / m_gridRes.x;
 
   std::ostringstream clBuildOptions;
   clBuildOptions << "-DEFFECT_RADIUS=" << Utils::FloatToStr(effectRadius);
-  clBuildOptions << " -DABS_WALL_POS=" << Utils::FloatToStr(m_boxSize / 2.0f);
-  clBuildOptions << " -DGRID_RES=" << m_gridRes;
-  clBuildOptions << " -DGRID_CELL_SIZE=" << Utils::FloatToStr((float)m_boxSize / m_gridRes);
+  clBuildOptions << " -DABS_WALL_X=" << Utils::FloatToStr(m_boxSize.x / 2.0f);
+  clBuildOptions << " -DABS_WALL_Y=" << Utils::FloatToStr(m_boxSize.y / 2.0f);
+  clBuildOptions << " -DABS_WALL_Z=" << Utils::FloatToStr(m_boxSize.z / 2.0f);
+  clBuildOptions << " -DGRID_RES_X=" << m_gridRes.x;
+  clBuildOptions << " -DGRID_RES_Y=" << m_gridRes.y;
+  clBuildOptions << " -DGRID_RES_Z=" << m_gridRes.z;
+  clBuildOptions << " -DGRID_CELL_SIZE_XYZ=" << Utils::FloatToStr((float)m_boxSize.x / m_gridRes.x);
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
   clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * std::pow(effectRadius, 9.f)));
@@ -289,9 +294,6 @@ void Clouds::updateFluidsParamsInKernels()
 
   m_fluidKernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
 
-  const float effectRadius = ((float)m_boxSize) / m_gridRes;
-  m_fluidKernelInputs->effectRadius = effectRadius;
-
   clContext.setKernelArg(KERNEL_RANDOM_POS, 0, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
@@ -308,9 +310,6 @@ void Clouds::updateCloudsParamsInKernels()
     return;
 
   CL::Context& clContext = CL::Context::Get();
-
-  const float effectRadius = ((float)m_boxSize) / m_gridRes;
-  m_cloudKernelInputs->effectRadius = effectRadius;
 
   clContext.setKernelArg(KERNEL_HEAT_GROUND, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_BUOYANCY, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
@@ -368,14 +367,14 @@ void Clouds::initCloudsParticles()
     case CaseType::CUMULUS:
       m_currNbParticles = Utils::NbParticles::P4K;
       shape = Geometry::Shape2D::Rectangle;
-      startFluidPos = { 0.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
-      endFluidPos = { 0.0f, 0.0f, m_boxSize / 2.0f };
+      startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
+      endFluidPos = { 0.0f, 0.0f, m_boxSize.z / 2.0f };
       break;
     case CaseType::HOMOGENEOUS:
       m_currNbParticles = Utils::NbParticles::P4K;
       shape = Geometry::Shape2D::Rectangle;
-      startFluidPos = { 0.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
-      endFluidPos = { 0.0f, m_boxSize / 2.0f, m_boxSize / 2.0f };
+      startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
+      endFluidPos = { 0.0f, m_boxSize.y / 2.0f, m_boxSize.z / 2.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");
@@ -396,14 +395,14 @@ void Clouds::initCloudsParticles()
     case CaseType::CUMULUS:
       m_currNbParticles = Utils::NbParticles::P130K;
       shape = Geometry::Shape3D::Box;
-      startFluidPos = { m_boxSize / -2.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
-      endFluidPos = { m_boxSize / 2.0f, 0.0f, m_boxSize / 2.0f };
+      startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
+      endFluidPos = { m_boxSize.x / 2.0f, 0.0f, m_boxSize.z / 2.0f };
       break;
     case CaseType::HOMOGENEOUS:
       m_currNbParticles = Utils::NbParticles::P65K;
       shape = Geometry::Shape3D::Box;
-      startFluidPos = { m_boxSize / -2.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
-      endFluidPos = { m_boxSize / 2.0f, m_boxSize / 2.0f, m_boxSize / 2.0f };
+      startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
+      endFluidPos = { m_boxSize.x / 2.0f, m_boxSize.y / 2.0f, m_boxSize.z / 2.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");
@@ -509,6 +508,7 @@ void Clouds::update()
         clContext.runKernel(KERNEL_CORRECT_TEMP, m_currNbParticles);
       }
     }
+
     // Correcting positions to fit constraints
     for (int iter = 0; iter < m_nbJacobiIters; ++iter)
     {
@@ -705,22 +705,6 @@ void Clouds::setLatentHeatCoeff(float coeff)
     return;
   m_cloudKernelInputs->latentHeatCoeff = (cl_float)coeff;
   updateCloudsParamsInKernels();
-}
-
-// Not giving access to it for now.
-// Strongly connected to grid resolution which is not available as parameter,
-// in order to maintain cohesion between boids and clouds models
-/*
-void Clouds::setEffectRadius(float effectRadius)
-{
-  if(!m_init) return;
-  m_fluidKernelInputs.effectRadius = (cl_float)effectRadius;
-  updateFluidsParamsInKernels();
-}
-*/
-float Clouds::getEffectRadius() const
-{
-  return m_init ? (float)m_fluidKernelInputs->effectRadius : 0.0f;
 }
 
 //

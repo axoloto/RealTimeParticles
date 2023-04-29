@@ -52,7 +52,7 @@ Boids::Boids(ModelParams params)
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(3000)
     , m_radixSort(params.maxNbParticles)
-    , m_target(params.boxSize)
+    , m_target(params.boxSize.x)
 {
   m_currNbParticles = Utils::NbParticles::P512;
 
@@ -74,11 +74,18 @@ bool Boids::createProgram() const
 {
   CL::Context& clContext = CL::Context::Get();
 
+  assert(m_boxSize.x / m_gridRes.x == m_boxSize.y / m_gridRes.y);
+  assert(m_boxSize.z / m_gridRes.z == m_boxSize.y / m_gridRes.y);
+
   std::ostringstream clBuildOptions;
-  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << Utils::FloatToStr(1.0f * m_boxSize * m_boxSize / (m_gridRes * m_gridRes));
-  clBuildOptions << " -DABS_WALL_POS=" << Utils::FloatToStr(m_boxSize / 2.0f);
-  clBuildOptions << " -DGRID_RES=" << m_gridRes;
-  clBuildOptions << " -DGRID_CELL_SIZE=" << Utils::FloatToStr(1.0f * m_boxSize / m_gridRes);
+  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << Utils::FloatToStr(1.0f * m_boxSize.x * m_boxSize.x / (m_gridRes.x * m_gridRes.x));
+  clBuildOptions << " -DABS_WALL_X=" << Utils::FloatToStr(m_boxSize.x / 2.0f);
+  clBuildOptions << " -DABS_WALL_Y=" << Utils::FloatToStr(m_boxSize.y / 2.0f);
+  clBuildOptions << " -DABS_WALL_Z=" << Utils::FloatToStr(m_boxSize.z / 2.0f);
+  clBuildOptions << " -DGRID_RES_X=" << m_gridRes.x;
+  clBuildOptions << " -DGRID_RES_Y=" << m_gridRes.y;
+  clBuildOptions << " -DGRID_RES_Z=" << m_gridRes.z;
+  clBuildOptions << " -DGRID_CELL_SIZE_XYZ=" << Utils::FloatToStr((float)m_boxSize.x / m_gridRes.x);
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
 
@@ -214,8 +221,8 @@ void Boids::initBoidsParticles()
   {
     const auto& subdiv2D = Utils::GetNbParticlesSubdiv2D((Utils::NbParticles)m_currNbParticles);
     Math::int2 grid2DRes = { subdiv2D[0], subdiv2D[1] };
-    Math::float3 start2D = { 0.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
-    Math::float3 end2D = { 0.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
+    Math::float3 start2D = { 0.0f, m_boxSize.y / -6.0f, m_boxSize.z / -6.0f };
+    Math::float3 end2D = { 0.0f, m_boxSize.y / 6.0f, m_boxSize.z / 6.0f };
 
     gridVerts = Geometry::Generate2DGrid(Geometry::Shape2D::Circle, Geometry::Plane::YZ, grid2DRes, start2D, end2D);
   }
@@ -223,8 +230,8 @@ void Boids::initBoidsParticles()
   {
     const auto& subdiv3D = Utils::GetNbParticlesSubdiv3D((Utils::NbParticles)m_currNbParticles);
     Math::int3 grid3DRes = { subdiv3D[0], subdiv3D[1], subdiv3D[2] };
-    Math::float3 start3D = { m_boxSize / -6.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
-    Math::float3 end3D = { m_boxSize / 6.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
+    Math::float3 start3D = { m_boxSize.x / -6.0f, m_boxSize.y / -6.0f, m_boxSize.z / -6.0f };
+    Math::float3 end3D = { m_boxSize.x / 6.0f, m_boxSize.y / 6.0f, m_boxSize.z / 6.0f };
 
     gridVerts = Geometry::Generate3DGrid(Geometry::Shape3D::Sphere, grid3DRes, start3D, end3D);
   }
@@ -233,8 +240,7 @@ void Boids::initBoidsParticles()
   std::vector<std::array<float, 4>> pos(m_maxNbParticles, std::array<float, 4>({ inf, inf, inf, 0.0f }));
 
   std::transform(gridVerts.cbegin(), gridVerts.cend(), pos.begin(),
-      [](const Math::float3& vertPos) -> std::array<float, 4>
-      { return { vertPos.x, vertPos.y, vertPos.z, 0.0f }; });
+      [](const Math::float3& vertPos) -> std::array<float, 4> { return { vertPos.x, vertPos.y, vertPos.z, 0.0f }; });
 
   clContext.loadBufferFromHost("p_pos", 0, 4 * sizeof(float) * pos.size(), pos.data());
   // Using same buffer to initialize vel, giving interesting patterns

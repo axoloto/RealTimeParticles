@@ -3,8 +3,8 @@
 
 // Preprocessor defines following constant variables in Clouds.cpp
 // EFFECT_RADIUS           - radius around a particle where SPH laws apply 
-// ABS_WALL_POS            - absolute position of the walls in x,y,z
-// GRID_RES                - resolution of the grid
+// ABS_WALL_X            - absolute position of the walls in x,y,z
+// GRID_RES_X                - resolution of the grid
 // GRID_NUM_CELLS          - total number of cells in the grid
 // NUM_MAX_PARTS_IN_CELL   - maximum number of particles taking into account in a single cell in simplified mode
 // REST_DENSITY            - rest density of the fluid
@@ -24,7 +24,6 @@ typedef struct defCloudParams{
   float phaseTransitionRate;
   float latentHeatCoeff;
   uint  isTempSmoothingEnabled;
-  float effectRadius;
   float restDensity;
   float relaxCFM;
 } CloudParams;
@@ -67,7 +66,7 @@ inline float4 gradSpiky(const float4 vec, const float effectRadius);
 */
 inline float externalHeatSource(const float altitude)
 {
-  return clamp(exp(-(altitude + ABS_WALL_POS)), 0.0f, 1.0f);
+  return clamp(exp(-(altitude + ABS_WALL_Y)), 0.0f, 1.0f);
 }
 
 /*
@@ -77,7 +76,7 @@ inline float environmentTemp(const float altitude)
 {
   float coeff = 6.0f; // 293 - 6 * 10 = 233K = value of the temperature at the maximum altitude
   float tempGround = 293.0f; // 293K = value of temperature at the ground in Kelvin
-  return -coeff * (altitude + ABS_WALL_POS) + tempGround;
+  return -coeff * (altitude + ABS_WALL_Y) + tempGround;
 }
 
 /*
@@ -124,13 +123,14 @@ __kernel void cld_randPosVertsClouds(//Param
   const unsigned int randomIntY = parallelRNG(ID + 1);
   const unsigned int randomIntZ = parallelRNG(ID + 2);
 
-  const float x = (float)(randomIntX & 0x0ff) * 2.0 - ABS_WALL_POS;
-  const float y = (float)(randomIntY & 0x0ff) * 2.0 - ABS_WALL_POS;
-  const float z = (float)(randomIntZ & 0x0ff) * 2.0 - ABS_WALL_POS;
+  const float x = (float)(randomIntX & 0x0ff) * 2.0 - ABS_WALL_X;
+  const float y = (float)(randomIntY & 0x0ff) * 2.0 - ABS_WALL_Y;
+  const float z = (float)(randomIntZ & 0x0ff) * 2.0 - ABS_WALL_Z;
 
   const float3 randomXYZ = (float3)(x * convert_float(3 - fluid.dim), y, z);
 
-  pos[ID].xyz = clamp(randomXYZ, -ABS_WALL_POS, ABS_WALL_POS);
+  pos[ID].xyz = clamp(randomXYZ, (float3)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z),
+                                 (float3)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z));                      
   pos[ID].w = 0.0f;
 
   vel[ID].xyz = (float3)(0.0f, 0.0f, 0.0f);
@@ -289,8 +289,9 @@ __kernel void cld_applyBoundaryCondWithMixedWalls(//Input/output
                                                   )     // 1
 {
   float4 newPos = predPos[ID];
-  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
-
+  const float4 clampedNewPos = clamp(newPos, (float4)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z, 0.0f)
+                                           , (float4)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z, 0.0f));
+  
   if (!isequal(clampedNewPos.x, newPos.x))
   {
     predPos[ID].x = -clampedNewPos.x;
@@ -304,7 +305,6 @@ __kernel void cld_applyBoundaryCondWithMixedWalls(//Input/output
     predPos[ID].z = -clampedNewPos.z;
   }
 }
-
 
 //
 //Compute Laplacian temperature based on SPH model
@@ -340,10 +340,10 @@ __kernel void cld_computeLaplacianTemp(//Input
         cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
           continue;
 
-        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
         startEndN = startEndCell[cellNIndex1D];
 
@@ -351,7 +351,7 @@ __kernel void cld_computeLaplacianTemp(//Input
         {
           vec = pos - posP[e];
 
-          laplacian += (temp - tempP[e]) * dot(vec, gradSpiky(vec, cloud.effectRadius)) / (dot(vec, vec) + FLOAT_EPS);
+          laplacian += (temp - tempP[e]) * dot(vec, gradSpiky(vec, EFFECT_RADIUS)) / (dot(vec, vec) + FLOAT_EPS);
         }
       }
     }
@@ -397,10 +397,10 @@ __kernel void cld_computeConstraintFactor(//Input
         cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
           continue;
 
-        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
         startEndN = startEndCell[cellNIndex1D];
 
@@ -409,7 +409,7 @@ __kernel void cld_computeConstraintFactor(//Input
           vec = pos - posP[e];
 
           // Supposed to be null if vec = 0.0f;
-          grad = gradSpiky(vec, cloud.effectRadius);
+          grad = gradSpiky(vec, EFFECT_RADIUS);
 
           derivativeTemp = dot(vec, grad) / (dot(vec, vec) * cloud.restDensity + FLOAT_EPS);
           // Contribution from the ID particle
@@ -462,10 +462,10 @@ __kernel void cld_computeConstraintCorrection(//Input
         cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
           continue;
 
-        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
         startEndN = startEndCell[cellNIndex1D];
 
@@ -474,7 +474,7 @@ __kernel void cld_computeConstraintCorrection(//Input
           vec = pos - posP[e];
           
           // Supposed to be null if vec = 0.0f;
-          grad = gradSpiky(vec, cloud.effectRadius);
+          grad = gradSpiky(vec, EFFECT_RADIUS);
 
           derivativeTemp = dot(vec, grad) / (dot(vec, vec) * cloud.restDensity + FLOAT_EPS);
 

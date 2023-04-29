@@ -1,7 +1,7 @@
 // Preprocessor defines following constant variables in Boids.cpp
 // EFFECT_RADIUS_SQUARED   - squared radius around a particle where boids laws apply 
-// ABS_WALL_POS            - absolute position of the walls in x,y,z
-// GRID_RES                - resolution of the grid
+// ABS_WALL_X            - absolute position of the walls in x,y,z
+// GRID_RES_X                - resolution of the grid
 // GRID_NUM_CELLS          - total number of cells in the grid
 // NUM_MAX_PARTS_IN_CELL   - maximum number of particles taking into account in a single cell in simplified mode
 
@@ -38,13 +38,14 @@ __kernel void bd_randPosVertsBoids(//Output
   const unsigned int randomIntY = parallelRNG(ID + 1);
   const unsigned int randomIntZ = parallelRNG(ID + 2);
 
-  const float x = (float)(randomIntX & 0x0ff) / 6.0f - ABS_WALL_POS ;
-  const float y = (float)(randomIntY & 0x0ff) / 6.0f - ABS_WALL_POS ;
-  const float z = (float)(randomIntZ & 0x0ff) / 6.0f - ABS_WALL_POS ;
+  const float x = (float)(randomIntX & 0x0ff) / 6.0f - ABS_WALL_X ;
+  const float y = (float)(randomIntY & 0x0ff) / 6.0f - ABS_WALL_Y ;
+  const float z = (float)(randomIntZ & 0x0ff) / 6.0f - ABS_WALL_Z ;
 
   const float3 randomXYZ = (float3)(x * step(3.0f, dim), y, z);
 
-  pos[ID].xyz = clamp(randomXYZ, -ABS_WALL_POS, ABS_WALL_POS);
+  pos[ID].xyz = clamp(randomXYZ, (float3)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z),
+                                 (float3)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z));
   pos[ID].w = 0.0f;
 
   vel[ID].xyz = clamp(randomXYZ, -1.0f, 1.0f);
@@ -103,10 +104,10 @@ __kernel void bd_applyBoidsRulesWithGrid3D(//Input
         cellNIndex3D = convert_int3(currCellIndex3D) + (int3)(iX, iY, iZ);
         
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
           continue;
 
-        cellNIndex1D = (cellNIndex3D.x * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
         startEndN = startEndCell[cellNIndex1D];
 
@@ -194,10 +195,10 @@ __kernel void bd_applyBoidsRulesWithGrid2D(//Input
       cellNIndex3D = convert_int3(currCellIndex3D) + (int3)(0, iY, iZ);
       
       // Removing out of range cells
-      if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES)))
+      if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X)))
         continue;
 
-      cellNIndex1D = (GRID_RES / 2 * GRID_RES + cellNIndex3D.y) * GRID_RES + cellNIndex3D.z;
+      cellNIndex1D = (GRID_RES_X / 2 * GRID_RES_X + cellNIndex3D.y) * GRID_RES_Y + cellNIndex3D.z;
 
       startEndN = startEndCell[cellNIndex1D];
 
@@ -293,9 +294,10 @@ __kernel void bd_updatePosWithBouncingWalls(//Input/output
 
 {
   const float4 newPos = pos[ID] + vel[ID] * timeStep;
-  const float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
+  const float4 clampedNewPos = clamp(newPos, (float4)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z, 0.0f)
+                                           , (float4)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z, 0.0f));
   
-  pos[ID] = clampedNewPos;  
+  pos[ID] = clampedNewPos;
 
   if (!all(isequal(clampedNewPos.xyz, newPos.xyz)))
   {
@@ -314,8 +316,9 @@ __kernel void bd_updatePosWithCyclicWalls(//Input
                                                 __global float4 *pos)     // 2
 {
   const float4 newPos = pos[ID] + vel[ID] * timeStep;
-  float4 clampedNewPos = clamp(newPos, -ABS_WALL_POS, ABS_WALL_POS);
-
+  float4 clampedNewPos = clamp(newPos, (float4)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z, 0.0f)
+                                           , (float4)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z, 0.0f));
+ 
   if (!isequal(clampedNewPos.x, newPos.x))
   {
     clampedNewPos.x *= -1;
@@ -478,12 +481,12 @@ __kernel void applyBoidsRulesWithGridAndTex(
         y = currentCell3DIndex.y + iY;
         z = currentCell3DIndex.z + iZ;
 
-        if (x < 0 || x >= GRID_RES
-            || y < 0 || y >= GRID_RES
-            || z < 0 || z >= GRID_RES)
+        if (x < 0 || x >= GRID_RES_X
+            || y < 0 || y >= GRID_RES_X
+            || z < 0 || z >= GRID_RES_X)
           return;
 
-        cellIndex = (x * GRID_RES + y) * GRID_RES + z;
+        cellIndex = (x * GRID_RES_X + y) * GRID_RES_X + z;
 
         for (uint partIndex = 0; partIndex < NUM_MAX_PARTS_IN_CELL; ++partIndex)
         {
@@ -579,11 +582,11 @@ __kernel void applyBoidsRulesWithGridAndTexLocal(
         posN = (float4)(0.0, 0.0, 0.0, -1.0);
         velN = (float4)(0.0, 0.0, 0.0, -1.0);
 
-        if (x >= 0 && x < GRID_RES
-            && y >= 0 && y < GRID_RES
-            && z >= 0 && z < GRID_RES)
+        if (x >= 0 && x < GRID_RES_X
+            && y >= 0 && y < GRID_RES_X
+            && z >= 0 && z < GRID_RES_X)
         {
-          cellIndexN = (x * GRID_RES + y) * GRID_RES + z;
+          cellIndexN = (x * GRID_RES_X + y) * GRID_RES_X + z;
           posN = read_imagef(posTex, samp, (int2)(localPartIndex, cellIndexN));
           velN = read_imagef(velTex, samp, (int2)(localPartIndex, cellIndexN));
         }
