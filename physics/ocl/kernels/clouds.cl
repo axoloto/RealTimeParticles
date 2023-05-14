@@ -18,6 +18,7 @@
 // See CloudKernelInputs in Clouds.cpp
 typedef struct defCloudParams{
   float timeStep;
+  float restDensity;  
   float groundHeatCoeff;
   float buoyancyCoeff;
   float gravCoeff;
@@ -25,8 +26,8 @@ typedef struct defCloudParams{
   float phaseTransitionRate;
   float latentHeatCoeff;
   uint  isTempSmoothingEnabled;
-  float restDensity;
   float relaxCFM;
+  float initVaporDensityCoeff;
 } CloudParams;
 
 // Defined in utils.cl
@@ -34,6 +35,9 @@ typedef struct defCloudParams{
   Random unsigned integer number generator
 */
 inline unsigned int parallelRNG(unsigned int i);
+
+inline float genRandomNormalizedFloat(unsigned int i);
+inline float3 genRandomNormalizedFloat3(unsigned int i);
 
 // Defined in grid.cl
 /*
@@ -87,7 +91,7 @@ inline float environmentTemp(const float altitude)
 /*
 
 */
-inline float maxVaporDensity(const float temperature)
+inline float saturationVaporDensity(const float temperature)
 {
   // Values given by CWF Barbosa et al. paper
  // return 100.0f * exp(-3.0f / (temperature + 2.3f)); // this one doesn't make any sense
@@ -108,12 +112,14 @@ __kernel void cld_initTemperature(//Input
 /*
   Initialize vapor density value (cloud density set to 0)
 */
- __kernel void cld_initVaporDensity(//Input
-                                    const __global float *temp,        // 0
+ __kernel void cld_initVaporDensity(//Param
+                                    const CloudParams cloud, // 0
+                                    //Input
+                                    const __global float *temp,        // 1
                                     //Output
-                                          __global float *vaporDens)   // 1
+                                          __global float *vaporDens)   // 2
 {
-  vaporDens[ID] = 0.5f * maxVaporDensity(temp[ID]);
+  vaporDens[ID] = cloud.initVaporDensityCoeff * saturationVaporDensity(temp[ID]);
 }
 
 /*
@@ -125,18 +131,10 @@ __kernel void cld_randPosVertsClouds(//Param
                                      __global   float4 *pos,  // 1
                                      __global   float4 *vel)  // 2
 {
-  const unsigned int randomIntX = parallelRNG(ID);
-  const unsigned int randomIntY = parallelRNG(ID + 1);
-  const unsigned int randomIntZ = parallelRNG(ID + 2);
-
-  const float x = (float)(randomIntX & 0x0ff) * 2.0 - ABS_WALL_X;
-  const float y = (float)(randomIntY & 0x0ff) * 2.0 - ABS_WALL_Y;
-  const float z = (float)(randomIntZ & 0x0ff) * 2.0 - ABS_WALL_Z;
-
-  const float3 randomXYZ = (float3)(x * convert_float(3 - fluid.dim), y, z);
-
-  pos[ID].xyz = clamp(randomXYZ, (float3)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z),
-                                 (float3)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z));                      
+  const float3 randNormFloat3 = genRandomNormalizedFloat3(ID);
+  
+  pos[ID].xyz = (float3)(ABS_WALL_X, ABS_WALL_Y / 2.0f, ABS_WALL_Z) * (2.0f * randNormFloat3 - 1.0f);  
+  pos[ID].y -= ABS_WALL_Y / 3.0f;
   pos[ID].w = 0.0f;
 
   vel[ID].xyz = (float3)(0.0f, 0.0f, 0.0f);
@@ -203,11 +201,11 @@ __kernel void cld_generateCloud(//Input
                                 //Output
                                       __global float  *cloudGen)  // 4
 {
-  cloudGen[ID] = cloud.phaseTransitionRate * (vaporDens[ID] - maxVaporDensity(tempIn[ID]));
+  cloudGen[ID] = cloud.phaseTransitionRate * (vaporDens[ID] - saturationVaporDensity(tempIn[ID]));
  // Article CWF Barbora use this formula which doesn't make much sense,
  // previous article Miyazaki Dobashi 2002 uses max instead of min
  // and the initial one Miyazaki Dobashi 2001 doesn't use neither max or min...
- // cloudGen[ID] = cloud.phaseTransitionRate * (vaporDens[ID] - min(maxVaporDensity(tempIn[ID]), cloudDens[ID] + vaporDens[ID]));
+ // cloudGen[ID] = cloud.phaseTransitionRate * (vaporDens[ID] - min(saturationVaporDensity(tempIn[ID]), cloudDens[ID] + vaporDens[ID]));
 }
 
 /*

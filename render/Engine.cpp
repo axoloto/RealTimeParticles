@@ -19,9 +19,9 @@ Engine::Engine(EngineParams params)
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_PROGRAM_POINT_SIZE);
   glEnable(GL_POINT_SMOOTH);
-  //glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-  //glEnable(GL_BLEND);
   glEnable(GL_MULTISAMPLE);
+
+  enableBlending(true);
 
   buildShaders();
 
@@ -355,5 +355,20 @@ void Engine::checkMouseEvents(UserAction action, Math::float2 delta)
     m_camera->zoom(0.5f * delta.x);
     break;
   }
+  }
+}
+
+void Engine::enableBlending(bool enable)
+{
+  m_isBlendingEnabled = enable;
+
+  if (m_isBlendingEnabled)
+  {
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glEnable(GL_BLEND);
+  }
+  else
+  {
+    glDisable(GL_BLEND);
   }
 }

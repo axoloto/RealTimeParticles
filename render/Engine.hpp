@@ -72,6 +72,9 @@ class Engine
   inline bool isTargetVisible() const { return m_isTargetVisible; }
   inline void setTargetVisibility(bool isVisible) { m_isTargetVisible = isVisible; }
 
+  inline bool isBlendingEnabled() const { return m_isBlendingEnabled; }
+  void enableBlending(bool enable);
+
   inline void setTargetPos(const Math::float3& pos) { m_targetPos = pos; }
 
   void setDimension(Geometry::Dimension dim) { m_dimension = dim; }
@@ -132,6 +135,7 @@ class Engine
   bool m_isBoxVisible;
   bool m_isGridVisible;
   bool m_isTargetVisible;
+  bool m_isBlendingEnabled;
 
   Math::float3 m_targetPos;
 

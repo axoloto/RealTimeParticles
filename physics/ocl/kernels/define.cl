@@ -7,4 +7,4 @@
 
 #define ABS_GRAVITY_ACC_Y 9.81f
 #define GRAVITY_ACC   (float4)(0.0f, -ABS_GRAVITY_ACC_Y, 0.0f, 0.0f)
-#define FAR_DIST      100000000.0f
+#define FAR_DIST      1000000.0f

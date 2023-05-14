@@ -92,6 +92,8 @@ struct CloudKernelInputs
 {
   // Must be always equal to timeStep of FluidKernelInputs
   cl_float timeStep = 0.01f;
+  // Must be equal to rest density of FluidKernelInputs
+  cl_float restDensity = 500.0f;
   // groundHeatCoeff * timeStep = temperature increase due to ground being a heat source
   // Effect is limited to closest part of the atmosphere and then exponentially reduced to null value
   cl_float groundHeatCoeff = 10.0f; // i.e here 0.4K/iteration, at 30fps -> 12K/s increase
@@ -109,8 +111,10 @@ struct CloudKernelInputs
   // Enable constraint on temperature field, forcing its Laplacian field to be null
   // It helps uniformizing the temperature across particles
   cl_uint isTempSmoothingEnabled = 1;
-  cl_float restDensity = 500.0f; // must be equal to fluids one
+  //
   cl_float relaxCFM = 600.0f;
+  //
+  cl_float initVaporDensityCoeff = 0.5f;
 };
 
 const std::map<Clouds::CaseType, std::string, Clouds::CompareCaseType> Clouds::ALL_CASES {
@@ -220,7 +224,7 @@ bool Clouds::createBuffers()
   m_allDisplayableQuantities.insert(std::make_pair(partID.name, partID));
   PhysicalQuantity vaporDens { "Vapor Density", "p_vaporDens", { 0.0f, 100.0f }, { 0.001f, 100.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(vaporDens.name, vaporDens));
-  PhysicalQuantity cloudDens { "Cloud Density", "p_cloudDens", { 0.0f, 100.0f }, { 0.10f, 10.0f } };
+  PhysicalQuantity cloudDens { "Cloud Density", "p_cloudDens", { 0.0f, 100.0f }, { 1.0f, 10.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(cloudDens.name, cloudDens));
   PhysicalQuantity netForce { "Net Force", "p_buoyancy", { -10.0f, 10.0f }, { -1.0f, 1.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(netForce.name, netForce));
@@ -259,7 +263,7 @@ bool Clouds::createKernels() const
   // Clouds thermodynamics
   // Init steps
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_INIT_TEMP, { "p_pos", "p_temp" });
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_INIT_VAPOR_DENSITY, { "p_temp", "p_vaporDens" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_INIT_VAPOR_DENSITY, { "", "p_temp", "p_vaporDens" });
   //
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_HEAT_GROUND, { "p_tempIn", "p_pos", "", "p_temp" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_BUOYANCY, { "p_temp", "p_pos", "p_cloudDens", "", "p_buoyancy" });
@@ -320,6 +324,7 @@ void Clouds::updateCloudsParamsInKernels()
 
   CL::Context& clContext = CL::Context::Get();
 
+  clContext.setKernelArg(KERNEL_INIT_VAPOR_DENSITY, 0, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_HEAT_GROUND, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_BUOYANCY, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_ADIABATIC_COOLING, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
@@ -345,6 +350,7 @@ void Clouds::reset()
   initCloudsParticles();
 
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
+  clContext.runKernel(KERNEL_RANDOM_POS, m_maxNbParticles);
   clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
   clContext.runKernel(KERNEL_FILL_PART_DETECTOR, m_currNbParticles);
   clContext.releaseGLBuffers({ "p_pos", "c_partDetector" });
