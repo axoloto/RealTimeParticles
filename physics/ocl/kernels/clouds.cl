@@ -20,6 +20,7 @@ typedef struct defCloudParams{
   float timeStep;
   float groundHeatCoeff;
   float buoyancyCoeff;
+  float gravCoeff;
   float adiabaticLapseRate;
   float phaseTransitionRate;
   float latentHeatCoeff;
@@ -66,7 +67,7 @@ inline float4 gradSpiky(const float4 vec, const float effectRadius);
 */
 inline float externalHeatSource(const float altitude)
 {
-  return clamp(exp(-(altitude + ABS_WALL_Y)), 0.0f, 1.0f);
+  return clamp(exp(-(altitude + ABS_WALL_Y) / 3.0f), 0.0f, 1.0f);
 }
 
 /*
@@ -74,8 +75,12 @@ inline float externalHeatSource(const float altitude)
 */
 inline float environmentTemp(const float altitude)
 {
-  float coeff = 6.0f; // 293 - 6 * 10 = 233K = value of the temperature at the maximum altitude
-  float tempGround = 293.0f; // 293K = value of temperature at the ground in Kelvin
+  // Troposphere is the first layer of the atmosphere, high of 10kms
+  // this is where lives clouds up to the tropopause
+  // The temperature within the troposphere varies linearly
+  // between around 293K = 20C at alt 0km and 223k = -50C at alt 10km
+  float coeff = 3.5f; // 293 - 3.5 * 20 = 223K = -50C = value of the temperature at the maximum altitude
+  float tempGround = 293.0f; // 293K = 20C = value of temperature at the ground
   return -coeff * (altitude + ABS_WALL_Y) + tempGround;
 }
 
@@ -85,7 +90,8 @@ inline float environmentTemp(const float altitude)
 inline float maxVaporDensity(const float temperature)
 {
   // Values given by CWF Barbosa et al. paper
-  return 100.0f * exp(-3.0f / (temperature + 2.3f));
+ // return 100.0f * exp(-3.0f / (temperature + 2.3f)); // this one doesn't make any sense
+  return 217 * exp(19.5 - 4303.4/(temperature - 29.5)) / temperature;
 }
 
 /*
@@ -138,7 +144,7 @@ __kernel void cld_randPosVertsClouds(//Param
 }
 
 /*
-
+  Heat up air parcels from the ground up to 313K = 40C
 */
 __kernel void cld_heatFromGround(//Input
                                  const __global float  *tempIn, // 0
@@ -148,11 +154,11 @@ __kernel void cld_heatFromGround(//Input
                                  //Output
                                        __global float  *temp)   // 3
 {
-  temp[ID] = tempIn[ID] + externalHeatSource(pos[ID].y) * cloud.groundHeatCoeff * cloud.timeStep;
+  temp[ID] = min(tempIn[ID] + externalHeatSource(pos[ID].y) * cloud.groundHeatCoeff * cloud.timeStep, 313.0f);
 }
 
 /*
-
+  Compute buoyancy and gravitational force
 */
 __kernel void cld_computeBuoyancy(//Input
                                   const __global float  *tempIn,    // 0
@@ -164,11 +170,11 @@ __kernel void cld_computeBuoyancy(//Input
                                         __global float  *buoyancy)  // 4
 {
   float envTemp = environmentTemp(pos[ID].y);
-  buoyancy[ID] = cloud.buoyancyCoeff * (tempIn[ID] - envTemp) / envTemp - GRAVITY_ACC_Y * cloudDens[ID];
+  buoyancy[ID] = cloud.buoyancyCoeff * (tempIn[ID] - envTemp) / envTemp - cloud.gravCoeff * ABS_GRAVITY_ACC_Y * cloudDens[ID];
 }
 
 /*
-
+  Cool down parcels of air when they go up, minimal temperature is the one at the tropopause 223K = -50C
 */
 __kernel void cld_applyAdiabaticCooling(//Input
                                         const __global float  *tempIn,  // 0
@@ -178,11 +184,15 @@ __kernel void cld_applyAdiabaticCooling(//Input
                                         //Output
                                               __global float  *temp)    // 3
 {
-  temp[ID] = tempIn[ID] - cloud.adiabaticLapseRate * max(vel[ID].y, 0.0f) * cloud.timeStep;
+  temp[ID] = max(tempIn[ID] - cloud.adiabaticLapseRate * vel[ID].y * cloud.timeStep, 223.0f);
 }
 
 /*
-
+  Compute cloud generation from the transition rate and the difference between saturation vapor density and current vapor density
+  - If vapor density (VD) == saturation vapor density (SVD), no transition, system is at equilibrium
+  - If VD > SVD, not enough vapor in the air, clouds disappear, liquid/droplets transitions to vapor
+  - If VD < SVD, too much vapor in the air, clouds appear, vapor transitions to liquid/droplets
+  Note that saturation vapor density depends on temperature, cold air can't contain as much vapor as warmer one
 */
 __kernel void cld_generateCloud(//Input
                                 const __global float  *tempIn,    // 0
@@ -193,11 +203,15 @@ __kernel void cld_generateCloud(//Input
                                 //Output
                                       __global float  *cloudGen)  // 4
 {
-  cloudGen[ID] = cloud.phaseTransitionRate * (vaporDens[ID] - min(maxVaporDensity(tempIn[ID]), cloudDens[ID] + vaporDens[ID]));
+  cloudGen[ID] = cloud.phaseTransitionRate * (vaporDens[ID] - maxVaporDensity(tempIn[ID]));
+ // Article CWF Barbora use this formula which doesn't make much sense,
+ // previous article Miyazaki Dobashi 2002 uses max instead of min
+ // and the initial one Miyazaki Dobashi 2001 doesn't use neither max or min...
+ // cloudGen[ID] = cloud.phaseTransitionRate * (vaporDens[ID] - min(maxVaporDensity(tempIn[ID]), cloudDens[ID] + vaporDens[ID]));
 }
 
 /*
-
+  Applying phase transition rate to compute new phase density in air parcels, density can't be negative
 */
 __kernel void cld_applyPhaseTransition(//Input
                                        const __global float  *vaporDensIn,  // 0
@@ -209,12 +223,12 @@ __kernel void cld_applyPhaseTransition(//Input
                                              __global float  *vaporDens,    // 4
                                              __global float  *cloudDens)    // 5
 {
-  cloudDens[ID] = cloudDensIn[ID] + cloudGen[ID] * cloud.timeStep;
-  vaporDens[ID] = vaporDensIn[ID] - cloudGen[ID] * cloud.timeStep;
+  cloudDens[ID] = max(cloudDensIn[ID] + cloudGen[ID] * cloud.timeStep, 0.0f);
+  vaporDens[ID] = max(vaporDensIn[ID] - cloudGen[ID] * cloud.timeStep, 0.0f);
 }
 
 /*
-
+  Cloud generation generates latent heat, making the air parcels going up some more
 */
 __kernel void cld_applyLatentHeat(//Input
                                   const __global float  *tempIn,   // 0
@@ -224,7 +238,7 @@ __kernel void cld_applyLatentHeat(//Input
                                   //Output
                                         __global float  *temp)     // 3
 {
-  temp[ID] = tempIn[ID] + cloud.latentHeatCoeff * cloudGen[ID] * cloud.timeStep;
+  temp[ID] = tempIn[ID] + max(cloud.latentHeatCoeff * cloudGen[ID] * cloud.timeStep, 0.0f);
 }
 
 /*

@@ -152,6 +152,12 @@ void displayCloudsParameters(Physics::Clouds* cloudsEngine)
   ImGui::Text("Clouds Parameters");
   ImGui::Spacing();
 
+  bool isTempSmoothingEnabled = cloudsEngine->isTempSmoothingEnabled();
+  if (ImGui::Checkbox("Enable Temperature Smoothing", &isTempSmoothingEnabled))
+  {
+    cloudsEngine->enableTempSmoothing(isTempSmoothingEnabled);
+  }
+
   float groundHeatCoeff = cloudsEngine->getGroundHeatCoeff();
   if (ImGui::SliderFloat("Ground Heat Coefficient", &groundHeatCoeff, 0.0f, 1000.0f, "%.4f"))
   {
@@ -159,19 +165,25 @@ void displayCloudsParameters(Physics::Clouds* cloudsEngine)
   }
 
   float buoyancyCoeff = cloudsEngine->getBuoyancyCoeff();
-  if (ImGui::SliderFloat("Buoyancy Coefficient", &buoyancyCoeff, 0.0f, 0.15f, "%.4f"))
+  if (ImGui::SliderFloat("Buoyancy Coefficient", &buoyancyCoeff, 0.0f, 5.0f, "%.4f"))
   {
     cloudsEngine->setBuoyancyCoeff(buoyancyCoeff);
   }
 
+  float gravCoeff = cloudsEngine->getGravCoeff();
+  if (ImGui::SliderFloat("Gravity Coefficient", &gravCoeff, 0.0f, 0.1f, "%.4f"))
+  {
+    cloudsEngine->setGravCoeff(gravCoeff);
+  }
+
   float adiabaticLapseRate = cloudsEngine->getAdiabaticLapseRate();
-  if (ImGui::SliderFloat("Adiabatic Lapse Rate", &adiabaticLapseRate, 0.0f, 200.0f, "%.3f"))
+  if (ImGui::SliderFloat("Adiabatic Lapse Rate", &adiabaticLapseRate, 0.0f, 20.0f, "%.3f"))
   {
     cloudsEngine->setAdiabaticLapseRate(adiabaticLapseRate);
   }
 
   float phaseTransitionRate = cloudsEngine->getPhaseTransitionRate();
-  if (ImGui::SliderFloat("Phase Transition Rate", &phaseTransitionRate, 0.0f, 200.0f, "%.4f"))
+  if (ImGui::SliderFloat("Phase Transition Rate", &phaseTransitionRate, 0.0f, 20.0f, "%.4f"))
   {
     cloudsEngine->setPhaseTransitionRate(phaseTransitionRate);
   }

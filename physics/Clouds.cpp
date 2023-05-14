@@ -72,7 +72,7 @@ namespace Physics
 // Fluids params for Position Based Fluids part of clouds sim
 struct FluidKernelInputs
 {
-  cl_float restDensity = 700.0f;
+  cl_float restDensity = 500.0f;
   cl_float relaxCFM = 600.0f;
   cl_float timeStep = 0.01f;
   cl_uint dim = 3;
@@ -92,15 +92,24 @@ struct CloudKernelInputs
 {
   // Must be always equal to timeStep of FluidKernelInputs
   cl_float timeStep = 0.01f;
-  // groundHeatCoeff * timeStep = max temperature increase due to heat source in ground for closest particles from ground
-  cl_float groundHeatCoeff = 200.0f; // i.e here 2K/iteration
-  cl_float buoyancyCoeff = 0.075f;
-  cl_float adiabaticLapseRate = 80.0f;
-  cl_float phaseTransitionRate = 100.0f;
-  cl_float latentHeatCoeff = 0.003f;
+  // groundHeatCoeff * timeStep = temperature increase due to ground being a heat source
+  // Effect is limited to closest part of the atmosphere and then exponentially reduced to null value
+  cl_float groundHeatCoeff = 10.0f; // i.e here 0.4K/iteration, at 30fps -> 12K/s increase
+  // Buoyancy makes warmer particles to go up and colder ones to go down
+  cl_float buoyancyCoeff = 0.10f;
+  cl_float gravCoeff = 0.001f;
+  // Adiabatic cooling makes the air parcels to cool down when going up
+  cl_float adiabaticLapseRate = 5.0f;
+  // Phase transition rate decides how fast waper transitions
+  // between vapor and liquid (clouds = droplets)
+  cl_float phaseTransitionRate = 0.05f;
+  // When particles transition from vapor to liquid, they released heat
+  // increasing their temperature, making them going up some more due to buoyancy
+  cl_float latentHeatCoeff = 0.00f;
   // Enable constraint on temperature field, forcing its Laplacian field to be null
+  // It helps uniformizing the temperature across particles
   cl_uint isTempSmoothingEnabled = 1;
-  cl_float restDensity = 700.0f; // must be equal to fluids one
+  cl_float restDensity = 500.0f; // must be equal to fluids one
   cl_float relaxCFM = 600.0f;
 };
 
@@ -209,13 +218,13 @@ bool Clouds::createBuffers()
   // Physical parameters displayable in UI, only m_maxNbParts * sizeof(float) size supported for now
   PhysicalQuantity partID { "Particle ID", "p_partID", { 0.0f, (float)(m_maxNbParticles - 1) }, { 0.0f, (float)(m_maxNbParticles - 1) } };
   m_allDisplayableQuantities.insert(std::make_pair(partID.name, partID));
-  PhysicalQuantity vaporDens { "Vapor Density", "p_vaporDens", { 0.0f, 100.0f }, { 0.0f, 40.0f } };
+  PhysicalQuantity vaporDens { "Vapor Density", "p_vaporDens", { 0.0f, 100.0f }, { 0.001f, 100.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(vaporDens.name, vaporDens));
-  PhysicalQuantity cloudDens { "Cloud Density", "p_cloudDens", { 0.0f, 100.0f }, { 0.0f, 50.0f } };
+  PhysicalQuantity cloudDens { "Cloud Density", "p_cloudDens", { 0.0f, 100.0f }, { 0.10f, 10.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(cloudDens.name, cloudDens));
   PhysicalQuantity netForce { "Net Force", "p_buoyancy", { -10.0f, 10.0f }, { -1.0f, 1.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(netForce.name, netForce));
-  PhysicalQuantity temp { "Temperature", "p_temp", { 0.0f, 2000.0f }, { 0.0f, 2000.0f } };
+  PhysicalQuantity temp { "Temperature", "p_temp", { 0.0f, 500.0f }, { 223.0f, 293.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(temp.name, temp));
 
   m_currentDisplayedQuantityName = partID.name;
@@ -395,8 +404,8 @@ void Clouds::initCloudsParticles()
     case CaseType::CUMULUS:
       m_currNbParticles = Utils::NbParticles::P130K;
       shape = Geometry::Shape3D::Box;
-      startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
-      endFluidPos = { m_boxSize.x / 2.0f, 0.0f, m_boxSize.z / 2.0f };
+      startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y * -0.8f / 2.0f, m_boxSize.z / -2.0f };
+      endFluidPos = { m_boxSize.x / 2.0f, m_boxSize.y * 0.2f / 2.0f, m_boxSize.z / 2.0f };
       break;
     case CaseType::HOMOGENEOUS:
       m_currNbParticles = Utils::NbParticles::P65K;
@@ -645,6 +654,15 @@ void Clouds::enableVorticityConfinement(bool enable)
 }
 
 //
+void Clouds::enableTempSmoothing(bool enable)
+{
+  if (!m_init)
+    return;
+  m_cloudKernelInputs->isTempSmoothingEnabled = (cl_uint)enable;
+  updateCloudsParamsInKernels();
+}
+
+//
 void Clouds::setVorticityConfinementCoeff(float coeff)
 {
   if (!m_init)
@@ -704,6 +722,15 @@ void Clouds::setLatentHeatCoeff(float coeff)
   if (!m_init)
     return;
   m_cloudKernelInputs->latentHeatCoeff = (cl_float)coeff;
+  updateCloudsParamsInKernels();
+}
+
+//
+void Clouds::setGravCoeff(float coeff)
+{
+  if (!m_init)
+    return;
+  m_cloudKernelInputs->gravCoeff = (cl_float)coeff;
   updateCloudsParamsInKernels();
 }
 
@@ -801,4 +828,16 @@ float Clouds::getPhaseTransitionRate() const
 float Clouds::getLatentHeatCoeff() const
 {
   return m_init ? (float)m_cloudKernelInputs->latentHeatCoeff : 0.0f;
+}
+
+//
+float Clouds::getGravCoeff() const
+{
+  return m_init ? (float)m_cloudKernelInputs->gravCoeff : 0.0f;
+}
+
+//
+bool Clouds::isTempSmoothingEnabled() const
+{
+  return m_init ? (bool)m_cloudKernelInputs->isTempSmoothingEnabled : 0.0f;
 }

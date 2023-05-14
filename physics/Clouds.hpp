@@ -90,6 +90,12 @@ class Clouds : public Model
   //
   void setLatentHeatCoeff(float coeff);
   float getLatentHeatCoeff() const;
+  //
+  void setGravCoeff(float coeff);
+  float getGravCoeff() const;
+  //
+  void enableTempSmoothing(bool enable);
+  bool isTempSmoothingEnabled() const;
 
   private:
   bool createProgram() const;
