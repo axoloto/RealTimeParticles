@@ -1,22 +1,6 @@
 // Most defines are in define.cl
 // define.cl must be included as first file.cl to create OpenCL program
 
-/*
-  Random unsigned integer number generator
-*/
-inline unsigned int parallelRNG(unsigned int i)
-{
-  unsigned int value = i;
-
-  value = (value ^ 61) ^ (value >> 16);
-  value *= 9;
-  value ^= value << 4;
-  value *= 0x27d4eb2d;
-  value ^= value >> 15;
-
-  return value;
-}
-
 inline float genRandomNormalizedFloat(unsigned int i)
 {
   // Linear Congruential Generator (LCG) parameters
@@ -90,5 +74,5 @@ __kernel void fillColorFloat(//Input
   val *= step(0.0f, val);
   val *= step(val, 1.0f);
   //col[ID] = (float4)(val, 0.0f, 0.3f, 1.0f);
-  col[ID] = (float4)(val, val, val, 1.0f);
+  col[ID] = (float4)(val, val, val, val);
 }

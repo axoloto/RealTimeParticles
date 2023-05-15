@@ -31,12 +31,6 @@ typedef struct defFluidParams{
   float xsphViscosityCoeff;
 } FluidParams;
 
-// Defined in utils.cl
-/*
-  Random unsigned integer number generator
-*/
-inline unsigned int parallelRNG(unsigned int i);
-
 // Defined in grid.cl
 /*
   Compute 3D index of the cell containing given position
@@ -492,6 +486,9 @@ __kernel void fld_updatePosition(//Input
                                         __global float4 *pos)     // 1
 {
   pos[ID] = predPos[ID];
+  pos[ID].x += (1 - exp(- (predPos[ID].y + 10.0f) * 0.2)) * 0.02f;// * 0.1f;
+  pos[ID].z += (1 - exp(- (predPos[ID].y + 10.0f) * 0.3)) * 0.015f;// * 0.1f;
+
   //pos[ID] = clamp(predPos[ID], -ABS_WALL_X, ABS_WALL_X);
 }
 

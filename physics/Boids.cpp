@@ -31,7 +31,6 @@ using namespace Physics;
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
 // boids.cl
-#define KERNEL_RANDOM_POS "bd_randPosVertsBoids"
 #define KERNEL_FILL_COLOR "bd_fillBoidsColor"
 #define KERNEL_UPDATE_POS_BOUNCING "bd_updatePosWithBouncingWalls"
 #define KERNEL_UPDATE_POS_CYCLIC "bd_updatePosWithCyclicWalls"
@@ -121,7 +120,6 @@ bool Boids::createKernels() const
 
   // Init only
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_INFINITE_POS, { "p_pos" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_RANDOM_POS, { "p_pos", "p_vel" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_COLOR, { "p_col" });
 
   // For rendering purpose only
@@ -155,9 +153,6 @@ bool Boids::createKernels() const
 void Boids::updateBoidsParamsInKernel()
 {
   CL::Context& clContext = CL::Context::Get();
-
-  float dim = (m_dimension == Geometry::Dimension::dim2D) ? 2.0f : 3.0f;
-  clContext.setKernelArg(KERNEL_RANDOM_POS, 2, sizeof(float), &dim);
 
   float vel = m_velocity;
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &vel);

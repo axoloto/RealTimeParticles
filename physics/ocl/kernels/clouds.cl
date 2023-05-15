@@ -31,12 +31,9 @@ typedef struct defCloudParams{
 } CloudParams;
 
 // Defined in utils.cl
-/*
-  Random unsigned integer number generator
-*/
-inline unsigned int parallelRNG(unsigned int i);
 
 inline float genRandomNormalizedFloat(unsigned int i);
+
 inline float3 genRandomNormalizedFloat3(unsigned int i);
 
 // Defined in grid.cl
@@ -134,10 +131,10 @@ __kernel void cld_randPosVertsClouds(//Param
   const float3 randNormFloat3 = genRandomNormalizedFloat3(ID);
   
   pos[ID].xyz = (float3)(ABS_WALL_X, ABS_WALL_Y / 2.0f, ABS_WALL_Z) * (2.0f * randNormFloat3 - 1.0f);  
-  pos[ID].y -= ABS_WALL_Y / 3.0f;
+  pos[ID].y -= ABS_WALL_Y / 2.0f;
   pos[ID].w = 0.0f;
 
-  vel[ID].xyz = (float3)(0.0f, 0.0f, 0.0f);
+  vel[ID].xyz = 0.5f * randNormFloat3;
   vel[ID].w = 0.0f;
 }
 
@@ -255,41 +252,6 @@ __kernel void cld_predictPosition(//Input
   const float4 newVel = vel[ID] + (float4)(0.0f, buoyancy[ID], 0.0f, 0.0f) * cloud.timeStep;
 
   predPos[ID] = pos[ID] + newVel * cloud.timeStep;
-}
-
-/*
-  Fill fluid color buffer with constraint value for real-time analysis
-  Blue => constraint == 0, i.e density close from the rest density, system close from equilibrium
-  Light blue => constraint > 0, i.e density is smaller than rest density, system is not stabilized
-  Dark blue => constraint < 0, i.e density is bigger than rest density, system is not stabilized
-*/
-__kernel void cld_fillCloudColor(//Input
-                                 const  __global float  *density, // 0
-                                 const  __global float  *densityV, // 1
-                                 //Param
-                                 const      FluidParams fluid,    // 2
-                                 //Output
-                                        __global float4 *col)     // 3
-{
-  float4 blue      = (float4)(0.0f, 0.0f, 0.0f, 1.0f);
-  float4 lightBlue = (float4)(0.7f, 0.7f, 1.0f, 1.0f);
-  float4 darkBlue  = (float4)(0.0f, 0.0f, 0.8f, 1.0f);
-
-  //float constraint = (1.0f - density[ID] / fluid.restDensity);
-  //float constraint =  (density[ID] - 233) / 60;
-  float constraint =  (density[ID]);
-  //float constraint = density[ID];
-
-  float4 color = blue;
-  color.x = constraint * 3;
-  color.y = densityV[ID] / 100;
-
- // if(constraint > 0.0f)
- //   color += constraint * (lightBlue - blue) / 0.35f;
- // else if(constraint < 0.0f)
- //   color += constraint * (blue - darkBlue) / 0.35f;
-
-  col[ID] = color;
 }
 
 /*
