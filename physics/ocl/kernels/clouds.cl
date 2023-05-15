@@ -17,6 +17,7 @@
 
 // See CloudKernelInputs in Clouds.cpp
 typedef struct defCloudParams{
+  uint dim;
   float timeStep;
   float restDensity;  
   float groundHeatCoeff;
@@ -28,6 +29,7 @@ typedef struct defCloudParams{
   uint  isTempSmoothingEnabled;
   float relaxCFM;
   float initVaporDensityCoeff;
+  float windCoeff;
 } CloudParams;
 
 // Defined in utils.cl
@@ -471,4 +473,19 @@ __kernel void cld_correctTemperature(//Input
                                            __global float *temp)     // 2
 {
   temp[ID] += 0.3f * corrTemp[ID];
+}
+
+/*
+  Update position using predicted one and velocity field
+*/
+__kernel void cld_updatePosition(//Input
+                                 const  __global float4 *predPos, // 0
+                                 //Param
+                                 const     CloudParams cloud,     // 1
+                                 //Output
+                                        __global float4 *pos)     // 2
+{
+  pos[ID] = predPos[ID];
+  pos[ID].x += (1 - exp(- (predPos[ID].y + ABS_WALL_Y) * 0.2f)) * cloud.windCoeff * cloud.timeStep * (float)(cloud.dim - 2); //0.02f;
+  pos[ID].z += (1 - exp(- (predPos[ID].y + ABS_WALL_Y) * 0.3f)) * 0.7f * cloud.windCoeff * cloud.timeStep; //0.015f;
 }

@@ -26,6 +26,12 @@ enum class Shape3D
   Sphere
 };
 
+enum class Distribution
+{
+  Uniform,
+  Random
+};
+
 enum class Plane
 {
   XY,
@@ -91,13 +97,13 @@ static constexpr std::array<std::uint32_t, 24> RefSquareIndices {
 };
 
 std::vector<Math::float3> Generate2DGrid(Shape2D shape, Plane plane,
-    Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos);
+    Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos, Distribution distribution = Distribution::Uniform);
 
 std::vector<Math::float3> Generate3DGrid(Shape3D shape,
-    Math::int3 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos);
+    Math::int3 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos, Distribution distribution = Distribution::Uniform);
 
-void GenerateRectangularGrid(Plane plane, std::vector<Math::float3>& verts, Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos);
+void GenerateRectangularGrid(Plane plane, std::vector<Math::float3>& verts, Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos, Distribution distribution = Distribution::Uniform);
 void GenerateCircularGrid(Plane plane, std::vector<Math::float3>& verts, Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos);
-void GenerateBoxGrid(std::vector<Math::float3>& verts, Math::int3 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos);
+void GenerateBoxGrid(std::vector<Math::float3>& verts, Math::int3 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos, Distribution distribution = Distribution::Uniform);
 void GenerateSphereGrid(std::vector<Math::float3>& verts, Math::int3 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos);
 }

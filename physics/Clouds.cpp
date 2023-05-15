@@ -39,7 +39,6 @@ using namespace Physics;
 
 // fluids.cl
 #define KERNEL_APPLY_BOUNDARY "cld_applyBoundaryCondWithMixedWalls"
-// #define KERNEL_APPLY_BOUNDARY "fld_applyBoundaryCondition"
 #define KERNEL_DENSITY "fld_computeDensity"
 #define KERNEL_CONSTRAINT_FACTOR_FLUIDS "fld_computeConstraintFactor"
 #define KERNEL_CONSTRAINT_CORRECTION_FLUIDS "fld_computeConstraintCorrection"
@@ -48,7 +47,6 @@ using namespace Physics;
 #define KERNEL_COMPUTE_VORTICITY "fld_computeVorticity"
 #define KERNEL_VORTICITY_CONFINEMENT "fld_applyVorticityConfinement"
 #define KERNEL_XSPH_VISCOSITY "fld_applyXsphViscosityCorrection"
-#define KERNEL_UPDATE_POS "fld_updatePosition"
 
 // clouds.cl
 #define KERNEL_INIT_TEMP "cld_initTemperature"
@@ -61,6 +59,7 @@ using namespace Physics;
 #define KERNEL_PHASE_TRANSITION "cld_applyPhaseTransition"
 #define KERNEL_LATENT_HEAT "cld_applyLatentHeat"
 #define KERNEL_PREDICT_POS "cld_predictPosition"
+#define KERNEL_UPDATE_POS "cld_updatePosition"
 //
 #define KERNEL_LAPLACIAN_TEMP "cld_computeLaplacianTemp"
 #define KERNEL_CONSTRAINT_FACTOR_TEMP "cld_computeConstraintFactor"
@@ -72,17 +71,17 @@ namespace Physics
 // Fluids params for Position Based Fluids part of clouds sim
 struct FluidKernelInputs
 {
-  cl_float restDensity = 500.0f;
+  cl_float restDensity = 400.0f;
   cl_float relaxCFM = 600.0f;
   cl_float timeStep = 0.01f;
   cl_uint dim = 3;
   // Artifical pressure if enabled will try to reduce tensile instability
-  cl_uint isArtPressureEnabled = 0;
+  cl_uint isArtPressureEnabled = 1;
   cl_float artPressureRadius = 0.006f;
   cl_float artPressureCoeff = 0.001f;
   cl_uint artPressureExp = 4;
   // Vorticity confinement if enabled will try to replace lost energy due to virtual damping
-  cl_uint isVorticityConfEnabled = 0;
+  cl_uint isVorticityConfEnabled = 1;
   cl_float vorticityConfCoeff = 0.0004f;
   cl_float xsphViscosityCoeff = 0.0001f;
 };
@@ -90,10 +89,11 @@ struct FluidKernelInputs
 // Clouds params for clouds-specific physics
 struct CloudKernelInputs
 {
+  cl_uint dim = 3;
   // Must be always equal to timeStep of FluidKernelInputs
   cl_float timeStep = 0.01f;
   // Must be equal to rest density of FluidKernelInputs
-  cl_float restDensity = 500.0f;
+  cl_float restDensity = 400.0f;
   // groundHeatCoeff * timeStep = temperature increase due to ground being a heat source
   // Effect is limited to closest part of the atmosphere and then exponentially reduced to null value
   cl_float groundHeatCoeff = 10.0f; // i.e here 0.4K/iteration, at 30fps -> 12K/s increase
@@ -107,7 +107,7 @@ struct CloudKernelInputs
   cl_float phaseTransitionRate = 0.05f;
   // When particles transition from vapor to liquid, they released heat
   // increasing their temperature, making them going up some more due to buoyancy
-  cl_float latentHeatCoeff = 0.00f;
+  cl_float latentHeatCoeff = 0.07f;
   // Enable constraint on temperature field, forcing its Laplacian field to be null
   // It helps uniformizing the temperature across particles
   cl_uint isTempSmoothingEnabled = 1;
@@ -115,6 +115,8 @@ struct CloudKernelInputs
   cl_float relaxCFM = 600.0f;
   //
   cl_float initVaporDensityCoeff = 0.5f;
+  //
+  cl_float windCoeff = 0.5f;
 };
 
 const std::map<Clouds::CaseType, std::string, Clouds::CompareCaseType> Clouds::ALL_CASES {
@@ -242,7 +244,6 @@ bool Clouds::createKernels() const
 
   // Init only
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_INFINITE_POS, { "p_pos" });
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RANDOM_POS, { "", "p_pos", "p_vel" });
 
   // For rendering purpose only
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_RESET_PART_DETECTOR, { "c_partDetector" });
@@ -293,7 +294,7 @@ bool Clouds::createKernels() const
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_VORTICITY_CONFINEMENT, { "p_predPos", "c_startEndPartID", "p_vort", "", "p_vel" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_XSPH_VISCOSITY, { "p_predPos", "c_startEndPartID", "p_velInViscosity", "", "p_vel" });
   /// Position update
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_UPDATE_POS, { "p_predPos", "p_pos" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_UPDATE_POS, { "p_predPos", "", "p_pos" });
 
   return true;
 }
@@ -307,7 +308,6 @@ void Clouds::updateFluidsParamsInKernels()
 
   m_fluidKernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
 
-  clContext.setKernelArg(KERNEL_RANDOM_POS, 0, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
@@ -324,6 +324,8 @@ void Clouds::updateCloudsParamsInKernels()
 
   CL::Context& clContext = CL::Context::Get();
 
+  m_cloudKernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
+
   clContext.setKernelArg(KERNEL_INIT_VAPOR_DENSITY, 0, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_HEAT_GROUND, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_BUOYANCY, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
@@ -335,6 +337,7 @@ void Clouds::updateCloudsParamsInKernels()
   clContext.setKernelArg(KERNEL_LAPLACIAN_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
   clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
+  clContext.setKernelArg(KERNEL_UPDATE_POS, 1, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
 }
 
 void Clouds::reset()
@@ -350,7 +353,6 @@ void Clouds::reset()
   initCloudsParticles();
 
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
-  clContext.runKernel(KERNEL_RANDOM_POS, m_maxNbParticles);
   clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
   clContext.runKernel(KERNEL_FILL_PART_DETECTOR, m_currNbParticles);
   clContext.releaseGLBuffers({ "p_pos", "c_partDetector" });
@@ -372,6 +374,8 @@ void Clouds::initCloudsParticles()
 
   Math::float3 startFluidPos = { 0.0f, 0.0f, 0.0f };
   Math::float3 endFluidPos = { 0.0f, 0.0f, 0.0f };
+
+  Geometry::Distribution distribution = Geometry::Distribution::Random;
 
   if (m_dimension == Geometry::Dimension::dim2D)
   {
@@ -399,7 +403,7 @@ void Clouds::initCloudsParticles()
     const auto& subdiv2D = Utils::GetNbParticlesSubdiv2D((Utils::NbParticles)m_currNbParticles);
     Math::int2 grid2DRes = { subdiv2D[0], subdiv2D[1] };
 
-    gridVerts = Geometry::Generate2DGrid(shape, Geometry::Plane::YZ, grid2DRes, startFluidPos, endFluidPos);
+    gridVerts = Geometry::Generate2DGrid(shape, Geometry::Plane::YZ, grid2DRes, startFluidPos, endFluidPos, distribution);
   }
   else if (m_dimension == Geometry::Dimension::dim3D)
   {
@@ -410,8 +414,8 @@ void Clouds::initCloudsParticles()
     case CaseType::CUMULUS:
       m_currNbParticles = Utils::NbParticles::P130K;
       shape = Geometry::Shape3D::Box;
-      startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y * -0.8f / 2.0f, m_boxSize.z / -2.0f };
-      endFluidPos = { m_boxSize.x / 2.0f, m_boxSize.y * 0.2f / 2.0f, m_boxSize.z / 2.0f };
+      startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
+      endFluidPos = { m_boxSize.x / 2.0f, m_boxSize.y / -4.0f, m_boxSize.z / 2.0f };
       break;
     case CaseType::HOMOGENEOUS:
       m_currNbParticles = Utils::NbParticles::P65K;
@@ -427,7 +431,7 @@ void Clouds::initCloudsParticles()
     const auto& subdiv3D = Utils::GetNbParticlesSubdiv3D((Utils::NbParticles)m_currNbParticles);
     Math::int3 grid3DRes = { subdiv3D[0], subdiv3D[1], subdiv3D[2] };
 
-    gridVerts = Geometry::Generate3DGrid(shape, grid3DRes, startFluidPos, endFluidPos);
+    gridVerts = Geometry::Generate3DGrid(shape, grid3DRes, startFluidPos, endFluidPos, distribution);
   }
 
   float inf = std::numeric_limits<float>::infinity();
@@ -741,6 +745,15 @@ void Clouds::setGravCoeff(float coeff)
 }
 
 //
+void Clouds::setWindCoeff(float coeff)
+{
+  if (!m_init)
+    return;
+  m_cloudKernelInputs->windCoeff = (cl_float)coeff;
+  updateCloudsParamsInKernels();
+}
+
+//
 float Clouds::getRestDensity() const
 {
   return m_init ? (float)m_fluidKernelInputs->restDensity : 0.0f;
@@ -846,4 +859,10 @@ float Clouds::getGravCoeff() const
 bool Clouds::isTempSmoothingEnabled() const
 {
   return m_init ? (bool)m_cloudKernelInputs->isTempSmoothingEnabled : 0.0f;
+}
+
+//
+float Clouds::getWindCoeff() const
+{
+  return m_init ? (float)m_cloudKernelInputs->windCoeff : 0.0f;
 }

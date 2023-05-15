@@ -94,6 +94,9 @@ class Clouds : public Model
   void setGravCoeff(float coeff);
   float getGravCoeff() const;
   //
+  void setWindCoeff(float coeff);
+  float getWindCoeff() const;
+  //
   void enableTempSmoothing(bool enable);
   bool isTempSmoothingEnabled() const;
 

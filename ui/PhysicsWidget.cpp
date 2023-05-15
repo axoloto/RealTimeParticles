@@ -194,6 +194,12 @@ void displayCloudsParameters(Physics::Clouds* cloudsEngine)
     cloudsEngine->setLatentHeatCoeff(latentHeatCoeff);
   }
 
+  float windCoeff = cloudsEngine->getWindCoeff();
+  if (ImGui::SliderFloat("Wind Coefficient", &windCoeff, 0.0f, 1.0f, "%.4f"))
+  {
+    cloudsEngine->setWindCoeff(windCoeff);
+  }
+
   ImGui::End();
 }
 
