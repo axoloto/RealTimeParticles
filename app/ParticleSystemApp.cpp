@@ -248,7 +248,7 @@ bool ParticleSystemApp::initGraphicsEngine()
   params.boxSize = Geometry::BOX_SIZE_3D;
   params.gridRes = Geometry::GRID_RES_3D;
   params.aspectRatio = (float)m_windowSize.x / m_windowSize.y;
-  params.dimension = Geometry::Dimension::dim3D;
+  params.dimension = Geometry::Dimension::dim2D;
 
   m_graphicsEngine = std::make_unique<Render::Engine>(params);
 
@@ -273,7 +273,7 @@ bool ParticleSystemApp::initPhysicsEngine()
   params.particleColVBO = (unsigned int)m_graphicsEngine->pointCloudColorVBO();
   params.cameraVBO = (unsigned int)m_graphicsEngine->cameraCoordVBO();
   params.gridVBO = (unsigned int)m_graphicsEngine->gridDetectorVBO();
-  params.dimension = Geometry::Dimension::dim3D;
+  params.dimension = Geometry::Dimension::dim2D;
 
   if (m_physicsEngine)
   {

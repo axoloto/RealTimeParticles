@@ -43,7 +43,6 @@ using namespace Physics;
 #define KERNEL_CONSTRAINT_FACTOR_FLUIDS "fld_computeConstraintFactor"
 #define KERNEL_CONSTRAINT_CORRECTION_FLUIDS "fld_computeConstraintCorrection"
 #define KERNEL_CORRECT_POS "fld_correctPosition"
-#define KERNEL_UPDATE_VEL "fld_updateVel"
 #define KERNEL_COMPUTE_VORTICITY "fld_computeVorticity"
 #define KERNEL_VORTICITY_CONFINEMENT "fld_applyVorticityConfinement"
 #define KERNEL_XSPH_VISCOSITY "fld_applyXsphViscosityCorrection"
@@ -60,6 +59,7 @@ using namespace Physics;
 #define KERNEL_LATENT_HEAT "cld_applyLatentHeat"
 #define KERNEL_PREDICT_POS "cld_predictPosition"
 #define KERNEL_UPDATE_POS "cld_updatePosition"
+#define KERNEL_UPDATE_VEL "cld_updateVel"
 //
 #define KERNEL_LAPLACIAN_TEMP "cld_computeLaplacianTemp"
 #define KERNEL_CONSTRAINT_FACTOR_TEMP "cld_computeConstraintFactor"
@@ -76,12 +76,12 @@ struct FluidKernelInputs
   cl_float timeStep = 0.01f;
   cl_uint dim = 3;
   // Artifical pressure if enabled will try to reduce tensile instability
-  cl_uint isArtPressureEnabled = 1;
+  cl_uint isArtPressureEnabled = 0;
   cl_float artPressureRadius = 0.006f;
   cl_float artPressureCoeff = 0.001f;
   cl_uint artPressureExp = 4;
   // Vorticity confinement if enabled will try to replace lost energy due to virtual damping
-  cl_uint isVorticityConfEnabled = 1;
+  cl_uint isVorticityConfEnabled = 0;
   cl_float vorticityConfCoeff = 0.0004f;
   cl_float xsphViscosityCoeff = 0.0001f;
 };
@@ -110,7 +110,7 @@ struct CloudKernelInputs
   cl_float latentHeatCoeff = 0.07f;
   // Enable constraint on temperature field, forcing its Laplacian field to be null
   // It helps uniformizing the temperature across particles
-  cl_uint isTempSmoothingEnabled = 1;
+  cl_uint isTempSmoothingEnabled = 0;
   //
   cl_float relaxCFM = 600.0f;
   //
@@ -133,7 +133,7 @@ Clouds::Clouds(ModelParams params)
     , m_fluidKernelInputs(std::make_unique<FluidKernelInputs>())
     , m_cloudKernelInputs(std::make_unique<CloudKernelInputs>())
     , m_initialCase(CaseType::CUMULUS)
-    , m_nbJacobiIters(2)
+    , m_nbJacobiIters(1)
 {
   createProgram();
 
@@ -197,6 +197,7 @@ bool Clouds::createBuffers()
   // Position Based Fluids
   clContext.createBuffer("p_density", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_predPos", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
+  clContext.createBuffer("p_totCorrPos", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_corrPos", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_constFactorFld", m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
   clContext.createBuffer("p_vel", 4 * m_maxNbParticles * sizeof(float), CL_MEM_READ_WRITE);
@@ -222,7 +223,7 @@ bool Clouds::createBuffers()
   clContext.createBuffer("c_startEndPartID", 2 * m_nbCells * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
   // Physical parameters displayable in UI, only m_maxNbParts * sizeof(float) size supported for now
-  PhysicalQuantity partID { "Particle ID", "p_partID", { 0.0f, (float)(m_maxNbParticles - 1) }, { 0.0f, (float)(m_maxNbParticles - 1) } };
+  PhysicalQuantity partID { "Particle ID", "p_partID", { 0.0f, (float)(m_maxNbParticles - 1) }, { 0.0f, (float)(2000 - 1) } };
   m_allDisplayableQuantities.insert(std::make_pair(partID.name, partID));
   PhysicalQuantity vaporDens { "Vapor Density", "p_vaporDens", { 0.0f, 100.0f }, { 0.001f, 100.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(vaporDens.name, vaporDens));
@@ -280,16 +281,16 @@ bool Clouds::createKernels() const
 
   // Position Based Fluids - connected to clouds physics through buoyancy force applied on particles
   /// Boundary conditions
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_APPLY_BOUNDARY, { "p_pos" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_APPLY_BOUNDARY, { "p_predPos" });
   /// Position prediction
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_PREDICT_POS, { "p_pos", "p_vel", "p_buoyancy", "", "p_predPos" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_PREDICT_POS, { "p_pos", "p_vel", "p_buoyancy", "", "p_predPos", "p_totCorrPos" });
   /// Jacobi solver to correct position
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_DENSITY, { "p_predPos", "c_startEndPartID", "", "p_density" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CONSTRAINT_FACTOR_FLUIDS, { "p_predPos", "p_density", "c_startEndPartID", "", "p_constFactorFld" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CONSTRAINT_CORRECTION_FLUIDS, { "p_constFactorFld", "c_startEndPartID", "p_predPos", "", "p_corrPos" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_CORRECT_POS, { "p_corrPos", "p_predPos" });
   /// Velocity update and correction using vorticity confinement and xsph viscosity
-  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_UPDATE_VEL, { "p_predPos", "p_pos", "", "p_vel" });
+  clContext.createKernel(PROGRAM_CLOUDS, KERNEL_UPDATE_VEL, { "p_totCorrPos", "", "p_vel" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_COMPUTE_VORTICITY, { "p_predPos", "c_startEndPartID", "p_vel", "", "p_vort" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_VORTICITY_CONFINEMENT, { "p_predPos", "c_startEndPartID", "p_vort", "", "p_vel" });
   clContext.createKernel(PROGRAM_CLOUDS, KERNEL_XSPH_VISCOSITY, { "p_predPos", "c_startEndPartID", "p_velInViscosity", "", "p_vel" });
@@ -308,7 +309,7 @@ void Clouds::updateFluidsParamsInKernels()
 
   m_fluidKernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
 
-  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
+  clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
   clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
@@ -491,18 +492,22 @@ void Clouds::update()
     //
     clContext.runKernel(KERNEL_LATENT_HEAT, m_currNbParticles);
 
-    // Apply boundary only once per frame for now
-    clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
+    //clContext.setKernelArg(KERNEL_APPLY_BOUNDARY, 0, "p_pos");
+    //clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
 
     // Predicting velocity and position
     // Step coupling fluids and clouds physics
     // where we apply clouds buoyancy and gravity forces on fluids particles
     clContext.runKernel(KERNEL_PREDICT_POS, m_currNbParticles);
 
+    // Applying boundary limits before doing the spatial partioning, some parts could move from one wall to another
+    clContext.setKernelArg(KERNEL_APPLY_BOUNDARY, 0, "p_predPos");
+    clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
+
     // NNS - spatial partitioning
     clContext.runKernel(KERNEL_FILL_CELL_ID, m_currNbParticles);
 
-    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_buoyancy", "p_vaporDens", "p_cloudDens", "p_partID" });
+    m_radixSort.sort("p_cellID", { "p_pos", "p_col", "p_vel", "p_predPos", "p_totCorrPos" }, { "p_temp", "p_buoyancy", "p_vaporDens", "p_cloudDens", "p_partID" });
 
     clContext.runKernel(KERNEL_RESET_START_END_CELL, m_nbCells);
     clContext.runKernel(KERNEL_FILL_START_CELL, m_currNbParticles);
@@ -531,8 +536,6 @@ void Clouds::update()
     // Correcting positions to fit constraints
     for (int iter = 0; iter < m_nbJacobiIters; ++iter)
     {
-      // Clamping to boundary
-      //clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
       // Computing density using SPH method
       clContext.runKernel(KERNEL_DENSITY, m_currNbParticles);
       // Computing constraint factor Lambda
@@ -540,7 +543,14 @@ void Clouds::update()
       // Computing position correction
       clContext.runKernel(KERNEL_CONSTRAINT_CORRECTION_FLUIDS, m_currNbParticles);
       // Correcting predicted position
+      clContext.setKernelArg(KERNEL_CORRECT_POS, 1, "p_predPos");
       clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
+      // Correcting unclamped predicted position used for velocity
+      clContext.setKernelArg(KERNEL_CORRECT_POS, 1, "p_totCorrPos");
+      clContext.runKernel(KERNEL_CORRECT_POS, m_currNbParticles);
+      // Clamping to boundary
+      clContext.setKernelArg(KERNEL_APPLY_BOUNDARY, 0, "p_predPos");
+      clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
     }
 
     // Updating velocity

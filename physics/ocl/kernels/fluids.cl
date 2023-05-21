@@ -132,6 +132,7 @@ __kernel void fld_computeDensity(//Input
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
   uint2 startEndN = (uint2)(0, 0);
 
   // 27 cells to visit, current one + 3D neighbors
@@ -141,11 +142,11 @@ __kernel void fld_computeDensity(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-          continue;
+       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
+       //   continue;
 
         cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
@@ -195,7 +196,8 @@ __kernel void fld_computeConstraintFactor(//Input
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
-  uint2 startEndN = (uint2)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
+  uint2 startEndN = (uint2)(0, 0);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -204,11 +206,11 @@ __kernel void fld_computeConstraintFactor(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-          continue;
+       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
+       //   continue;
 
         cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
@@ -256,6 +258,7 @@ __kernel void fld_computeConstraintCorrection(//Input
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
   uint2 startEndN = (uint2)(0, 0);
 
   // 27 cells to visit, current one + 3D neighbors
@@ -265,11 +268,11 @@ __kernel void fld_computeConstraintCorrection(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-          continue;
+       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
+       //   continue;
 
         cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
@@ -311,7 +314,7 @@ __kernel void fld_updateVel(//Input
                                   __global float4 *vel)        // 3
 {
   // Preventing division by 0
-  vel[ID] =   vel[ID] = clamp((predPos[ID] - pos[ID]) / (fluid.timeStep + FLOAT_EPS), -MAX_VEL, MAX_VEL);
+  vel[ID] = clamp((predPos[ID] - pos[ID]) / (fluid.timeStep + FLOAT_EPS), -MAX_VEL, MAX_VEL);
 }
 
 /*
@@ -334,6 +337,7 @@ __kernel void fld_computeVorticity(//Input
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
   uint2 startEndN = (uint2)(0, 0);
 
   // 27 cells to visit, current one + 3D neighbors
@@ -343,11 +347,11 @@ __kernel void fld_computeVorticity(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-          continue;
+       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
+       //   continue;
 
         cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
@@ -385,6 +389,7 @@ __kernel void fld_applyVorticityConfinement(//Input
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
   uint2 startEndN = (uint2)(0, 0);
 
   // 27 cells to visit, current one + 3D neighbors
@@ -394,11 +399,11 @@ __kernel void fld_applyVorticityConfinement(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-          continue;
+       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
+       //   continue;
 
         cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
@@ -437,6 +442,7 @@ __kernel void fld_applyXsphViscosityCorrection(//Input
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
   uint2 startEndN = (uint2)(0, 0);
 
   // 27 cells to visit, current one + 3D neighbors
@@ -446,11 +452,11 @@ __kernel void fld_applyXsphViscosityCorrection(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-          continue;
+       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
+       //   continue;
 
         cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 

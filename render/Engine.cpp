@@ -21,7 +21,7 @@ Engine::Engine(EngineParams params)
   glEnable(GL_POINT_SMOOTH);
   glEnable(GL_MULTISAMPLE);
 
-  enableBlending(true);
+  enableBlending(false);
 
   buildShaders();
 

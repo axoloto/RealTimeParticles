@@ -248,10 +248,13 @@ __kernel void cld_predictPosition(//Input
                                   //Param
                                   const     CloudParams cloud,       // 3
                                   //Output
-                                        __global float4 *predPos)    // 4
+                                        __global float4 *predPos,     // 4
+                                        __global float4 *totCorrPos)    // 5
 {
   // No need to update global vel, as it will be reset later on
   const float4 newVel = vel[ID] + (float4)(0.0f, buoyancy[ID], 0.0f, 0.0f) * cloud.timeStep;
+  
+  totCorrPos[ID] = newVel * cloud.timeStep;
 
   predPos[ID] = pos[ID] + newVel * cloud.timeStep;
 }
@@ -268,17 +271,19 @@ __kernel void cld_applyBoundaryCondWithMixedWalls(//Input/output
   const float4 clampedNewPos = clamp(newPos, (float4)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z, 0.0f)
                                            , (float4)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z, 0.0f));
   
-  if (!isequal(clampedNewPos.x, newPos.x))
+  const float4 deltaPos = newPos - clampedNewPos;
+
+  if (fabs(newPos.x) > ABS_WALL_X)
   {
-    predPos[ID].x = -clampedNewPos.x;
+    predPos[ID].x = deltaPos.x - clampedNewPos.x;
   }
-  if (!isequal(clampedNewPos.y, newPos.y))
+  if (fabs(newPos.y) > ABS_WALL_Y)
   {
     predPos[ID].y = clampedNewPos.y;
   }  
-  if (!isequal(clampedNewPos.z, newPos.z))
+  if (fabs(newPos.z) > ABS_WALL_Z)
   {
-    predPos[ID].z = -clampedNewPos.z;
+    predPos[ID].z = deltaPos.z - clampedNewPos.z;
   }
 }
 
@@ -303,6 +308,7 @@ __kernel void cld_computeLaplacianTemp(//Input
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
   uint2 startEndN = (uint2)(0, 0);
   float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -313,11 +319,11 @@ __kernel void cld_computeLaplacianTemp(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-          continue;
+       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
+       //   continue;
 
         cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
@@ -361,7 +367,8 @@ __kernel void cld_computeConstraintFactor(//Input
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
-  uint2 startEndN = (uint2)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
+  uint2 startEndN = (uint2)(0, 0);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -370,11 +377,11 @@ __kernel void cld_computeConstraintFactor(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
 
         // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-          continue;
+       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
+       //   continue;
 
         cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
@@ -426,6 +433,7 @@ __kernel void cld_computeConstraintCorrection(//Input
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
   uint2 startEndN = (uint2)(0, 0);
 
   // 27 cells to visit, current one + 3D neighbors
@@ -435,7 +443,11 @@ __kernel void cld_computeConstraintCorrection(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = convert_int3(cellIndex3D) + (int3)(iX, iY, iZ);
+        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+
+        // Removing out of range cells
+       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
+       //   continue;
 
         // Removing out of range cells
         if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
@@ -488,4 +500,19 @@ __kernel void cld_updatePosition(//Input
   pos[ID] = predPos[ID];
   pos[ID].x += (1 - exp(- (predPos[ID].y + ABS_WALL_Y) * 0.2f)) * cloud.windCoeff * cloud.timeStep * (float)(cloud.dim - 2); //0.02f;
   pos[ID].z += (1 - exp(- (predPos[ID].y + ABS_WALL_Y) * 0.3f)) * 0.7f * cloud.windCoeff * cloud.timeStep; //0.015f;
+}
+
+
+/*
+  Update velocity buffer
+*/
+__kernel void cld_updateVel(//Input
+                            const __global float4 *totCorrPos,    // 0
+                            //Param
+                            const     FluidParams fluid,       // 1
+                            //Output
+                                  __global float4 *vel)        // 2
+{
+  // Preventing division by 0
+  vel[ID] = clamp((totCorrPos[ID]) / (fluid.timeStep + FLOAT_EPS), -MAX_VEL, MAX_VEL);
 }
