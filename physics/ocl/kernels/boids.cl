@@ -262,8 +262,9 @@ __kernel void bd_updatePosWithBouncingWalls(//Input/output
 
 {
   const float4 newPos = pos[ID] + vel[ID] * timeStep;
-  const float4 clampedNewPos = clamp(newPos, (float4)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z, 0.0f)
-                                           , (float4)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z, 0.0f));
+
+  const float4 clampedNewPos = clamp(newPos, (float4)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z, 0.0f),
+                                             (float4)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z, 0.0f));
   
   pos[ID] = clampedNewPos;
 
@@ -284,20 +285,21 @@ __kernel void bd_updatePosWithCyclicWalls(//Input
                                                 __global float4 *pos)     // 2
 {
   const float4 newPos = pos[ID] + vel[ID] * timeStep;
-  float4 clampedNewPos = clamp(newPos, (float4)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z, 0.0f)
-                                           , (float4)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z, 0.0f));
+
+  float4 clampedNewPos = clamp(newPos, (float4)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z, 0.0f),
+                                       (float4)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z, 0.0f));
  
   if (!isequal(clampedNewPos.x, newPos.x))
   {
-    clampedNewPos.x *= -1;
+    clampedNewPos.x *= -1.0f;
   }
   if (!isequal(clampedNewPos.y, newPos.y))
   {
-    clampedNewPos.y *= -1;
+    clampedNewPos.y *= -1.0f;
   }
   if (!isequal(clampedNewPos.z, newPos.z))
   {
-    clampedNewPos.z *= -1;
+    clampedNewPos.z *= -1.0f;
   }
 
   pos[ID] = clampedNewPos;

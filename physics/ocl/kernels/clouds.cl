@@ -264,18 +264,16 @@ __kernel void cld_predictPosition(//Input
   Apply Boucing wall boundary conditions for y direction
 */
 __kernel void cld_applyBoundaryCondWithMixedWalls(//Input/output
-                                                  __global float4 *predPos // 0
-                                                  )     // 1
+                                                  __global float4 *predPos) // 0
 {
-  float4 newPos = predPos[ID];
-  const float4 clampedNewPos = clamp(newPos, (float4)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z, 0.0f)
-                                           , (float4)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z, 0.0f));
-  
-  const float4 deltaPos = newPos - clampedNewPos;
+  const float4 newPos = predPos[ID];
 
+  const float4 clampedNewPos = clamp(newPos, (float4)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z, 0.0f),
+                                             (float4)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z, 0.0f));
+  
   if (fabs(newPos.x) > ABS_WALL_X)
   {
-    predPos[ID].x = deltaPos.x - clampedNewPos.x;
+    predPos[ID].x = newPos.x - 2 * clampedNewPos.x;
   }
   if (fabs(newPos.y) > ABS_WALL_Y)
   {
@@ -283,7 +281,7 @@ __kernel void cld_applyBoundaryCondWithMixedWalls(//Input/output
   }  
   if (fabs(newPos.z) > ABS_WALL_Z)
   {
-    predPos[ID].z = deltaPos.z - clampedNewPos.z;
+    predPos[ID].z = newPos.z - 2 * clampedNewPos.z;
   }
 }
 
