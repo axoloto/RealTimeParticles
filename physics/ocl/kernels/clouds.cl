@@ -33,10 +33,26 @@ typedef struct defCloudParams{
 } CloudParams;
 
 // Defined in utils.cl
-
 inline float genRandomNormalizedFloat(unsigned int i);
-
 inline float3 genRandomNormalizedFloat3(unsigned int i);
+//
+
+// Defined in sph.cl
+/*
+  Poly6 kernel introduced in
+  Muller et al. 2003. "Particle-based fluid simulation for interactive applications"
+  Return null value if vec length is superior to effectRadius
+*/
+inline float poly6(const float4 vec, const float effectRadius);
+inline float poly6L(const float vecLength, const float effectRadius);
+
+/*
+  Jacobian (on vec coords) of Spiky kernel introduced in
+  Muller et al. 2003. "Particle-based fluid simulation for interactive applications"
+  Return null vector if vec length is superior to effectRadius
+*/
+inline float4 gradSpiky(const float4 vec, const float effectRadius);
+//
 
 // Defined in grid.cl
 /*
@@ -47,22 +63,7 @@ inline uint3 getCell3DIndexFromPos(float4 pos);
   Compute 1D index of the cell containing given position
 */
 inline uint getCell1DIndexFromPos(float4 pos);
-
-// Defined in fluids.cl
-/*
-  Poly6 kernel introduced in
-  Muller et al. 2003. "Particle-based fluid simulation for interactive applications"
-  Return null value if vec length is superior to effectRadius
-*/
-inline float poly6(const float4 vec, const float effectRadius);
-
-inline float poly6L(const float vecLength, const float effectRadius);
-/*
-  Jacobian (on vec coords) of Spiky kernel introduced in
-  Muller et al. 2003. "Particle-based fluid simulation for interactive applications"
-  Return null vector if vec length is superior to effectRadius
-*/
-inline float4 gradSpiky(const float4 vec, const float effectRadius);
+//
 
 /*
   Function representing the external heat source at ground level
@@ -95,6 +96,18 @@ inline float saturationVaporDensity(const float temperature)
   // Values given by CWF Barbosa et al. paper
  // return 100.0f * exp(-3.0f / (temperature + 2.3f)); // this one doesn't make any sense
   return 217 * exp(19.5 - 4303.4/(temperature - 29.5)) / temperature;
+}
+
+/*
+  Artificial pressure to remove tensile instability
+  Preventing particle clustering and improving surface tension
+*/
+inline float artPressure(const float4 vec, FluidParams fluid)
+{
+  if(fluid.isArtPressureEnabled == 0)
+    return 0.0f;
+
+  return - fluid.artPressureCoeff * pow((poly6(vec, EFFECT_RADIUS) / poly6L(fluid.artPressureRadius * EFFECT_RADIUS, EFFECT_RADIUS)), fluid.artPressureExp);
 }
 
 /*
@@ -285,6 +298,209 @@ __kernel void cld_applyMixedBoundaryConditions(//Input/output
   }
 }
 
+/*
+  Compute fluid density based on SPH model
+  using predicted position and Poly6 kernel
+*/
+__kernel void cld_computeDensity(//Input
+                                 const __global float4 *predPos,      // 0
+                                 const __global uint2  *startEndCell, // 1
+                                 //Param
+                                 const     FluidParams fluid,         // 2
+                                 //Output
+                                       __global float  *density)      // 3
+{
+  const float4 pos = predPos[ID];
+  const int3 cellIndex3D = convert_int3(getCell3DIndexFromPos(pos));
+
+  float fluidDensity = 0.0f;
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
+  float4 absWallXYZ = (float4)(ABS_WALL_X, ABS_WALL_Y, ABS_WALL_Z, 0.0f);
+  float4 signAbsWall = (float4)(0.0f);
+  uint2 startEndN = (uint2)(0, 0);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        signAbsWall = (float4)(0.0f);
+
+        cellNIndex3D = (cellIndex3D + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+
+        // Periodic BC for x, periodic neighbors must be considered
+        if((cellIndex3D.x + iX) >= GRID_RES_X) signAbsWall.x = 2.0f;
+        else if((cellIndex3D.x + iX) < 0) signAbsWall.x = -2.0f;
+
+        // Wall BC for y, out of domain cells are discarded
+        if(((cellIndex3D.y + iY) >= GRID_RES_Y) || ((cellIndex3D.y + iY) < 0)) continue;
+        
+        // Periodic BC for z, periodic neighbors must be considered
+        if((cellIndex3D.z + iZ) >= GRID_RES_Z) signAbsWall.z = 2.0f;
+        else if((cellIndex3D.z + iZ) < 0) signAbsWall.z = -2.0f;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          fluidDensity += poly6(pos - predPos[e] - absWallXYZ * signAbsWall, EFFECT_RADIUS);
+        }
+      }
+    }
+  }
+
+  density[ID] = fluidDensity;
+}
+
+/*
+  Compute Constraint Factor (Lambda) for fluids, coefficient along jacobian
+*/
+__kernel void cld_computeConstraintFactor(//Input
+                                          const __global float4 *predPos,       // 0
+                                          const __global float  *density,       // 1
+                                          const __global uint2  *startEndCell,  // 2
+                                          //Param
+                                          const     FluidParams fluid,          // 3
+                                          //Output
+                                                __global float  *constFactor)   // 4
+{
+  const float4 pos = predPos[ID];
+  const int3 cellIndex3D = convert_int3(getCell3DIndexFromPos(pos));
+  const float densityC = density[ID] / fluid.restDensity - 1.0f;
+
+  float4 vec = (float4)(0.0f);
+  float4 grad = (float4)(0.0f);
+  float4 sumGradCi = (float4)(0.0f);
+  float  sumSqGradC = 0.0f;
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
+  uint2 startEndN = (uint2)(0, 0);
+   
+  float4 absWallXYZ = (float4)(ABS_WALL_X, ABS_WALL_Y, ABS_WALL_Z, 0.0f);
+  float4 signAbsWall = (float4)(0.0f);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        signAbsWall = (float4)(0.0f);
+
+        cellNIndex3D = (cellIndex3D + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+
+        // Periodic BC for x, periodic neighbors must be considered
+        if((cellIndex3D.x + iX) >= GRID_RES_X) signAbsWall.x = 2.0f;
+        else if((cellIndex3D.x + iX) < 0) signAbsWall.x = -2.0f;
+
+        // Wall BC for y, out of domain cells are discarded
+        if(((cellIndex3D.y + iY) >= GRID_RES_Y) || ((cellIndex3D.y + iY) < 0)) continue;
+        
+        // Periodic BC for z, periodic neighbors must be considered
+        if((cellIndex3D.z + iZ) >= GRID_RES_Z) signAbsWall.z = 2.0f;
+        else if((cellIndex3D.z + iZ) < 0) signAbsWall.z = -2.0f;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          vec = pos - predPos[e] - absWallXYZ * signAbsWall;
+
+          // Supposed to be null if vec = 0.0f;
+          grad = gradSpiky(vec, EFFECT_RADIUS);
+          // Contribution from the ID particle
+          sumGradCi += grad;
+          // Contribution from its neighbors
+          sumSqGradC += dot(grad, grad);
+        }
+      }
+    }
+  }
+
+  sumSqGradC += dot(sumGradCi, sumGradCi);
+  sumSqGradC /= fluid.restDensity * fluid.restDensity;
+
+  constFactor[ID] = - densityC / (sumSqGradC + fluid.relaxCFM);
+}
+
+/*
+  Compute Constraint Correction
+*/
+__kernel void cld_computeConstraintCorrection(//Input
+                                              const __global float  *constFactor,  // 0
+                                              const __global uint2  *startEndCell, // 1
+                                              const __global float4 *predPos,      // 2
+                                              //Param
+                                              const     FluidParams fluid,         // 3
+                                              //Output
+                                                    __global float4 *corrPos)      // 4
+{
+  const float4 pos = predPos[ID];
+  const float lambdaI = constFactor[ID];
+  const int3 cellIndex3D = convert_int3(getCell3DIndexFromPos(pos));
+
+  float4 vec = (float4)(0.0f);
+  float4 corr = (float4)(0.0f);
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
+  uint2 startEndN = (uint2)(0, 0);
+
+  float4 absWallXYZ = (float4)(ABS_WALL_X, ABS_WALL_Y, ABS_WALL_Z, 0.0f);
+  float4 signAbsWall = (float4)(0.0f);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        signAbsWall = (float4)(0.0f);
+
+        cellNIndex3D = (cellIndex3D + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+
+        // Periodic BC for x, periodic neighbors must be considered
+        if((cellIndex3D.x + iX) >= GRID_RES_X) signAbsWall.x = 2.0f;
+        else if((cellIndex3D.x + iX) < 0) signAbsWall.x = -2.0f;
+
+        // Wall BC for y, out of domain cells are discarded
+        if(((cellIndex3D.y + iY) >= GRID_RES_Y) || ((cellIndex3D.y + iY) < 0)) continue;
+        
+        // Periodic BC for z, periodic neighbors must be considered
+        if((cellIndex3D.z + iZ) >= GRID_RES_Z) signAbsWall.z = 2.0f;
+        else if((cellIndex3D.z + iZ) < 0) signAbsWall.z = -2.0f;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          vec = pos - predPos[e] - absWallXYZ * signAbsWall;
+
+          corr += (lambdaI + constFactor[e] + artPressure(vec, fluid)) * gradSpiky(vec, EFFECT_RADIUS);
+        }
+      }
+    }
+  }
+
+  corrPos[ID] = corr / fluid.restDensity;
+}
+
 //
 //Compute Laplacian temperature based on SPH model
 //using position and gradSpiky kernel
@@ -300,15 +516,18 @@ __kernel void cld_computeLaplacianTemp(//Input
 {
   const float4 pos = posP[ID];
   const float temp = tempP[ID];
-  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
-
+  const int3 cellIndex3D = convert_int3(getCell3DIndexFromPos(pos));
+  
+  float4 vec = (float4)(0.0f);
   float laplacian = 0.0f;
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
   int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
   uint2 startEndN = (uint2)(0, 0);
-  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+
+  float4 absWallXYZ = (float4)(ABS_WALL_X, ABS_WALL_Y, ABS_WALL_Z, 0.0f);
+  float4 signAbsWall = (float4)(0.0f);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -317,11 +536,20 @@ __kernel void cld_computeLaplacianTemp(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+        signAbsWall = (float4)(0.0f);
 
-        // Removing out of range cells
-       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-       //   continue;
+        cellNIndex3D = (cellIndex3D + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+
+        // Periodic BC for x, periodic neighbors must be considered
+        if((cellIndex3D.x + iX) >= GRID_RES_X) signAbsWall.x = 2.0f;
+        else if((cellIndex3D.x + iX) < 0) signAbsWall.x = -2.0f;
+
+        // Wall BC for y, out of domain cells are discarded
+        if(((cellIndex3D.y + iY) >= GRID_RES_Y) || ((cellIndex3D.y + iY) < 0)) continue;
+        
+        // Periodic BC for z, periodic neighbors must be considered
+        if((cellIndex3D.z + iZ) >= GRID_RES_Z) signAbsWall.z = 2.0f;
+        else if((cellIndex3D.z + iZ) < 0) signAbsWall.z = -2.0f;
 
         cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
@@ -329,7 +557,7 @@ __kernel void cld_computeLaplacianTemp(//Input
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
-          vec = pos - posP[e];
+          vec = pos - posP[e] - absWallXYZ * signAbsWall;
 
           laplacian += (temp - tempP[e]) * dot(vec, gradSpiky(vec, EFFECT_RADIUS)) / (dot(vec, vec) + FLOAT_EPS);
         }
@@ -342,31 +570,34 @@ __kernel void cld_computeLaplacianTemp(//Input
 
 
 //
-//Compute Constraint Factor (Lambda), coefficient along jacobian
+//Compute Constraint Factor (Lambda) for Temperature field, coefficient along jacobian
 //
-__kernel void cld_computeConstraintFactor(//Input
-                                          const __global float4 *posP,             // 0
-                                          const __global float  *laplacianTemp,    // 1
-                                          const __global uint2  *startEndCell,     // 2
-                                          //Param
-                                          const     CloudParams cloud,             // 3
-                                          //Output
-                                                __global float  *constFactorTemp)  // 4
+__kernel void cld_computeConstraintFactorTemp(//Input
+                                              const __global float4 *posP,             // 0
+                                              const __global float  *laplacianTemp,    // 1
+                                              const __global uint2  *startEndCell,     // 2
+                                              //Param
+                                              const     CloudParams cloud,             // 3
+                                              //Output
+                                                    __global float  *constFactorTemp)  // 4
 {
   const float4 pos = posP[ID];
   const float laplacian = laplacianTemp[ID];
-  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
+  const int3 cellIndex3D = convert_int3(getCell3DIndexFromPos(pos));
 
   float4 vec = (float4)(0.0f);
   float4 grad = (float4)(0.0f);
   float derivativeTemp = 0.0f;
   float sumGradCi = 0.0f;
-  float  sumSqGradC = 0.0f;
+  float sumSqGradC = 0.0f;
 
   uint cellNIndex1D = 0;
   int3 cellNIndex3D = (int3)(0);
   int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
   uint2 startEndN = (uint2)(0, 0);
+
+  float4 absWallXYZ = (float4)(ABS_WALL_X, ABS_WALL_Y, ABS_WALL_Z, 0.0f);
+  float4 signAbsWall = (float4)(0.0f);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -374,12 +605,21 @@ __kernel void cld_computeConstraintFactor(//Input
     for (int iY = -1; iY <= 1; ++iY)
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
-      {
-        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+      {        
+        signAbsWall = (float4)(0.0f);
 
-        // Removing out of range cells
-       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-       //   continue;
+        cellNIndex3D = (cellIndex3D + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+
+        // Periodic BC for x, periodic neighbors must be considered
+        if((cellIndex3D.x + iX) >= GRID_RES_X) signAbsWall.x = 2.0f;
+        else if((cellIndex3D.x + iX) < 0) signAbsWall.x = -2.0f;
+
+        // Wall BC for y, out of domain cells are discarded
+        if(((cellIndex3D.y + iY) >= GRID_RES_Y) || ((cellIndex3D.y + iY) < 0)) continue;
+        
+        // Periodic BC for z, periodic neighbors must be considered
+        if((cellIndex3D.z + iZ) >= GRID_RES_Z) signAbsWall.z = 2.0f;
+        else if((cellIndex3D.z + iZ) < 0) signAbsWall.z = -2.0f;
 
         cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
@@ -387,7 +627,7 @@ __kernel void cld_computeConstraintFactor(//Input
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
-          vec = pos - posP[e];
+          vec = pos - posP[e] - absWallXYZ * signAbsWall;
 
           // Supposed to be null if vec = 0.0f;
           grad = gradSpiky(vec, EFFECT_RADIUS);
@@ -411,18 +651,18 @@ __kernel void cld_computeConstraintFactor(//Input
 //
 //Compute Constraint Correction for temperature
 //
-__kernel void cld_computeConstraintCorrection(//Input
-                                              const __global float  *constFactorTemp,// 0
-                                              const __global uint2  *startEndCell,   // 1
-                                              const __global float4 *posP,           // 2
-                                              //Param
-                                              const     CloudParams cloud,           // 3
-                                              //Output
-                                                    __global float *corrTemp)       // 4
+__kernel void cld_computeConstraintCorrectionTemp(//Input
+                                                  const __global float  *constFactorTemp,// 0
+                                                  const __global uint2  *startEndCell,   // 1
+                                                  const __global float4 *posP,           // 2
+                                                  //Param
+                                                  const     CloudParams cloud,           // 3
+                                                  //Output
+                                                        __global float *corrTemp)       // 4
 {
   const float4 pos = posP[ID];
   const float lambdaI = constFactorTemp[ID];
-  const uint3 cellIndex3D = getCell3DIndexFromPos(pos);
+  const int3 cellIndex3D = convert_int3(getCell3DIndexFromPos(pos));
 
   float4 vec = (float4)(0.0f);
   float4 grad = (float4)(0.0f);
@@ -433,6 +673,9 @@ __kernel void cld_computeConstraintCorrection(//Input
   int3 cellNIndex3D = (int3)(0);
   int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
   uint2 startEndN = (uint2)(0, 0);
+  
+  float4 absWallXYZ = (float4)(ABS_WALL_X, ABS_WALL_Y, ABS_WALL_Z, 0.0f);
+  float4 signAbsWall = (float4)(0.0f);
 
   // 27 cells to visit, current one + 3D neighbors
   for (int iX = -1; iX <= 1; ++iX)
@@ -441,15 +684,20 @@ __kernel void cld_computeConstraintCorrection(//Input
     {
       for (int iZ = -1; iZ <= 1; ++iZ)
       {
-        cellNIndex3D = (convert_int3(cellIndex3D) + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+        signAbsWall = (float4)(0.0f);
 
-        // Removing out of range cells
-       // if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-       //   continue;
+        cellNIndex3D = (cellIndex3D + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
 
-        // Removing out of range cells
-        if(any(cellNIndex3D < (int3)(0)) || any(cellNIndex3D >= (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z)))
-          continue;
+        // Periodic BC for x, periodic neighbors must be considered
+        if((cellIndex3D.x + iX) >= GRID_RES_X) signAbsWall.x = 2.0f;
+        else if((cellIndex3D.x + iX) < 0) signAbsWall.x = -2.0f;
+
+        // Wall BC for y, out of domain cells are discarded
+        if(((cellIndex3D.y + iY) >= GRID_RES_Y) || ((cellIndex3D.y + iY) < 0)) continue;
+        
+        // Periodic BC for z, periodic neighbors must be considered
+        if((cellIndex3D.z + iZ) >= GRID_RES_Z) signAbsWall.z = 2.0f;
+        else if((cellIndex3D.z + iZ) < 0) signAbsWall.z = -2.0f;
 
         cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
 
@@ -457,7 +705,7 @@ __kernel void cld_computeConstraintCorrection(//Input
 
         for (uint e = startEndN.x; e <= startEndN.y; ++e)
         {
-          vec = pos - posP[e];
+          vec = pos - posP[e] - absWallXYZ * signAbsWall;
           
           // Supposed to be null if vec = 0.0f;
           grad = gradSpiky(vec, EFFECT_RADIUS);
@@ -473,6 +721,209 @@ __kernel void cld_computeConstraintCorrection(//Input
   corrTemp[ID] = corr;
 }
 
+/*
+  Compute vorticity
+*/
+__kernel void cld_computeVorticity(//Input
+                                   const __global float4 *predPos,      // 0
+                                   const __global uint2  *startEndCell, // 1
+                                   const __global float4 *vel,          // 2
+                                   //Param
+                                   const     FluidParams fluid,         // 3
+                                   //Output
+                                         __global float4 *vorticity)    // 4
+{
+  const float4 pos = predPos[ID];
+  const float4 velocity = vel[ID];
+  const int3 cellIndex3D = convert_int3(getCell3DIndexFromPos(pos));
+
+  float4 vort = (float4)(0.0f);
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
+  uint2 startEndN = (uint2)(0);
+
+  float4 absWallXYZ = (float4)(ABS_WALL_X, ABS_WALL_Y, ABS_WALL_Z, 0.0f);
+  float4 signAbsWall = (float4)(0.0f);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        signAbsWall = (float4)(0.0f);
+
+        cellNIndex3D = (cellIndex3D + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+
+        // Periodic BC for x, periodic neighbors must be considered
+        if((cellIndex3D.x + iX) >= GRID_RES_X) signAbsWall.x = 2.0f;
+        else if((cellIndex3D.x + iX) < 0) signAbsWall.x = -2.0f;
+
+        // Wall BC for y, out of domain cells are discarded
+        if(((cellIndex3D.y + iY) >= GRID_RES_Y) || ((cellIndex3D.y + iY) < 0)) continue;
+        
+        // Periodic BC for z, periodic neighbors must be considered
+        if((cellIndex3D.z + iZ) >= GRID_RES_Z) signAbsWall.z = 2.0f;
+        else if((cellIndex3D.z + iZ) < 0) signAbsWall.z = -2.0f;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          vort += cross((vel[e] - velocity), gradSpiky(pos - predPos[e] - absWallXYZ * signAbsWall, EFFECT_RADIUS));
+        }
+      }
+    }
+  }
+
+  vorticity[ID] = vort;
+}
+
+/*
+  Apply vorticity confinement
+*/
+__kernel void cld_applyVorticityConfinement(//Input
+                                            const __global float4 *predPos,      // 0
+                                            const __global uint2  *startEndCell, // 1
+                                            const __global float4 *vort,         // 2
+                                            //Param
+                                            const     FluidParams fluid,         // 3
+                                            //Output
+                                                  __global float4 *vel)          // 4
+{
+  const float4 pos = predPos[ID];
+  const float4 vorticity = vort[ID];
+  const int3 cellIndex3D = convert_int3(getCell3DIndexFromPos(pos));
+
+  // vorticity confinement
+  float4 n = (float4)(0.0f);
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
+  uint2 startEndN = (uint2)(0, 0);
+
+  float4 absWallXYZ = (float4)(ABS_WALL_X, ABS_WALL_Y, ABS_WALL_Z, 0.0f);
+  float4 signAbsWall = (float4)(0.0f);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        signAbsWall = (float4)(0.0f);
+
+        cellNIndex3D = (cellIndex3D + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+
+        // Periodic BC for x, periodic neighbors must be considered
+        if((cellIndex3D.x + iX) >= GRID_RES_X) signAbsWall.x = 2.0f;
+        else if((cellIndex3D.x + iX) < 0) signAbsWall.x = -2.0f;
+
+        // Wall BC for y, out of domain cells are discarded
+        if(((cellIndex3D.y + iY) >= GRID_RES_Y) || ((cellIndex3D.y + iY) < 0)) continue;
+        
+        // Periodic BC for z, periodic neighbors must be considered
+        if((cellIndex3D.z + iZ) >= GRID_RES_Z) signAbsWall.z = 2.0f;
+        else if((cellIndex3D.z + iZ) < 0) signAbsWall.z = -2.0f;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          n += fast_length(vort[e]) * gradSpiky(pos - predPos[e] - absWallXYZ * signAbsWall, EFFECT_RADIUS);
+        }
+      }
+    }
+  }
+
+  // Adding vorticity confinement to attenue virtual damping
+  vel[ID] += fluid.vorticityConfCoeff * cross(normalize(n), vorticity) * fluid.timeStep;
+}
+
+
+/*
+  Apply xsph viscosity correction
+*/
+__kernel void cld_applyXsphViscosityCorrection(//Input
+                                               const __global float4 *predPos,      // 0
+                                               const __global uint2  *startEndCell, // 1
+                                               const __global float4 *velIn,        // 2
+                                               //Param
+                                               const     FluidParams fluid,         // 3
+                                               //Output
+                                                     __global float4 *velOut)       // 4
+{
+  const float4 pos = predPos[ID];
+  const float4 velocity = velIn[ID];
+  const int3 cellIndex3D = convert_int3(getCell3DIndexFromPos(pos));
+
+  float4 viscosity = (float4)(0.0f);
+
+  uint cellNIndex1D = 0;
+  int3 cellNIndex3D = (int3)(0);
+  int3 gridResXYZ = (int3)(GRID_RES_X, GRID_RES_Y, GRID_RES_Z);
+  uint2 startEndN = (uint2)(0, 0);
+
+  float4 absWallXYZ = (float4)(ABS_WALL_X, ABS_WALL_Y, ABS_WALL_Z, 0.0f);
+  float4 signAbsWall = (float4)(0.0f);
+
+  // 27 cells to visit, current one + 3D neighbors
+  for (int iX = -1; iX <= 1; ++iX)
+  {
+    for (int iY = -1; iY <= 1; ++iY)
+    {
+      for (int iZ = -1; iZ <= 1; ++iZ)
+      {
+        signAbsWall = (float4)(0.0f);
+
+        cellNIndex3D = (cellIndex3D + (int3)(iX, iY, iZ) + gridResXYZ) % gridResXYZ;
+
+        // Periodic BC for x, periodic neighbors must be considered
+        if((cellIndex3D.x + iX) >= GRID_RES_X) signAbsWall.x = 2.0f;
+        else if((cellIndex3D.x + iX) < 0) signAbsWall.x = -2.0f;
+
+        // Wall BC for y, out of domain cells are discarded
+        if(((cellIndex3D.y + iY) >= GRID_RES_Y) || ((cellIndex3D.y + iY) < 0)) continue;
+        
+        // Periodic BC for z, periodic neighbors must be considered
+        if((cellIndex3D.z + iZ) >= GRID_RES_Z) signAbsWall.z = 2.0f;
+        else if((cellIndex3D.z + iZ) < 0) signAbsWall.z = -2.0f;
+
+        cellNIndex1D = (cellNIndex3D.x * GRID_RES_Y + cellNIndex3D.y) * GRID_RES_Z + cellNIndex3D.z;
+
+        startEndN = startEndCell[cellNIndex1D];
+
+        for (uint e = startEndN.x; e <= startEndN.y; ++e)
+        {
+          viscosity += (velIn[e] - velocity) * poly6(pos - predPos[e] - absWallXYZ * signAbsWall, EFFECT_RADIUS);
+        }
+      }
+    }
+  }
+
+  // Adding xsph viscosity for a more coherent motion
+  velOut[ID] = velocity + fluid.xsphViscosityCoeff * viscosity;
+}
+
+/*
+  Correction position using Constraint correction value
+*/
+__kernel void cld_correctPosition(//Input
+                                  const __global float4 *corrPos, // 0
+                                  //Output
+                                        __global float4 *predPos) // 1
+{
+  predPos[ID] += corrPos[ID];
+}
 
 //
 // Correction on temperature field using Constraint correction value
@@ -499,7 +950,6 @@ __kernel void cld_updatePosition(//Input
   pos[ID].x += (1 - exp(- (predPos[ID].y + ABS_WALL_Y) * 0.2f)) * cloud.windCoeff * cloud.timeStep * (float)(cloud.dim - 2); //0.02f;
   pos[ID].z += (1 - exp(- (predPos[ID].y + ABS_WALL_Y) * 0.3f)) * 0.7f * cloud.windCoeff * cloud.timeStep; //0.015f;
 }
-
 
 /*
   Update velocity buffer

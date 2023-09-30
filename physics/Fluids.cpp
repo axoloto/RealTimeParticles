@@ -125,7 +125,7 @@ bool Fluids::createProgram() const
 
   LOG_INFO(clBuildOptions.str());
   // file.cl order matters, define.cl must be first
-  clContext.createProgram(PROGRAM_FLUIDS, std::vector<std::string>({ "define.cl", "fluids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
+  clContext.createProgram(PROGRAM_FLUIDS, std::vector<std::string>({ "define.cl", "sph.cl", "fluids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
 
   return true;
 }

@@ -337,7 +337,7 @@ __kernel void applyBoidsRules(__global float4* position, __global float4* veloci
   float4 repulseHeading = (float4)(0.0, 0.0, 0.0, 0.0);
 
   float squaredDist = 0.0f;
-  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 vec = (float4)(0.0f);
   for (int e = 0; e < numEnt; ++e)
   {
     vec = pos - position[e];
@@ -429,7 +429,7 @@ __kernel void applyBoidsRulesWithGridAndTex(
   float4 repulseHeading = (float4)(0.0, 0.0, 0.0, 0.0);
 
   float squaredDist = 0.0f;
-  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 vec = (float4)(0.0f);
 
   int x = 0;
   int y = 0;
@@ -585,7 +585,7 @@ __kernel void applyBoidsRulesWithGridAndTexLocal(
 
   float4 localPosN = (float4)(0.0, 0.0, 0.0, 0.0);
   float4 localVelN = (float4)(0.0, 0.0, 0.0, 0.0);
-  float4 vec = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
+  float4 vec = (float4)(0.0f);
   float squaredDist = 0.0f;
 
   //size_t numLocalParts = 27 * NUM_MAX_PARTS_IN_CELL;

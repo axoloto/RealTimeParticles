@@ -37,16 +37,6 @@ using namespace Physics;
 #define KERNEL_FILL_END_CELL "fillEndCell"
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
-// fluids.cl
-#define KERNEL_APPLY_BOUNDARY "cld_applyMixedBoundaryConditions"
-#define KERNEL_DENSITY "fld_computeDensity"
-#define KERNEL_CONSTRAINT_FACTOR_FLUIDS "fld_computeConstraintFactor"
-#define KERNEL_CONSTRAINT_CORRECTION_FLUIDS "fld_computeConstraintCorrection"
-#define KERNEL_CORRECT_POS "fld_correctPosition"
-#define KERNEL_COMPUTE_VORTICITY "fld_computeVorticity"
-#define KERNEL_VORTICITY_CONFINEMENT "fld_applyVorticityConfinement"
-#define KERNEL_XSPH_VISCOSITY "fld_applyXsphViscosityCorrection"
-
 // clouds.cl
 #define KERNEL_INIT_TEMP "cld_initTemperature"
 #define KERNEL_INIT_VAPOR_DENSITY "cld_initVaporDensity"
@@ -60,10 +50,19 @@ using namespace Physics;
 #define KERNEL_PREDICT_POS "cld_predictPosition"
 #define KERNEL_UPDATE_POS "cld_updatePosition"
 #define KERNEL_UPDATE_VEL "cld_updateVel"
+#define KERNEL_APPLY_BOUNDARY "cld_applyMixedBoundaryConditions"
+#define KERNEL_DENSITY "cld_computeDensity"
+#define KERNEL_CONSTRAINT_FACTOR_FLUIDS "cld_computeConstraintFactor"
+#define KERNEL_CONSTRAINT_CORRECTION_FLUIDS "cld_computeConstraintCorrection"
+#define KERNEL_CORRECT_POS "cld_correctPosition"
+#define KERNEL_COMPUTE_VORTICITY "cld_computeVorticity"
+#define KERNEL_VORTICITY_CONFINEMENT "cld_applyVorticityConfinement"
+#define KERNEL_XSPH_VISCOSITY "cld_applyXsphViscosityCorrection"
+
 //
 #define KERNEL_LAPLACIAN_TEMP "cld_computeLaplacianTemp"
-#define KERNEL_CONSTRAINT_FACTOR_TEMP "cld_computeConstraintFactor"
-#define KERNEL_CONSTRAINT_CORRECTION_TEMP "cld_computeConstraintCorrection"
+#define KERNEL_CONSTRAINT_FACTOR_TEMP "cld_computeConstraintFactorTemp"
+#define KERNEL_CONSTRAINT_CORRECTION_TEMP "cld_computeConstraintCorrectionTemp"
 #define KERNEL_CORRECT_TEMP "cld_correctTemperature"
 
 namespace Physics
@@ -178,7 +177,7 @@ bool Clouds::createProgram() const
   // 1/ define.cl must be first as it defines variables used by other kernels
   // 2/ fluids.cl contains Position Based Fluids algorithms needed for the fluids part of the cloud sim
   // 3/ clouds.cl contains Clouds-specific physics and constraint on temperature field, it needs PBF framework
-  clContext.createProgram(PROGRAM_CLOUDS, std::vector<std::string>({ "define.cl", "fluids.cl", "clouds.cl", "grid.cl", "utils.cl" }), clBuildOptions.str());
+  clContext.createProgram(PROGRAM_CLOUDS, std::vector<std::string>({ "define.cl", "sph.cl", "clouds.cl", "grid.cl", "utils.cl" }), clBuildOptions.str());
 
   return true;
 }
