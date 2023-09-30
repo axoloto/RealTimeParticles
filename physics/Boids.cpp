@@ -32,8 +32,8 @@ using namespace Physics;
 
 // boids.cl
 #define KERNEL_FILL_COLOR "bd_fillBoidsColor"
-#define KERNEL_UPDATE_POS_BOUNCING "bd_updatePosWithBouncingWalls"
-#define KERNEL_UPDATE_POS_CYCLIC "bd_updatePosWithCyclicWalls"
+#define KERNEL_UPDATE_POS_BOUNCING "bd_updatePosAndApplyWallBC"
+#define KERNEL_UPDATE_POS_CYCLIC "bd_updatePosAndApplyPeriodicBC"
 #define KERNEL_UPDATE_VEL "bd_updateVel"
 #define KERNEL_FILL_TEXT "fillBoidsTexture"
 #define KERNEL_BOIDS_RULES_GRID_2D "bd_applyBoidsRulesWithGrid2D"

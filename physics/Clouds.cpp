@@ -38,7 +38,7 @@ using namespace Physics;
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
 // fluids.cl
-#define KERNEL_APPLY_BOUNDARY "cld_applyBoundaryCondWithMixedWalls"
+#define KERNEL_APPLY_BOUNDARY "cld_applyMixedBoundaryConditions"
 #define KERNEL_DENSITY "fld_computeDensity"
 #define KERNEL_CONSTRAINT_FACTOR_FLUIDS "fld_computeConstraintFactor"
 #define KERNEL_CONSTRAINT_CORRECTION_FLUIDS "fld_computeConstraintCorrection"

@@ -342,15 +342,15 @@ __kernel void fld_correctPosition(//Input
   Update velocity buffer
 */
 __kernel void fld_updateVel(//Input
-                            const __global float4 *predPos,    // 0
-                            const __global float4 *pos,        // 1
+                            const __global float4 *newPos,    // 0
+                            const __global float4 *prevPos,   // 1
                             //Param
-                            const     FluidParams fluid,       // 2
+                            const     FluidParams fluid,      // 2
                             //Output
-                                  __global float4 *vel)        // 3
+                                  __global float4 *vel)       // 3
 {
   // Preventing division by 0
-  vel[ID] = clamp((predPos[ID] - pos[ID]) / (fluid.timeStep + FLOAT_EPS), -MAX_VEL, MAX_VEL);
+  vel[ID] = clamp((newPos[ID] - prevPos[ID]) / (fluid.timeStep + FLOAT_EPS), -MAX_VEL, MAX_VEL);
 }
 
 /*

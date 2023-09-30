@@ -251,14 +251,14 @@ __kernel void bd_updateVel(//Input
 }
 
 /*
-  Apply Bouncing wall boundary conditions on position and velocity buffers.
+  Update position and apply wall boundary conditions on position and velocity.
 */
-__kernel void bd_updatePosWithBouncingWalls(//Input/output
-                                                  __global float4 *vel,     // 0
-                                            //Param
-                                            const          float  timeStep, // 1
-                                            //Input/output
-                                                  __global float4 *pos)     // 2
+__kernel void bd_updatePosAndApplyWallBC(//Input/output
+                                         __global float4 *vel,     // 0
+                                         //Param
+                                         const    float  timeStep, // 1
+                                         //Input/output
+                                         __global float4 *pos)     // 2
 
 {
   const float4 newPos = pos[ID] + vel[ID] * timeStep;
@@ -268,6 +268,7 @@ __kernel void bd_updatePosWithBouncingWalls(//Input/output
   
   pos[ID] = clampedNewPos;
 
+  // Bouncing particle will have its velocity reversed and divided by half
   if (!all(isequal(clampedNewPos.xyz, newPos.xyz)))
   {
     vel[ID] *= -0.5f;
@@ -275,14 +276,14 @@ __kernel void bd_updatePosWithBouncingWalls(//Input/output
 }
 
 /*
-  Apply Cyclic wall boundary conditions on position and velocity buffers.
+  Update position and apply periodic boundary conditions.
 */
-__kernel void bd_updatePosWithCyclicWalls(//Input
-                                          const __global float4 *vel,     // 0
-                                          //Param
-                                          const          float  timeStep, // 1
-                                          //Input/output
-                                                __global float4 *pos)     // 2
+__kernel void bd_updatePosAndApplyPeriodicBC(//Input
+                                             const __global float4 *vel,     // 0
+                                             //Param
+                                             const          float  timeStep, // 1
+                                             //Input/output
+                                                   __global float4 *pos)     // 2
 {
   const float4 newPos = pos[ID] + vel[ID] * timeStep;
 

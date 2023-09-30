@@ -252,19 +252,19 @@ __kernel void cld_predictPosition(//Input
                                         __global float4 *totCorrPos)    // 5
 {
   // No need to update global vel, as it will be reset later on
-  const float4 newVel = vel[ID] + (float4)(0.0f, buoyancy[ID], 0.0f, 0.0f) * cloud.timeStep;
+  const float4 predVel = vel[ID] + (float4)(0.0f, buoyancy[ID], 0.0f, 0.0f) * cloud.timeStep;
   
-  totCorrPos[ID] = newVel * cloud.timeStep;
+  totCorrPos[ID] = predVel * cloud.timeStep;
 
-  predPos[ID] = pos[ID] + newVel * cloud.timeStep;
+  predPos[ID] = pos[ID] + predVel * cloud.timeStep;
 }
 
 /*
-  Apply Cyclic wall boundary conditions for xz directions
-  Apply Boucing wall boundary conditions for y direction
+  Apply periodic boundary conditions for xz directions
+  Apply wall boundary conditions for y direction
 */
-__kernel void cld_applyBoundaryCondWithMixedWalls(//Input/output
-                                                  __global float4 *predPos) // 0
+__kernel void cld_applyMixedBoundaryConditions(//Input/output
+                                               __global float4 *predPos) // 0
 {
   const float4 newPos = predPos[ID];
 
@@ -511,6 +511,6 @@ __kernel void cld_updateVel(//Input
                             //Output
                                   __global float4 *vel)        // 2
 {
-  // Preventing division by 0
+  // Clamping velocity and preventing division by 0
   vel[ID] = clamp((totCorrPos[ID]) / (fluid.timeStep + FLOAT_EPS), -MAX_VEL, MAX_VEL);
 }
