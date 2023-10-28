@@ -122,7 +122,7 @@ __kernel void cld_initTemperature(//Input
 }
 
 /*
-  Initialize vapor density value (cloud density set to 0)
+  Initialize vapor density value (cloud density init to 0)
 */
  __kernel void cld_initVaporDensity(//Param
                                     const CloudParams cloud, // 0
@@ -200,8 +200,8 @@ __kernel void cld_applyAdiabaticCooling(//Input
 /*
   Compute cloud generation from the transition rate and the difference between saturation vapor density and current vapor density
   - If vapor density (VD) == saturation vapor density (SVD), no transition, system is at equilibrium
-  - If VD > SVD, not enough vapor in the air, clouds disappear, liquid/droplets transitions to vapor
-  - If VD < SVD, too much vapor in the air, clouds appear, vapor transitions to liquid/droplets
+  - If VD < SVD, not enough vapor in the air, clouds disappear, liquid/droplets transitions to vapor
+  - If VD > SVD, too much vapor in the air, clouds appear, vapor transitions to liquid/droplets
   Note that saturation vapor density depends on temperature, cold air can't contain as much vapor as warmer one
 */
 __kernel void cld_generateCloud(//Input

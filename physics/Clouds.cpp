@@ -80,7 +80,7 @@ struct FluidKernelInputs
   cl_float artPressureCoeff = 0.001f;
   cl_uint artPressureExp = 4;
   // Vorticity confinement if enabled will try to replace lost energy due to virtual damping
-  cl_uint isVorticityConfEnabled = 0;
+  cl_uint isVorticityConfEnabled = 1;
   cl_float vorticityConfCoeff = 0.0004f;
   cl_float xsphViscosityCoeff = 0.0001f;
 };
@@ -98,24 +98,24 @@ struct CloudKernelInputs
   cl_float groundHeatCoeff = 10.0f; // i.e here 0.4K/iteration, at 30fps -> 12K/s increase
   // Buoyancy makes warmer particles to go up and colder ones to go down
   cl_float buoyancyCoeff = 0.10f;
-  cl_float gravCoeff = 0.001f;
+  cl_float gravCoeff = 0.0005f;
   // Adiabatic cooling makes the air parcels to cool down when going up
   cl_float adiabaticLapseRate = 5.0f;
   // Phase transition rate decides how fast waper transitions
   // between vapor and liquid (clouds = droplets)
-  cl_float phaseTransitionRate = 0.05f;
+  cl_float phaseTransitionRate = 0.3485f;
   // When particles transition from vapor to liquid, they released heat
   // increasing their temperature, making them going up some more due to buoyancy
   cl_float latentHeatCoeff = 0.07f;
   // Enable constraint on temperature field, forcing its Laplacian field to be null
   // It helps uniformizing the temperature across particles
-  cl_uint isTempSmoothingEnabled = 0;
+  cl_uint isTempSmoothingEnabled = 1;
   //
   cl_float relaxCFM = 600.0f;
   //
   cl_float initVaporDensityCoeff = 0.5f;
   //
-  cl_float windCoeff = 0.5f;
+  cl_float windCoeff = 1.0f;
 };
 
 const std::map<Clouds::CaseType, std::string, Clouds::CompareCaseType> Clouds::ALL_CASES {
@@ -226,7 +226,7 @@ bool Clouds::createBuffers()
   m_allDisplayableQuantities.insert(std::make_pair(partID.name, partID));
   PhysicalQuantity vaporDens { "Vapor Density", "p_vaporDens", { 0.0f, 100.0f }, { 0.001f, 100.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(vaporDens.name, vaporDens));
-  PhysicalQuantity cloudDens { "Cloud Density", "p_cloudDens", { 0.0f, 100.0f }, { 1.0f, 10.0f } };
+  PhysicalQuantity cloudDens { "Cloud Density", "p_cloudDens", { 0.0f, 100.0f }, { 1.0f, 15.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(cloudDens.name, cloudDens));
   PhysicalQuantity netForce { "Net Force", "p_buoyancy", { -10.0f, 10.0f }, { -1.0f, 1.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(netForce.name, netForce));
@@ -384,13 +384,13 @@ void Clouds::initCloudsParticles()
     switch (m_initialCase)
     {
     case CaseType::CUMULUS:
-      m_currNbParticles = Utils::NbParticles::P4K;
+      m_currNbParticles = Utils::NbParticles::P8K;
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { 0.0f, 0.0f, m_boxSize.z / 2.0f };
       break;
     case CaseType::HOMOGENEOUS:
-      m_currNbParticles = Utils::NbParticles::P4K;
+      m_currNbParticles = Utils::NbParticles::P8K;
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { 0.0f, m_boxSize.y / 2.0f, m_boxSize.z / 2.0f };
@@ -412,7 +412,7 @@ void Clouds::initCloudsParticles()
     switch (m_initialCase)
     {
     case CaseType::CUMULUS:
-      m_currNbParticles = Utils::NbParticles::P130K;
+      m_currNbParticles = Utils::NbParticles::P65K;
       shape = Geometry::Shape3D::Box;
       startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { m_boxSize.x / 2.0f, m_boxSize.y / -4.0f, m_boxSize.z / 2.0f };
@@ -490,9 +490,6 @@ void Clouds::update()
     clContext.runKernel(KERNEL_PHASE_TRANSITION, m_currNbParticles);
     //
     clContext.runKernel(KERNEL_LATENT_HEAT, m_currNbParticles);
-
-    //clContext.setKernelArg(KERNEL_APPLY_BOUNDARY, 0, "p_pos");
-    //clContext.runKernel(KERNEL_APPLY_BOUNDARY, m_currNbParticles);
 
     // Predicting velocity and position
     // Step coupling fluids and clouds physics
