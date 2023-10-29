@@ -248,12 +248,16 @@ bool ParticleSystemApp::initGraphicsEngine()
   params.boxSize = Geometry::BOX_SIZE_3D;
   params.gridRes = Geometry::GRID_RES_3D;
   params.aspectRatio = (float)m_windowSize.x / m_windowSize.y;
-  params.dimension = Geometry::Dimension::dim2D;
+  params.dimension = (m_graphicsEngine.get() != nullptr) ? m_graphicsEngine->dimension() : Geometry::Dimension::dim2D;
 
   if (m_modelType == Physics::ModelType::CLOUDS)
   {
     params.boxSize.y *= 2;
     params.gridRes.y *= 2;
+  }
+  else if (m_modelType == Physics::ModelType::BOIDS)
+  {
+    params.pointSize = 2;
   }
 
   m_graphicsEngine = std::make_unique<Render::Engine>(params);
@@ -279,7 +283,7 @@ bool ParticleSystemApp::initPhysicsEngine()
   params.particleColVBO = (unsigned int)m_graphicsEngine->pointCloudColorVBO();
   params.cameraVBO = (unsigned int)m_graphicsEngine->cameraCoordVBO();
   params.gridVBO = (unsigned int)m_graphicsEngine->gridDetectorVBO();
-  params.dimension = Geometry::Dimension::dim2D;
+  params.dimension = m_graphicsEngine->dimension();
 
   if (m_modelType == Physics::ModelType::CLOUDS)
   {
@@ -401,23 +405,27 @@ void ParticleSystemApp::displayMainWidget()
 
         if (!initGraphicsEngine())
         {
-          LOG_ERROR("Failed to change graphcs engine");
+          LOG_ERROR("Failed to reset graphics engine");
+          return;
+        }
+
+        if (!initGraphicsWidget())
+        {
+          LOG_ERROR("Failed to reset graphics widget");
           return;
         }
 
         if (!initPhysicsEngine())
         {
-          LOG_ERROR("Failed to change physics engine");
+          LOG_ERROR("Failed to reset physics engine");
           return;
         }
 
         if (!initPhysicsWidget())
         {
-          LOG_ERROR("Failed to change physics widget");
+          LOG_ERROR("Failed to reset physics widget");
           return;
         }
-
-        m_graphicsEngine->setDimension(m_physicsEngine->dimension());
 
         LOG_INFO("Application correctly switched to {}", Physics::ALL_MODELS.find(m_modelType)->second);
       }
