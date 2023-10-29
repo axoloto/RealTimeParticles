@@ -25,7 +25,7 @@ inline uint getCell1DIndexFromPos(float4 pos);
 */
 __kernel void bd_fillBoidsColor(__global float4 *col)
 {
-  col[ID] = (float4)(1.0f, 0.02f, 0.02f, 1.0f);
+  col[ID] = (float4)(1.0f, 0.02f, 0.02f, 0.5f);
 }
 
 /*

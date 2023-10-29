@@ -462,9 +462,9 @@ __kernel void fld_fillFluidColor(//Input
                                  //Output
                                         __global float4 *col)     // 2
 {
-  float4 blue      = (float4)(0.0f, 0.1f, 1.0f, 1.0f);
-  float4 lightBlue = (float4)(0.7f, 0.7f, 1.0f, 1.0f);
-  float4 darkBlue  = (float4)(0.0f, 0.0f, 0.8f, 1.0f);
+  float4 blue      = (float4)(0.0f, 0.1f, 1.0f, 0.5f);
+  float4 lightBlue = (float4)(0.7f, 0.7f, 1.0f, 0.5f);
+  float4 darkBlue  = (float4)(0.0f, 0.0f, 0.8f, 0.5f);
 
   float constraint = (1.0f - density[ID] / fluid.restDensity);
 
