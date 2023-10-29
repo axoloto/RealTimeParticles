@@ -933,7 +933,7 @@ __kernel void cld_correctTemperature(//Input
                                      //Output
                                            __global float *temp)     // 2
 {
-  temp[ID] += 0.3f * corrTemp[ID];
+  temp[ID] += 0.3f * corrTemp[ID]; // We only partially use the correction, visual results are too homogeneous otherwise
 }
 
 /*
