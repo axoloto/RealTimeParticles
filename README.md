@@ -14,7 +14,12 @@ Minimalist real-time application combining DearImGui/OpenGL and OpenCL to admire
 
 2. Position Based Fluids based on NVIDIA paper [Macklin and Muller, 2013. "Position Based Fluids"](https://mmacklin.com/pbf_sig_preprint.pdf). Blog post [here](https://axoloto.github.io/rtp/2021-10-12-fluids/).
 <p align = "center">
-<img src="./Fluids_128.gif" alt="Boids" width="300" height="300">
+<img src="./Fluids_128.gif" alt="FLuids" width="300" height="300">
+</p>
+
+3. Clouds using Position Based Fluids model with thermodynamics extension inspired by [C. W. Ferreira Barbosa, Y. Dobashi and T. Yamamoto, 2015. "Adaptive cloud simulation using position based fluids"](https://onlinelibrary.wiley.com/doi/10.1002/cav.1657). **Clouds can take up to 1 min to appear.** Blog post (WIP). 
+<p align = "center">
+<img src="./Clouds.gif" alt="Clouds" width="300" height="300">
 </p>
 
 **For best performance, make sure that the application runs on a discrete GPU and not on default IGPU.**

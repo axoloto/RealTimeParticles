@@ -2,23 +2,208 @@
 #include "Logging.hpp"
 #include "Parameters.hpp"
 
+#include "Boids.hpp"
+#include "Clouds.hpp"
+#include "Fluids.hpp"
+
 #include <imgui.h>
 
-void UI::PhysicsWidget::display()
+void displayBoundaryConditions(Physics::Model* engine)
 {
-  auto* boidsEngine = dynamic_cast<Physics::Boids*>(m_physicsEngine);
-  auto* fluidsEngine = dynamic_cast<Physics::Fluids*>(m_physicsEngine);
+  if (!engine)
+    return;
 
-  // First default pos
-  ImGui::SetNextWindowPos(ImVec2(15, 355), ImGuiCond_FirstUseEver);
+  ImGui::Spacing();
+  ImGui::Separator();
+  ImGui::Spacing();
+  ImGui::Text(" Boundary ");
+  ImGui::Spacing();
 
-  if (boidsEngine)
-    displayBoidsParameters(boidsEngine);
-  else if (fluidsEngine)
-    displayFluidsParameters(fluidsEngine);
+  bool isBouncingWall = (engine->boundary() == Physics::Boundary::BouncingWall);
+  if (ImGui::Checkbox("Bouncing Wall", &isBouncingWall))
+  {
+    if (isBouncingWall)
+      engine->setBoundary(Physics::Boundary::BouncingWall);
+    else
+      engine->setBoundary(Physics::Boundary::CyclicWall);
+  }
+
+  ImGui::SameLine();
+
+  bool isCyclicWall = (engine->boundary() == Physics::Boundary::CyclicWall);
+  if (ImGui::Checkbox("Cyclic Wall", &isCyclicWall))
+  {
+    if (isCyclicWall)
+      engine->setBoundary(Physics::Boundary::CyclicWall);
+    else
+      engine->setBoundary(Physics::Boundary::BouncingWall);
+  }
 }
 
-void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
+void displayCloudsParameters(Physics::Clouds* cloudsEngine)
+{
+  if (!cloudsEngine)
+    return;
+
+  ImGui::Begin("Clouds Widget", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+  ImGui::PushItemWidth(150);
+
+  // Selection of the initial setup
+  auto caseType = cloudsEngine->getInitialCase();
+
+  const auto& selCaseName = (Physics::Clouds::ALL_CASES.find(caseType) != Physics::Clouds::ALL_CASES.end())
+      ? Physics::Clouds::ALL_CASES.find(caseType)->second
+      : Physics::Clouds::ALL_CASES.cbegin()->second;
+
+  if (ImGui::BeginCombo("Study case", selCaseName.c_str()))
+  {
+    for (const auto& caseT : Physics::Clouds::ALL_CASES)
+    {
+      if (ImGui::Selectable(caseT.second.c_str(), caseType == caseT.first))
+      {
+        caseType = caseT.first;
+
+        cloudsEngine->setInitialCase(caseType);
+        cloudsEngine->reset();
+
+        LOG_DEBUG("Clouds initial case correctly switched to {}", Physics::Clouds::ALL_CASES.find(caseType)->second);
+      }
+    }
+    ImGui::EndCombo();
+  }
+
+  ImGui::Value("Particles", (int)cloudsEngine->nbParticles());
+
+  ImGui::Spacing();
+  ImGui::Text("Position Based Fluids Parameters");
+  ImGui::Spacing();
+
+  float restDensity = cloudsEngine->getRestDensity();
+  if (ImGui::SliderFloat("Rest Density", &restDensity, 10.0f, 1000.0f))
+  {
+    cloudsEngine->setRestDensity(restDensity);
+  }
+
+  float relaxCFM = cloudsEngine->getRelaxCFM();
+  if (ImGui::SliderFloat("Relax CFM", &relaxCFM, 100.0f, 1000.f))
+  {
+    cloudsEngine->setRelaxCFM(relaxCFM);
+  }
+
+  float timeStep = cloudsEngine->getTimeStep();
+  if (ImGui::SliderFloat("Time Step", &timeStep, 0.0001f, 0.020f))
+  {
+    cloudsEngine->setTimeStep(timeStep);
+  }
+
+  int nbJacobiIters = (int)cloudsEngine->getNbJacobiIters();
+  if (ImGui::SliderInt("Nb Jacobi Iterations", &nbJacobiIters, 1, 6))
+  {
+    cloudsEngine->setNbJacobiIters((size_t)nbJacobiIters);
+  }
+
+  bool isArtPressureEnabled = cloudsEngine->isArtPressureEnabled();
+  if (ImGui::Checkbox("Enable Artificial Pressure", &isArtPressureEnabled))
+  {
+    cloudsEngine->enableArtPressure(isArtPressureEnabled);
+  }
+  if (isArtPressureEnabled)
+  {
+    float artPressureCoeff = cloudsEngine->getArtPressureCoeff();
+    if (ImGui::SliderFloat("Coefficient", &artPressureCoeff, 0.0f, 0.001f, "%.4f"))
+    {
+      cloudsEngine->setArtPressureCoeff(artPressureCoeff);
+    }
+
+    float artPressureRadius = cloudsEngine->getArtPressureRadius();
+    if (ImGui::SliderFloat("Radius", &artPressureRadius, 0.001f, 0.015f))
+    {
+      cloudsEngine->setArtPressureRadius(artPressureRadius);
+    }
+
+    int artPressureExp = (int)cloudsEngine->getArtPressureExp();
+    if (ImGui::SliderInt("Exponent", &artPressureExp, 1, 6))
+    {
+      cloudsEngine->setArtPressureExp((size_t)artPressureExp);
+    }
+  }
+
+  bool isVorticityConfinementEnabled = cloudsEngine->isVorticityConfinementEnabled();
+  if (ImGui::Checkbox("Enable Vorticity Confinement", &isVorticityConfinementEnabled))
+  {
+    cloudsEngine->enableVorticityConfinement(isVorticityConfinementEnabled);
+  }
+  if (isVorticityConfinementEnabled)
+  {
+    float vorticityConfinementCoeff = cloudsEngine->getVorticityConfinementCoeff();
+    if (ImGui::SliderFloat("Vorticity Coefficient", &vorticityConfinementCoeff, 0.0f, 0.001f, "%.4f"))
+    {
+      cloudsEngine->setVorticityConfinementCoeff(vorticityConfinementCoeff);
+    }
+
+    float xsphViscosityCoeff = cloudsEngine->getXsphViscosityCoeff();
+    if (ImGui::SliderFloat("Viscosity Coefficient", &xsphViscosityCoeff, 0.0f, 0.001f, "%.4f"))
+    {
+      cloudsEngine->setXsphViscosityCoeff(xsphViscosityCoeff);
+    }
+  }
+
+  ImGui::Spacing();
+  ImGui::Text("Clouds Parameters");
+  ImGui::Spacing();
+
+  bool isTempSmoothingEnabled = cloudsEngine->isTempSmoothingEnabled();
+  if (ImGui::Checkbox("Enable Temperature Smoothing", &isTempSmoothingEnabled))
+  {
+    cloudsEngine->enableTempSmoothing(isTempSmoothingEnabled);
+  }
+
+  float groundHeatCoeff = cloudsEngine->getGroundHeatCoeff();
+  if (ImGui::SliderFloat("Ground Heat Coefficient", &groundHeatCoeff, 0.0f, 1000.0f, "%.4f"))
+  {
+    cloudsEngine->setGroundHeatCoeff(groundHeatCoeff);
+  }
+
+  float buoyancyCoeff = cloudsEngine->getBuoyancyCoeff();
+  if (ImGui::SliderFloat("Buoyancy Coefficient", &buoyancyCoeff, 0.0f, 5.0f, "%.4f"))
+  {
+    cloudsEngine->setBuoyancyCoeff(buoyancyCoeff);
+  }
+
+  float gravCoeff = cloudsEngine->getGravCoeff();
+  if (ImGui::SliderFloat("Gravity Coefficient", &gravCoeff, 0.0f, 0.1f, "%.4f"))
+  {
+    cloudsEngine->setGravCoeff(gravCoeff);
+  }
+
+  float adiabaticLapseRate = cloudsEngine->getAdiabaticLapseRate();
+  if (ImGui::SliderFloat("Adiabatic Lapse Rate", &adiabaticLapseRate, 0.0f, 20.0f, "%.3f"))
+  {
+    cloudsEngine->setAdiabaticLapseRate(adiabaticLapseRate);
+  }
+
+  float phaseTransitionRate = cloudsEngine->getPhaseTransitionRate();
+  if (ImGui::SliderFloat("Phase Transition Rate", &phaseTransitionRate, 0.0f, 20.0f, "%.4f"))
+  {
+    cloudsEngine->setPhaseTransitionRate(phaseTransitionRate);
+  }
+
+  float latentHeatCoeff = cloudsEngine->getLatentHeatCoeff();
+  if (ImGui::SliderFloat("Latent Heat Coefficient", &latentHeatCoeff, 0.0f, 0.100f, "%.4f"))
+  {
+    cloudsEngine->setLatentHeatCoeff(latentHeatCoeff);
+  }
+
+  float windCoeff = cloudsEngine->getWindCoeff();
+  if (ImGui::SliderFloat("Wind Coefficient", &windCoeff, 0.0f, 1.0f, "%.4f"))
+  {
+    cloudsEngine->setWindCoeff(windCoeff);
+  }
+
+  ImGui::End();
+}
+
+void displayFluidsParameters(Physics::Fluids* fluidsEngine)
 {
   if (!fluidsEngine)
     return;
@@ -29,13 +214,13 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
   // Selection of the initial setup
   auto caseType = fluidsEngine->getInitialCase();
 
-  const auto& selCaseName = (Physics::ALL_FLUID_CASES.find(caseType) != Physics::ALL_FLUID_CASES.end())
-      ? Physics::ALL_FLUID_CASES.find(caseType)->second
-      : Physics::ALL_FLUID_CASES.cbegin()->second;
+  const auto& selCaseName = (Physics::Fluids::ALL_CASES.find(caseType) != Physics::Fluids::ALL_CASES.end())
+      ? Physics::Fluids::ALL_CASES.find(caseType)->second
+      : Physics::Fluids::ALL_CASES.cbegin()->second;
 
   if (ImGui::BeginCombo("Study case", selCaseName.c_str()))
   {
-    for (const auto& caseT : Physics::ALL_FLUID_CASES)
+    for (const auto& caseT : Physics::Fluids::ALL_CASES)
     {
       if (ImGui::Selectable(caseT.second.c_str(), caseType == caseT.first))
       {
@@ -44,7 +229,7 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
         fluidsEngine->setInitialCase(caseType);
         fluidsEngine->reset();
 
-        LOG_DEBUG("Fluids initial case correctly switched to {}", Physics::ALL_FLUID_CASES.find(caseType)->second);
+        LOG_DEBUG("Fluids initial case correctly switched to {}", Physics::Fluids::ALL_CASES.find(caseType)->second);
       }
     }
     ImGui::EndCombo();
@@ -55,8 +240,6 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
   ImGui::Spacing();
   ImGui::Text("Fluid parameters");
   ImGui::Spacing();
-
-  ImGui::Value("Kernel radius", (float)fluidsEngine->getEffectRadius());
 
   float restDensity = fluidsEngine->getRestDensity();
   if (ImGui::SliderFloat("Rest Density", &restDensity, 10.0f, 1000.0f))
@@ -131,7 +314,7 @@ void UI::PhysicsWidget::displayFluidsParameters(Physics::Fluids* fluidsEngine)
   ImGui::End();
 }
 
-void UI::PhysicsWidget::displayBoidsParameters(Physics::Boids* boidsEngine)
+void displayBoidsParameters(Physics::Boids* boidsEngine)
 {
   if (!boidsEngine)
     return;
@@ -155,7 +338,7 @@ void UI::PhysicsWidget::displayBoidsParameters(Physics::Boids* boidsEngine)
   ImGui::Spacing();
 
   // Selection of the number of particles in the model
-  const auto nbParticles = (Utils::NbParticles)m_physicsEngine->nbParticles();
+  const auto nbParticles = (Utils::NbParticles)boidsEngine->nbParticles();
 
   const auto& nbParticlesStr = (Utils::ALL_NB_PARTICLES.find(nbParticles) != Utils::ALL_NB_PARTICLES.end())
       ? Utils::ALL_NB_PARTICLES.find(nbParticles)->second.name
@@ -283,34 +466,24 @@ void UI::PhysicsWidget::displayBoidsParameters(Physics::Boids* boidsEngine)
   ImGui::End();
 }
 
-void UI::PhysicsWidget::displayBoundaryConditions(Physics::Model* engine)
+void UI::PhysicsWidget::display()
 {
-  if (!engine)
+  auto physicsEngine = m_physicsEngine.lock();
+
+  if (!physicsEngine)
     return;
 
-  ImGui::Spacing();
-  ImGui::Separator();
-  ImGui::Spacing();
-  ImGui::Text(" Boundary ");
-  ImGui::Spacing();
+  auto* boidsEngine = dynamic_cast<Physics::Boids*>(physicsEngine.get());
+  auto* fluidsEngine = dynamic_cast<Physics::Fluids*>(physicsEngine.get());
+  auto* cloudsEngine = dynamic_cast<Physics::Clouds*>(physicsEngine.get());
 
-  bool isBouncingWall = (engine->boundary() == Physics::Boundary::BouncingWall);
-  if (ImGui::Checkbox("Bouncing Wall", &isBouncingWall))
-  {
-    if (isBouncingWall)
-      engine->setBoundary(Physics::Boundary::BouncingWall);
-    else
-      engine->setBoundary(Physics::Boundary::CyclicWall);
-  }
+  // First default pos
+  ImGui::SetNextWindowPos(ImVec2(15, 355), ImGuiCond_FirstUseEver);
 
-  ImGui::SameLine();
-
-  bool isCyclicWall = (engine->boundary() == Physics::Boundary::CyclicWall);
-  if (ImGui::Checkbox("Cyclic Wall", &isCyclicWall))
-  {
-    if (isCyclicWall)
-      engine->setBoundary(Physics::Boundary::CyclicWall);
-    else
-      engine->setBoundary(Physics::Boundary::BouncingWall);
-  }
+  if (boidsEngine)
+    displayBoidsParameters(boidsEngine);
+  else if (fluidsEngine)
+    displayFluidsParameters(fluidsEngine);
+  else if (cloudsEngine)
+    displayCloudsParameters(cloudsEngine);
 }

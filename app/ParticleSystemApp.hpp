@@ -32,7 +32,7 @@ class ParticleSystemApp
   void displayMainWidget();
   bool popUpMessage(const std::string& title, const std::string& message) const;
 
-  std::unique_ptr<Physics::Model> m_physicsEngine;
+  std::shared_ptr<Physics::Model> m_physicsEngine;
   std::unique_ptr<Render::Engine> m_graphicsEngine;
   std::unique_ptr<UI::PhysicsWidget> m_physicsWidget;
   std::unique_ptr<UI::GraphicsWidget> m_graphicsWidget;

@@ -11,16 +11,17 @@ Engine::Engine(EngineParams params)
     , m_boxSize(params.boxSize)
     , m_gridRes(params.gridRes)
     , m_pointSize(params.pointSize)
-    , m_isBoxVisible(false)
+    , m_isBoxVisible(true)
     , m_isGridVisible(false)
     , m_targetPos({ 0.0f, 0.0f, 0.0f })
+    , m_dimension(params.dimension)
 {
   glEnable(GL_DEPTH_TEST);
   glEnable(GL_PROGRAM_POINT_SIZE);
   glEnable(GL_POINT_SMOOTH);
-  glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-  glEnable(GL_BLEND);
   glEnable(GL_MULTISAMPLE);
+
+  enableBlending(false);
 
   buildShaders();
 
@@ -42,7 +43,8 @@ Engine::~Engine()
 {
   glDeleteBuffers(1, &m_pointCloudCoordVBO);
   glDeleteBuffers(1, &m_pointCloudColorVBO);
-  glDeleteBuffers(1, &m_boxVBO);
+  glDeleteBuffers(1, &m_box2DVBO);
+  glDeleteBuffers(1, &m_box3DVBO);
   glDeleteBuffers(1, &m_cameraVBO);
   glDeleteBuffers(1, &m_targetVBO);
 }
@@ -50,7 +52,8 @@ Engine::~Engine()
 void Engine::buildShaders()
 {
   m_pointCloudShader = std::make_unique<Shader>(Render::PointCloudVertShader, Render::PointCloudFragShader);
-  m_boxShader = std::make_unique<Shader>(Render::BoxVertShader, Render::FragShader);
+  m_box2DShader = std::make_unique<Shader>(Render::Box2DVertShader, Render::FragShader);
+  m_box3DShader = std::make_unique<Shader>(Render::Box3DVertShader, Render::FragShader);
   m_gridShader = std::make_unique<Shader>(Render::GridVertShader, Render::FragShader);
   m_targetShader = std::make_unique<Shader>(Render::TargetVertShader, Render::FragShader);
 }
@@ -135,15 +138,30 @@ void Engine::drawPointCloud()
 
 void Engine::drawBox()
 {
-  m_boxShader->activate();
+  if (m_dimension == Geometry::Dimension::dim2D)
+  {
+    m_box2DShader->activate();
 
-  m_boxShader->setUniform("u_projView", m_camera->getProjViewMat());
+    m_box2DShader->setUniform("u_projView", m_camera->getProjViewMat());
 
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boxEBO);
-  glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_box2DEBO);
+    glDrawElements(GL_LINES, 8, GL_UNSIGNED_INT, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-  m_boxShader->deactivate();
+    m_box2DShader->deactivate();
+  }
+  else
+  {
+    m_box3DShader->activate();
+
+    m_box3DShader->setUniform("u_projView", m_camera->getProjViewMat());
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_box3DEBO);
+    glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    m_box3DShader->deactivate();
+  }
 }
 
 void Engine::drawGrid()
@@ -152,7 +170,7 @@ void Engine::drawGrid()
 
   m_gridShader->setUniform("u_projView", m_camera->getProjViewMat());
 
-  GLsizei numGridCells = (GLsizei)(m_gridRes * m_gridRes * m_gridRes);
+  GLsizei numGridCells = (GLsizei)(m_gridRes.x * m_gridRes.y * m_gridRes.z);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_gridEBO);
   glDrawElements(GL_LINES, 24 * numGridCells, GL_UNSIGNED_INT, 0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -177,60 +195,89 @@ void Engine::drawTarget()
 
 void Engine::initBox()
 {
-  std::array<Vertex, 8> boxVertices = m_refCubeVertices;
-  for (auto& vertex : boxVertices)
+  // 2D
+  auto box2DVertices = Geometry::RefSquareVertices;
+  for (auto& vertex : box2DVertices)
   {
-    float x = vertex[0] * m_boxSize / 2.0f;
-    float y = vertex[1] * m_boxSize / 2.0f;
-    float z = vertex[2] * m_boxSize / 2.0f;
+    float y = vertex[0] * m_boxSize.y / 2.0f;
+    float z = vertex[1] * m_boxSize.z / 2.0f;
+    vertex = { y, z };
+  }
+
+  glGenBuffers(1, &m_box2DVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, m_box2DVBO);
+  glVertexAttribPointer(m_box2DPosAttribIndex, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+  glEnableVertexAttribArray(m_box2DPosAttribIndex);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(box2DVertices.front()) * box2DVertices.size(), box2DVertices.data(), GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  glGenBuffers(1, &m_box2DEBO);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_box2DEBO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Geometry::RefSquareIndices), Geometry::RefSquareIndices.data(), GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+  // 3D
+  auto box3DVertices = Geometry::RefCubeVertices;
+  for (auto& vertex : box3DVertices)
+  {
+    float x = vertex[0] * m_boxSize.x / 2.0f;
+    float y = vertex[1] * m_boxSize.y / 2.0f;
+    float z = vertex[2] * m_boxSize.z / 2.0f;
     vertex = { x, y, z };
   }
 
-  glGenBuffers(1, &m_boxVBO);
-  glBindBuffer(GL_ARRAY_BUFFER, m_boxVBO);
-  glVertexAttribPointer(m_boxPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-  glEnableVertexAttribArray(m_boxPosAttribIndex);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(boxVertices.front()) * boxVertices.size(), boxVertices.data(), GL_STATIC_DRAW);
+  glGenBuffers(1, &m_box3DVBO);
+  glBindBuffer(GL_ARRAY_BUFFER, m_box3DVBO);
+  glVertexAttribPointer(m_box3DPosAttribIndex, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+  glEnableVertexAttribArray(m_box3DPosAttribIndex);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(box3DVertices.front()) * box3DVertices.size(), box3DVertices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-  glGenBuffers(1, &m_boxEBO);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_boxEBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(m_refCubeIndices), m_refCubeIndices.data(), GL_STATIC_DRAW);
+  glGenBuffers(1, &m_box3DEBO);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_box3DEBO);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Geometry::RefCubeIndices), Geometry::RefCubeIndices.data(), GL_STATIC_DRAW);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 void Engine::initGrid()
 {
-  float cellSize = 1.0f * m_boxSize / m_gridRes;
-  std::array<Vertex, 8> localCellCoords = m_refCubeVertices;
+  Geometry::Vertex3D cellDims;
+  cellDims[0] = (float)m_boxSize.x / m_gridRes.x;
+  cellDims[1] = (float)m_boxSize.y / m_gridRes.y;
+  cellDims[2] = (float)m_boxSize.z / m_gridRes.z;
+
+  auto localCellCoords = Geometry::RefCubeVertices;
   for (auto& vertex : localCellCoords)
   {
-    float x = vertex[0] * cellSize * 0.5f;
-    float y = vertex[1] * cellSize * 0.5f;
-    float z = vertex[2] * cellSize * 0.5f;
+    float x = vertex[0] * cellDims[0] * 0.5f;
+    float y = vertex[1] * cellDims[1] * 0.5f;
+    float z = vertex[2] * cellDims[2] * 0.5f;
     vertex = { x, y, z };
   }
 
   size_t centerIndex = 0;
-  size_t numCells = m_gridRes * m_gridRes * m_gridRes;
-  float firstPos = -(float)m_boxSize / 2.0f + 0.5f * cellSize;
-  std::vector<Vertex> globalCellCenterCoords(numCells);
-  for (int x = 0; x < m_gridRes; ++x)
+  size_t numCells = m_gridRes.x * m_gridRes.y * m_gridRes.z;
+  Geometry::Vertex3D firstPos;
+  firstPos[0] = -(float)m_boxSize.x / 2.0f + 0.5f * cellDims[0];
+  firstPos[1] = -(float)m_boxSize.y / 2.0f + 0.5f * cellDims[1];
+  firstPos[2] = -(float)m_boxSize.z / 2.0f + 0.5f * cellDims[2];
+  std::vector<Geometry::Vertex3D> globalCellCenterCoords(numCells);
+  for (int x = 0; x < m_gridRes.x; ++x)
   {
-    float xCoord = firstPos + x * cellSize;
-    for (int y = 0; y < m_gridRes; ++y)
+    float xCoord = firstPos[0] + x * cellDims[0];
+    for (int y = 0; y < m_gridRes.y; ++y)
     {
-      float yCoord = firstPos + y * cellSize;
-      for (int z = 0; z < m_gridRes; ++z)
+      float yCoord = firstPos[1] + y * cellDims[1];
+      for (int z = 0; z < m_gridRes.z; ++z)
       {
-        float zCoord = firstPos + z * cellSize;
+        float zCoord = firstPos[2] + z * cellDims[2];
         globalCellCenterCoords.at(centerIndex++) = { xCoord, yCoord, zCoord };
       }
     }
   }
 
   size_t cornerIndex = 0;
-  std::vector<Vertex> globalCellCoords(numCells * 8);
+  std::vector<Geometry::Vertex3D> globalCellCoords(numCells * 8);
   for (const auto& centerCoords : globalCellCenterCoords)
   {
     for (const auto& cornerCoords : localCellCoords)
@@ -262,9 +309,9 @@ void Engine::initGrid()
   std::vector<GLuint> globalCellIndices(numCells * 24);
   for (const auto& centerCoords : globalCellCenterCoords)
   {
-    for (const auto& localIndex : m_refCubeIndices)
+    for (const auto& localIndex : Geometry::RefCubeIndices)
     {
-      globalCellIndices.at(index++) = localIndex + globalOffset;
+      globalCellIndices.at(index++) = (GLuint)localIndex + globalOffset;
     }
     globalOffset += 8;
   }
@@ -308,5 +355,20 @@ void Engine::checkMouseEvents(UserAction action, Math::float2 delta)
     m_camera->zoom(0.5f * delta.x);
     break;
   }
+  }
+}
+
+void Engine::enableBlending(bool enable)
+{
+  m_isBlendingEnabled = enable;
+
+  if (m_isBlendingEnabled)
+  {
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+    glEnable(GL_BLEND);
+  }
+  else
+  {
+    glDisable(GL_BLEND);
   }
 }

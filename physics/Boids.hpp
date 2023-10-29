@@ -1,12 +1,12 @@
 #pragma once
 
 #include "Model.hpp"
-#include "utils/Target.hpp"
 #include "utils/RadixSort.hpp"
+#include "utils/Target.hpp"
 
 #include <array>
-#include <vector>
 #include <memory>
+#include <vector>
 
 namespace Physics
 {

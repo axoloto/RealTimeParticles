@@ -3,8 +3,9 @@
 #include <array>
 #include <vector>
 
-#include "../Model.hpp"
 #include "../../utils/Math.hpp"
+#include "../Model.hpp"
+#include "Geometry.hpp"
 #include "PerlinNoise.hpp"
 
 namespace Physics
@@ -16,7 +17,7 @@ class Target
   ~Target() = default;
 
   Math::float3 pos() const { return m_pos; }
-  void updatePos(Dimension dim, float velocity);
+  void updatePos(Geometry::Dimension dim, float velocity);
 
   void activate(bool isActive) { m_isActive = isActive; }
   bool isActivated() const { return m_isActive; }

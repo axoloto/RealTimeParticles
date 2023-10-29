@@ -37,24 +37,23 @@ using namespace Physics;
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
 // fluids.cl
-#define KERNEL_RANDOM_POS "randPosVertsFluid"
-#define KERNEL_PREDICT_POS "predictPosition"
-#define KERNEL_APPLY_BOUNDARY "applyBoundaryCondition"
-#define KERNEL_DENSITY "computeDensity"
-#define KERNEL_CONSTRAINT_FACTOR "computeConstraintFactor"
-#define KERNEL_CONSTRAINT_CORRECTION "computeConstraintCorrection"
-#define KERNEL_CORRECT_POS "correctPosition"
-#define KERNEL_UPDATE_VEL "updateVel"
-#define KERNEL_COMPUTE_VORTICITY "computeVorticity"
-#define KERNEL_VORTICITY_CONFINEMENT "applyVorticityConfinement"
-#define KERNEL_XSPH_VISCOSITY "applyXsphViscosityCorrection"
-#define KERNEL_UPDATE_POS "updatePosition"
-#define KERNEL_FILL_COLOR "fillFluidColor"
+#define KERNEL_PREDICT_POS "fld_predictPosition"
+#define KERNEL_APPLY_BOUNDARY "fld_applyBoundaryCondition"
+#define KERNEL_DENSITY "fld_computeDensity"
+#define KERNEL_CONSTRAINT_FACTOR "fld_computeConstraintFactor"
+#define KERNEL_CONSTRAINT_CORRECTION "fld_computeConstraintCorrection"
+#define KERNEL_CORRECT_POS "fld_correctPosition"
+#define KERNEL_UPDATE_VEL "fld_updateVel"
+#define KERNEL_COMPUTE_VORTICITY "fld_computeVorticity"
+#define KERNEL_VORTICITY_CONFINEMENT "fld_applyVorticityConfinement"
+#define KERNEL_XSPH_VISCOSITY "fld_applyXsphViscosityCorrection"
+#define KERNEL_UPDATE_POS "fld_updatePosition"
+#define KERNEL_FILL_COLOR "fld_fillFluidColor"
 
-namespace Physics {
+namespace Physics
+{
 struct FluidKernelInputs
 {
-  cl_float effectRadius = 0.3f;
   cl_float restDensity = 450.0f;
   cl_float relaxCFM = 600.0f;
   cl_float timeStep = 0.010f;
@@ -70,6 +69,11 @@ struct FluidKernelInputs
   cl_float xsphViscosityCoeff = 0.0001f;
 };
 
+const std::map<Fluids::CaseType, std::string, Fluids::CompareCaseType> Fluids::ALL_CASES {
+  { CaseType::DAM, "Dam-Break" },
+  { CaseType::BOMB, "Bomb" },
+  { CaseType::DROP, "Drop" },
+};
 }
 
 Fluids::Fluids(ModelParams params)
@@ -93,19 +97,26 @@ Fluids::Fluids(ModelParams params)
 }
 
 // Must be on implementation side as FluidKernelInputs must be complete
-Fluids::~Fluids(){};
+Fluids::~Fluids() {};
 
 bool Fluids::createProgram() const
 {
   CL::Context& clContext = CL::Context::Get();
 
-  float effectRadius = ((float)m_boxSize) / m_gridRes;
+  assert(m_boxSize.x / m_gridRes.x == m_boxSize.y / m_gridRes.y);
+  assert(m_boxSize.z / m_gridRes.z == m_boxSize.y / m_gridRes.y);
+
+  float effectRadius = ((float)m_boxSize.x) / m_gridRes.x;
 
   std::ostringstream clBuildOptions;
   clBuildOptions << "-DEFFECT_RADIUS=" << Utils::FloatToStr(effectRadius);
-  clBuildOptions << " -DABS_WALL_POS=" << Utils::FloatToStr(m_boxSize / 2.0f);
-  clBuildOptions << " -DGRID_RES=" << m_gridRes;
-  clBuildOptions << " -DGRID_CELL_SIZE=" << Utils::FloatToStr((float)m_boxSize / m_gridRes);
+  clBuildOptions << " -DABS_WALL_X=" << Utils::FloatToStr(m_boxSize.x / 2.0f);
+  clBuildOptions << " -DABS_WALL_Y=" << Utils::FloatToStr(m_boxSize.y / 2.0f);
+  clBuildOptions << " -DABS_WALL_Z=" << Utils::FloatToStr(m_boxSize.z / 2.0f);
+  clBuildOptions << " -DGRID_RES_X=" << m_gridRes.x;
+  clBuildOptions << " -DGRID_RES_Y=" << m_gridRes.y;
+  clBuildOptions << " -DGRID_RES_Z=" << m_gridRes.z;
+  clBuildOptions << " -DGRID_CELL_SIZE_XYZ=" << Utils::FloatToStr((float)m_boxSize.x / m_gridRes.x);
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
   clBuildOptions << " -DPOLY6_COEFF=" << Utils::FloatToStr(315.0f / (64.0f * Math::PI_F * std::pow(effectRadius, 9.f)));
@@ -113,7 +124,8 @@ bool Fluids::createProgram() const
   clBuildOptions << " -DMAX_VEL=" << Utils::FloatToStr(30.0f);
 
   LOG_INFO(clBuildOptions.str());
-  clContext.createProgram(PROGRAM_FLUIDS, std::vector<std::string>({ "fluids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
+  // file.cl order matters, define.cl must be first
+  clContext.createProgram(PROGRAM_FLUIDS, std::vector<std::string>({ "define.cl", "sph.cl", "fluids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
 
   return true;
 }
@@ -148,7 +160,6 @@ bool Fluids::createKernels() const
 
   // Init only
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_INFINITE_POS, { "p_pos" });
-  clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RANDOM_POS, { "", "p_pos", "p_vel" });
 
   // For rendering purpose only
   clContext.createKernel(PROGRAM_FLUIDS, KERNEL_RESET_PART_DETECTOR, { "c_partDetector" });
@@ -187,19 +198,15 @@ bool Fluids::createKernels() const
   return true;
 }
 
-void Fluids::updateFluidsParamsInKernel()
+void Fluids::updateFluidsParamsInKernels()
 {
-  if(!m_init)
+  if (!m_init)
     return;
 
   CL::Context& clContext = CL::Context::Get();
 
-  m_kernelInputs->dim = (m_dimension == Dimension::dim2D) ? 2 : 3;
+  m_kernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
 
-  const float effectRadius = ((float)m_boxSize) / m_gridRes;
-  m_kernelInputs->effectRadius = effectRadius;
-
-  clContext.setKernelArg(KERNEL_RANDOM_POS, 0, sizeof(FluidKernelInputs), m_kernelInputs.get());
   clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
   clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
@@ -218,7 +225,7 @@ void Fluids::reset()
 
   CL::Context& clContext = CL::Context::Get();
 
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 
   initFluidsParticles();
 
@@ -233,7 +240,7 @@ void Fluids::reset()
 
 void Fluids::initFluidsParticles()
 {
-  if(!m_init)
+  if (!m_init)
     return;
 
   CL::Context& clContext = CL::Context::Get();
@@ -245,7 +252,7 @@ void Fluids::initFluidsParticles()
   Math::float3 startFluidPos = { 0.0f, 0.0f, 0.0f };
   Math::float3 endFluidPos = { 0.0f, 0.0f, 0.0f };
 
-  if (m_dimension == Dimension::dim2D)
+  if (m_dimension == Geometry::Dimension::dim2D)
   {
     Geometry::Shape2D shape = Geometry::Shape2D::Rectangle;
 
@@ -255,20 +262,20 @@ void Fluids::initFluidsParticles()
       m_currNbParticles = Utils::NbParticles::P4K;
 
       shape = Geometry::Shape2D::Rectangle;
-      startFluidPos = { 0.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
+      startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { 0.0f, 0.0f, 0.0f };
       break;
     case CaseType::BOMB:
       m_currNbParticles = Utils::NbParticles::P4K;
       shape = Geometry::Shape2D::Rectangle;
-      startFluidPos = { 0.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
-      endFluidPos = { 0.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
+      startFluidPos = { 0.0f, m_boxSize.y / -6.0f, m_boxSize.z / -6.0f };
+      endFluidPos = { 0.0f, m_boxSize.y / 6.0f, m_boxSize.z / 6.0f };
       break;
     case CaseType::DROP:
       m_currNbParticles = Utils::NbParticles::P512;
       shape = Geometry::Shape2D::Rectangle;
-      startFluidPos = { 0.0f, 2.0f * m_boxSize / 10.0f, m_boxSize / -10.0f };
-      endFluidPos = { 0.0f, 4.0f * m_boxSize / 10.0f, m_boxSize / 10.0f };
+      startFluidPos = { 0.0f, 2.0f * m_boxSize.y / 10.0f, m_boxSize.z / -10.0f };
+      endFluidPos = { 0.0f, 4.0f * m_boxSize.y / 10.0f, m_boxSize.z / 10.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");
@@ -285,15 +292,15 @@ void Fluids::initFluidsParticles()
     {
       m_currNbParticles += Utils::NbParticles::P4K;
       Math::int2 grid2DRes = { 64, 128 };
-      startFluidPos = { 0.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
-      endFluidPos = { 0.0f, 0.0f, m_boxSize / 2.0f };
+      startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
+      endFluidPos = { 0.0f, 0.0f, m_boxSize.z / 2.0f };
 
       auto bottomGridVerts = Geometry::Generate2DGrid(Geometry::Shape2D::Rectangle, Geometry::Plane::YZ, grid2DRes, startFluidPos, endFluidPos);
 
       gridVerts.insert(gridVerts.end(), bottomGridVerts.begin(), bottomGridVerts.end());
     }
   }
-  else if (m_dimension == Dimension::dim3D)
+  else if (m_dimension == Geometry::Dimension::dim3D)
   {
     Geometry::Shape3D shape = Geometry::Shape3D::Box;
 
@@ -302,20 +309,20 @@ void Fluids::initFluidsParticles()
     case CaseType::DAM:
       m_currNbParticles = Utils::NbParticles::P130K;
       shape = Geometry::Shape3D::Box;
-      startFluidPos = { m_boxSize / -2.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
-      endFluidPos = { m_boxSize / 2.0f, 0.0f, 0.0f };
+      startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
+      endFluidPos = { m_boxSize.x / 2.0f, 0.0f, 0.0f };
       break;
     case CaseType::BOMB:
       m_currNbParticles = Utils::NbParticles::P65K;
       shape = Geometry::Shape3D::Sphere;
-      startFluidPos = { m_boxSize / -6.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
-      endFluidPos = { m_boxSize / 6.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
+      startFluidPos = { m_boxSize.x / -6.0f, m_boxSize.y / -6.0f, m_boxSize.z / -6.0f };
+      endFluidPos = { m_boxSize.x / 6.0f, m_boxSize.y / 6.0f, m_boxSize.z / 6.0f };
       break;
     case CaseType::DROP:
       m_currNbParticles = Utils::NbParticles::P4K;
       shape = Geometry::Shape3D::Box;
-      startFluidPos = { m_boxSize / -10.0f, 2.0f * m_boxSize / 10.0f, m_boxSize / -10.0f };
-      endFluidPos = { m_boxSize / 10.0f, 4.0f * m_boxSize / 10.0f, m_boxSize / 10.0f };
+      startFluidPos = { m_boxSize.x / -10.0f, 2.0f * m_boxSize.y / 10.0f, m_boxSize.z / -10.0f };
+      endFluidPos = { m_boxSize.x / 10.0f, 4.0f * m_boxSize.y / 10.0f, m_boxSize.z / 10.0f };
       break;
     default:
       LOG_ERROR("Unkown case type");
@@ -332,8 +339,8 @@ void Fluids::initFluidsParticles()
     {
       m_currNbParticles += Utils::NbParticles::P65K;
       Math::int3 grid3DRes = { 64, 16, 64 };
-      startFluidPos = { m_boxSize / -2.0f, m_boxSize / -2.0f, m_boxSize / -2.0f };
-      endFluidPos = { m_boxSize / 2.0f, m_boxSize / -2.55f, m_boxSize / 2.0f };
+      startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
+      endFluidPos = { m_boxSize.x / 2.0f, m_boxSize.y / -2.55f, m_boxSize.z / 2.0f };
 
       auto bottomGridVerts = Geometry::Generate3DGrid(Geometry::Shape3D::Box, grid3DRes, startFluidPos, endFluidPos);
 
@@ -434,102 +441,100 @@ void Fluids::update()
 // Storing definitions here to prevent cl_types in headers
 void Fluids::setRestDensity(float restDensity)
 {
-  if(!m_init) return;
+  if (!m_init)
+    return;
   m_kernelInputs->restDensity = (cl_float)restDensity;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
 void Fluids::setRelaxCFM(float relaxCFM)
 {
-  if(!m_init) return;
+  if (!m_init)
+    return;
   m_kernelInputs->relaxCFM = (cl_float)relaxCFM;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
 void Fluids::setTimeStep(float timeStep)
 {
-  if(!m_init) return;
+  if (!m_init)
+    return;
   m_kernelInputs->timeStep = (cl_float)timeStep;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
 void Fluids::setNbJacobiIters(size_t nbIters)
 {
-  if(!m_init) return;
+  if (!m_init)
+    return;
   m_nbJacobiIters = nbIters;
 }
 
 //
 void Fluids::enableArtPressure(bool enable)
 {
-  if(!m_init) return;
+  if (!m_init)
+    return;
   m_kernelInputs->isArtPressureEnabled = (cl_uint)enable;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
 void Fluids::setArtPressureRadius(float radius)
 {
-  if(!m_init) return;
+  if (!m_init)
+    return;
   m_kernelInputs->artPressureRadius = (cl_float)radius;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
 void Fluids::setArtPressureExp(size_t exp)
 {
-  if(!m_init) return;
+  if (!m_init)
+    return;
   m_kernelInputs->artPressureExp = (cl_uint)exp;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
 void Fluids::setArtPressureCoeff(float coeff)
 {
-  if(!m_init) return;
+  if (!m_init)
+    return;
   m_kernelInputs->artPressureCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
 void Fluids::enableVorticityConfinement(bool enable)
 {
-  if(!m_init) return;
+  if (!m_init)
+    return;
   m_kernelInputs->isVorticityConfEnabled = (cl_uint)enable;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
 void Fluids::setVorticityConfinementCoeff(float coeff)
 {
-  if(!m_init) return;
+  if (!m_init)
+    return;
   m_kernelInputs->vorticityConfCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
 
 //
 void Fluids::setXsphViscosityCoeff(float coeff)
 {
-  if(!m_init) return;
+  if (!m_init)
+    return;
   m_kernelInputs->xsphViscosityCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernel();
+  updateFluidsParamsInKernels();
 }
-
-// Not giving access to it for now.
-// Strongly connected to grid resolution which is not available as parameter,
-// in order to maintain cohesion between boids and fluids models
-/*
-void Fluids::setEffectRadius(float effectRadius)
-{
-  if(!m_init) return;
-  m_kernelInputs.effectRadius = (cl_float)effectRadius;
-  updateFluidsParamsInKernel();
-}
-*/
-float Fluids::getEffectRadius() const { return m_init ? (float)m_kernelInputs->effectRadius : 0.0f; }
 
 //
 float Fluids::getRestDensity() const { return m_init ? (float)m_kernelInputs->restDensity : 0.0f; }

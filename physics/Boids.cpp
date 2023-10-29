@@ -31,15 +31,14 @@ using namespace Physics;
 #define KERNEL_ADJUST_END_CELL "adjustEndCell"
 
 // boids.cl
-#define KERNEL_RANDOM_POS "randPosVertsBoids"
-#define KERNEL_FILL_COLOR "fillBoidsColor"
-#define KERNEL_UPDATE_POS_BOUNCING "updatePosWithBouncingWalls"
-#define KERNEL_UPDATE_POS_CYCLIC "updatePosWithCyclicWalls"
-#define KERNEL_UPDATE_VEL "updateVel"
+#define KERNEL_FILL_COLOR "bd_fillBoidsColor"
+#define KERNEL_UPDATE_POS_BOUNCING "bd_updatePosAndApplyWallBC"
+#define KERNEL_UPDATE_POS_CYCLIC "bd_updatePosAndApplyPeriodicBC"
+#define KERNEL_UPDATE_VEL "bd_updateVel"
 #define KERNEL_FILL_TEXT "fillBoidsTexture"
-#define KERNEL_BOIDS_RULES_GRID_2D "applyBoidsRulesWithGrid2D"
-#define KERNEL_BOIDS_RULES_GRID_3D "applyBoidsRulesWithGrid3D"
-#define KERNEL_ADD_TARGET_RULE "addTargetRule"
+#define KERNEL_BOIDS_RULES_GRID_2D "bd_applyBoidsRulesWithGrid2D"
+#define KERNEL_BOIDS_RULES_GRID_3D "bd_applyBoidsRulesWithGrid3D"
+#define KERNEL_ADD_TARGET_RULE "bd_addTargetRule"
 
 Boids::Boids(ModelParams params)
     : Model(params)
@@ -52,7 +51,7 @@ Boids::Boids(ModelParams params)
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(3000)
     , m_radixSort(params.maxNbParticles)
-    , m_target(params.boxSize)
+    , m_target(params.boxSize.x)
 {
   m_currNbParticles = Utils::NbParticles::P512;
 
@@ -68,22 +67,30 @@ Boids::Boids(ModelParams params)
 }
 
 // Must be defined on implementation side to have RadixSort complete
-Boids::~Boids(){};
+Boids::~Boids() {};
 
 bool Boids::createProgram() const
 {
   CL::Context& clContext = CL::Context::Get();
 
+  assert(m_boxSize.x / m_gridRes.x == m_boxSize.y / m_gridRes.y);
+  assert(m_boxSize.z / m_gridRes.z == m_boxSize.y / m_gridRes.y);
+
   std::ostringstream clBuildOptions;
-  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << Utils::FloatToStr(1.0f * m_boxSize * m_boxSize / (m_gridRes * m_gridRes));
-  clBuildOptions << " -DABS_WALL_POS=" << Utils::FloatToStr(m_boxSize / 2.0f);
-  clBuildOptions << " -DGRID_RES=" << m_gridRes;
-  clBuildOptions << " -DGRID_CELL_SIZE=" << Utils::FloatToStr(1.0f * m_boxSize / m_gridRes);
+  clBuildOptions << "-DEFFECT_RADIUS_SQUARED=" << Utils::FloatToStr(1.0f * m_boxSize.x * m_boxSize.x / (m_gridRes.x * m_gridRes.x));
+  clBuildOptions << " -DABS_WALL_X=" << Utils::FloatToStr(m_boxSize.x / 2.0f);
+  clBuildOptions << " -DABS_WALL_Y=" << Utils::FloatToStr(m_boxSize.y / 2.0f);
+  clBuildOptions << " -DABS_WALL_Z=" << Utils::FloatToStr(m_boxSize.z / 2.0f);
+  clBuildOptions << " -DGRID_RES_X=" << m_gridRes.x;
+  clBuildOptions << " -DGRID_RES_Y=" << m_gridRes.y;
+  clBuildOptions << " -DGRID_RES_Z=" << m_gridRes.z;
+  clBuildOptions << " -DGRID_CELL_SIZE_XYZ=" << Utils::FloatToStr((float)m_boxSize.x / m_gridRes.x);
   clBuildOptions << " -DGRID_NUM_CELLS=" << m_nbCells;
   clBuildOptions << " -DNUM_MAX_PARTS_IN_CELL=" << m_maxNbPartsInCell;
 
   LOG_INFO(clBuildOptions.str());
-  clContext.createProgram(PROGRAM_BOIDS, std::vector<std::string>({ "boids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
+  // file.cl order matters, define.cl must be first
+  clContext.createProgram(PROGRAM_BOIDS, std::vector<std::string>({ "define.cl", "boids.cl", "utils.cl", "grid.cl" }), clBuildOptions.str());
 
   return true;
 }
@@ -113,7 +120,6 @@ bool Boids::createKernels() const
 
   // Init only
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_INFINITE_POS, { "p_pos" });
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_RANDOM_POS, { "p_pos", "p_vel" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_FILL_COLOR, { "p_col" });
 
   // For rendering purpose only
@@ -147,9 +153,6 @@ bool Boids::createKernels() const
 void Boids::updateBoidsParamsInKernel()
 {
   CL::Context& clContext = CL::Context::Get();
-
-  float dim = (m_dimension == Dimension::dim2D) ? 2.0f : 3.0f;
-  clContext.setKernelArg(KERNEL_RANDOM_POS, 2, sizeof(float), &dim);
 
   float vel = m_velocity;
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &vel);
@@ -209,21 +212,21 @@ void Boids::initBoidsParticles()
 
   std::vector<Math::float3> gridVerts;
 
-  if (m_dimension == Dimension::dim2D)
+  if (m_dimension == Geometry::Dimension::dim2D)
   {
     const auto& subdiv2D = Utils::GetNbParticlesSubdiv2D((Utils::NbParticles)m_currNbParticles);
     Math::int2 grid2DRes = { subdiv2D[0], subdiv2D[1] };
-    Math::float3 start2D = { 0.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
-    Math::float3 end2D = { 0.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
+    Math::float3 start2D = { 0.0f, m_boxSize.y / -6.0f, m_boxSize.z / -6.0f };
+    Math::float3 end2D = { 0.0f, m_boxSize.y / 6.0f, m_boxSize.z / 6.0f };
 
     gridVerts = Geometry::Generate2DGrid(Geometry::Shape2D::Circle, Geometry::Plane::YZ, grid2DRes, start2D, end2D);
   }
-  else if (m_dimension == Dimension::dim3D)
+  else if (m_dimension == Geometry::Dimension::dim3D)
   {
     const auto& subdiv3D = Utils::GetNbParticlesSubdiv3D((Utils::NbParticles)m_currNbParticles);
     Math::int3 grid3DRes = { subdiv3D[0], subdiv3D[1], subdiv3D[2] };
-    Math::float3 start3D = { m_boxSize / -6.0f, m_boxSize / -6.0f, m_boxSize / -6.0f };
-    Math::float3 end3D = { m_boxSize / 6.0f, m_boxSize / 6.0f, m_boxSize / 6.0f };
+    Math::float3 start3D = { m_boxSize.x / -6.0f, m_boxSize.y / -6.0f, m_boxSize.z / -6.0f };
+    Math::float3 end3D = { m_boxSize.x / 6.0f, m_boxSize.y / 6.0f, m_boxSize.z / 6.0f };
 
     gridVerts = Geometry::Generate3DGrid(Geometry::Shape3D::Sphere, grid3DRes, start3D, end3D);
   }
@@ -264,7 +267,7 @@ void Boids::update()
     if (m_simplifiedMode)
       clContext.runKernel(KERNEL_ADJUST_END_CELL, m_nbCells);
 
-    if (m_dimension == Dimension::dim2D)
+    if (m_dimension == Geometry::Dimension::dim2D)
       clContext.runKernel(KERNEL_BOIDS_RULES_GRID_2D, m_currNbParticles);
     else
       clContext.runKernel(KERNEL_BOIDS_RULES_GRID_3D, m_currNbParticles);

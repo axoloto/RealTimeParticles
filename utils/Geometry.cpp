@@ -6,13 +6,18 @@
 namespace Geometry
 {
 std::vector<Math::float3> Generate2DGrid(Shape2D shape, Plane plane,
-    Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos)
+    Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos, Distribution distribution)
 {
+  if (distribution != Distribution::Uniform && shape != Shape2D::Rectangle)
+  {
+    LOG_ERROR("Random distribution not implemented yet for this shape");
+    return std::vector<Math::float3>();
+  }
+
   if (gridRes.x * gridRes.y <= 0)
   {
     LOG_ERROR("Cannot generate grid with negative or null number of vertices");
-    std::vector<Math::float3> nullVec;
-    return nullVec;
+    return std::vector<Math::float3>();
   }
 
   std::vector<Math::float3> verts(gridRes.x * gridRes.y, Math::float3(0.0f, 0.0f, 0.0f));
@@ -23,7 +28,7 @@ std::vector<Math::float3> Generate2DGrid(Shape2D shape, Plane plane,
     GenerateCircularGrid(plane, verts, gridRes, gridStartPos, gridEndPos);
     break;
   case Shape2D::Rectangle:
-    GenerateRectangularGrid(plane, verts, gridRes, gridStartPos, gridEndPos);
+    GenerateRectangularGrid(plane, verts, gridRes, gridStartPos, gridEndPos, distribution);
     break;
   default:
     break;
@@ -33,13 +38,18 @@ std::vector<Math::float3> Generate2DGrid(Shape2D shape, Plane plane,
 }
 
 std::vector<Math::float3> Generate3DGrid(Shape3D shape,
-    Math::int3 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos)
+    Math::int3 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos, Distribution distribution)
 {
+  if (distribution != Distribution::Uniform && shape != Shape3D::Box)
+  {
+    LOG_ERROR("Random distribution not implemented yet for this shape");
+    return std::vector<Math::float3>();
+  }
+
   if (gridRes.x * gridRes.y * gridRes.z <= 0)
   {
     LOG_ERROR("Cannot generate grid with negative or null number of vertices");
-    std::vector<Math::float3> nullVec;
-    return nullVec;
+    return std::vector<Math::float3>();
   }
 
   std::vector<Math::float3> verts(gridRes.x * gridRes.y * gridRes.z, Math::float3(0.0f, 0.0f, 0.0f));
@@ -50,7 +60,7 @@ std::vector<Math::float3> Generate3DGrid(Shape3D shape,
     GenerateSphereGrid(verts, gridRes, gridStartPos, gridEndPos);
     break;
   case Shape3D::Box:
-    GenerateBoxGrid(verts, gridRes, gridStartPos, gridEndPos);
+    GenerateBoxGrid(verts, gridRes, gridStartPos, gridEndPos, distribution);
   default:
     break;
   }
@@ -58,9 +68,11 @@ std::vector<Math::float3> Generate3DGrid(Shape3D shape,
   return verts;
 }
 
-void GenerateRectangularGrid(Plane plane, std::vector<Math::float3>& verts, Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos)
+void GenerateRectangularGrid(Plane plane, std::vector<Math::float3>& verts, Math::int2 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos, Distribution distribution)
 {
-  if (verts.size() < gridRes.x * gridRes.y)
+  int nbVertices = gridRes.x * gridRes.y;
+
+  if (verts.size() < nbVertices)
   {
     LOG_ERROR("Cannot generate grid with this resolution");
     return;
@@ -91,18 +103,32 @@ void GenerateRectangularGrid(Plane plane, std::vector<Math::float3>& verts, Math
   }
 
   int vertIndex = 0;
-  for (int ix = 0; ix < gridResExt.x; ++ix)
+  if (distribution == Distribution::Uniform)
   {
-    for (int iy = 0; iy < gridResExt.y; ++iy)
+    for (int ix = 0; ix < gridResExt.x; ++ix)
     {
-      for (int iz = 0; iz < gridResExt.z; ++iz)
+      for (int iy = 0; iy < gridResExt.y; ++iy)
       {
-        verts[vertIndex++] = {
-          gridStartPos.x + ix * gridSpacing.x,
-          gridStartPos.y + iy * gridSpacing.y,
-          gridStartPos.z + iz * gridSpacing.z
-        };
+        for (int iz = 0; iz < gridResExt.z; ++iz)
+        {
+          verts[vertIndex++] = {
+            gridStartPos.x + ix * gridSpacing.x,
+            gridStartPos.y + iy * gridSpacing.y,
+            gridStartPos.z + iz * gridSpacing.z
+          };
+        }
       }
+    }
+  }
+  else if (distribution == Distribution::Random)
+  {
+    for (int i = 0; i < nbVertices; ++i)
+    {
+      verts[vertIndex++] = {
+        (float)rand() / (float)RAND_MAX * vec.x + gridStartPos.x,
+        (float)rand() / (float)RAND_MAX * vec.y + gridStartPos.y,
+        (float)rand() / (float)RAND_MAX * vec.z + gridStartPos.z
+      };
     }
   }
 }
@@ -169,9 +195,11 @@ void GenerateCircularGrid(Plane plane, std::vector<Math::float3>& verts, Math::i
   }
 }
 
-void GenerateBoxGrid(std::vector<Math::float3>& verts, Math::int3 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos)
+void GenerateBoxGrid(std::vector<Math::float3>& verts, Math::int3 gridRes, Math::float3 gridStartPos, Math::float3 gridEndPos, Distribution distribution)
 {
-  if (verts.size() < gridRes.x * gridRes.y * gridRes.z)
+  int nbVertices = gridRes.x * gridRes.y * gridRes.z;
+
+  if (verts.size() < nbVertices)
   {
     LOG_ERROR("Cannot generate grid with this resolution");
     return;
@@ -181,18 +209,32 @@ void GenerateBoxGrid(std::vector<Math::float3>& verts, Math::int3 gridRes, Math:
   Math::float3 gridSpacing = Math::float3({ vec.x / gridRes.x, vec.y / gridRes.y, vec.z / gridRes.z });
 
   int vertIndex = 0;
-  for (int ix = 0; ix < gridRes.x; ++ix)
+  if (distribution == Distribution::Uniform)
   {
-    for (int iy = 0; iy < gridRes.y; ++iy)
+    for (int ix = 0; ix < gridRes.x; ++ix)
     {
-      for (int iz = 0; iz < gridRes.z; ++iz)
+      for (int iy = 0; iy < gridRes.y; ++iy)
       {
-        verts[vertIndex++] = {
-          gridStartPos.x + ix * gridSpacing.x,
-          gridStartPos.y + iy * gridSpacing.y,
-          gridStartPos.z + iz * gridSpacing.z
-        };
+        for (int iz = 0; iz < gridRes.z; ++iz)
+        {
+          verts[vertIndex++] = {
+            gridStartPos.x + ix * gridSpacing.x,
+            gridStartPos.y + iy * gridSpacing.y,
+            gridStartPos.z + iz * gridSpacing.z
+          };
+        }
       }
+    }
+  }
+  else if (distribution == Distribution::Random)
+  {
+    for (int i = 0; i < nbVertices; ++i)
+    {
+      verts[vertIndex++] = {
+        (float)rand() / (float)RAND_MAX * vec.x + gridStartPos.x,
+        (float)rand() / (float)RAND_MAX * vec.y + gridStartPos.y,
+        (float)rand() / (float)RAND_MAX * vec.z + gridStartPos.z
+      };
     }
   }
 }

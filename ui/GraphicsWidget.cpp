@@ -29,6 +29,12 @@ void UI::GraphicsWidget::display()
     m_graphicsEngine->autoRotateCamera(isAutoRotating);
   }
 
+  bool isBlendingEnabled = m_graphicsEngine->isBlendingEnabled();
+  if (ImGui::Checkbox(" Blending ", &isBlendingEnabled))
+  {
+    m_graphicsEngine->enableBlending(isBlendingEnabled);
+  }
+
   if (ImGui::Button(" Reset Camera "))
   {
     m_graphicsEngine->resetCamera();

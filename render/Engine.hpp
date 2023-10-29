@@ -1,7 +1,9 @@
 #pragma once
 
 #include "Camera.hpp"
+#include "Geometry.hpp"
 #include "Shader.hpp"
+
 #include <array>
 #include <glad/glad.h>
 #include <memory>
@@ -20,10 +22,11 @@ struct EngineParams
 {
   size_t currNbParticles = 0;
   size_t maxNbParticles = 0;
-  size_t boxSize = 0;
-  size_t gridRes = 0;
-  size_t pointSize = 4;
+  Geometry::BoxSize3D boxSize = { 0, 0, 0 };
+  Geometry::BoxSize3D gridRes = { 0, 0, 0 };
+  size_t pointSize = 10;
   float aspectRatio = 0.0f;
+  Geometry::Dimension dimension = Geometry::Dimension::dim3D;
 };
 
 class Engine
@@ -69,7 +72,13 @@ class Engine
   inline bool isTargetVisible() const { return m_isTargetVisible; }
   inline void setTargetVisibility(bool isVisible) { m_isTargetVisible = isVisible; }
 
+  inline bool isBlendingEnabled() const { return m_isBlendingEnabled; }
+  void enableBlending(bool enable);
+
   inline void setTargetPos(const Math::float3& pos) { m_targetPos = pos; }
+
+  void setDimension(Geometry::Dimension dim) { m_dimension = dim; }
+  Geometry::Dimension dimension() const { return m_dimension; }
 
   inline GLuint pointCloudCoordVBO() const { return m_pointCloudCoordVBO; }
   inline GLuint pointCloudColorVBO() const { return m_pointCloudColorVBO; }
@@ -97,25 +106,28 @@ class Engine
 
   const GLuint m_pointCloudPosAttribIndex { 0 };
   const GLuint m_pointCloudColAttribIndex { 1 };
-  const GLuint m_boxPosAttribIndex { 2 };
-  const GLuint m_gridPosAttribIndex { 3 };
-  const GLuint m_gridDetectorAttribIndex { 4 };
-  const GLuint m_targetPosAttribIndex { 5 };
+  const GLuint m_box2DPosAttribIndex { 2 };
+  const GLuint m_box3DPosAttribIndex { 3 };
+  const GLuint m_gridPosAttribIndex { 4 };
+  const GLuint m_gridDetectorAttribIndex { 5 };
+  const GLuint m_targetPosAttribIndex { 6 };
 
   GLuint m_VAO;
   GLuint m_pointCloudCoordVBO, m_pointCloudColorVBO;
-  GLuint m_boxVBO, m_boxEBO;
+  GLuint m_box2DVBO, m_box2DEBO;
+  GLuint m_box3DVBO, m_box3DEBO;
   GLuint m_gridPosVBO, m_gridDetectorVBO, m_gridEBO;
   GLuint m_targetVBO;
   GLuint m_cameraVBO;
 
   std::unique_ptr<Shader> m_pointCloudShader;
-  std::unique_ptr<Shader> m_boxShader;
+  std::unique_ptr<Shader> m_box2DShader;
+  std::unique_ptr<Shader> m_box3DShader;
   std::unique_ptr<Shader> m_gridShader;
   std::unique_ptr<Shader> m_targetShader;
 
-  size_t m_boxSize;
-  size_t m_gridRes;
+  Geometry::BoxSize3D m_boxSize;
+  Geometry::BoxSize3D m_gridRes;
   size_t m_nbParticles;
   size_t m_maxNbParticles;
   size_t m_pointSize;
@@ -123,39 +135,15 @@ class Engine
   bool m_isBoxVisible;
   bool m_isGridVisible;
   bool m_isTargetVisible;
+  bool m_isBlendingEnabled;
 
   Math::float3 m_targetPos;
 
   std::unique_ptr<Camera> m_camera;
 
+  Geometry::Dimension m_dimension;
+
   void* m_pointCloudCoordsBufferStart;
   void* m_pointCloudColorsBufferStart;
-
-  typedef std::array<float, 3> Vertex;
-  const std::array<Vertex, 8> m_refCubeVertices {
-    Vertex({ 1.f, -1.f, -1.f }),
-    Vertex({ 1.f, 1.f, -1.f }),
-    Vertex({ -1.f, 1.f, -1.f }),
-    Vertex({ -1.f, -1.f, -1.f }),
-    Vertex({ 1.f, -1.f, 1.f }),
-    Vertex({ 1.f, 1.f, 1.f }),
-    Vertex({ -1.f, 1.f, 1.f }),
-    Vertex({ -1.f, -1.f, 1.f })
-  };
-
-  const std::array<GLuint, 24> m_refCubeIndices {
-    0, 1,
-    1, 2,
-    2, 3,
-    3, 0,
-    4, 5,
-    5, 6,
-    6, 7,
-    7, 4,
-    0, 4,
-    1, 5,
-    2, 6,
-    3, 7
-  };
 };
 }

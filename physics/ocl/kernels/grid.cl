@@ -1,21 +1,24 @@
 // Preprocessor defines following constant variables in Boids.cpp
-// ABS_WALL_POS            - absolute position of the walls in x,y,z
-// GRID_RES                - resolution of the grid
-// GRID_CELL_SIZE          - size of a cell, size / res of grid
+// ABS_WALL_X            - absolute position of the walls in x,y,z
+// GRID_RES_X                - resolution of the grid
+// GRID_CELL_SIZE_XYZ          - size of a cell, size / res of grid
 // GRID_NUM_CELLS          - total number of cells in the grid
 // NUM_MAX_PARTS_IN_CELL   - maximum number of particles taking into account in a single cell in simplified mode
-#define FLOAT_EPSILON 0.01f
-#define ID            get_global_id(0)
+
+// Most defines are in define.cl
+// define.cl must be included as first file.cl to create OpenCL program
 
 /*
   Compute 3D index of the cell containing given position
 */
 inline uint3 getCell3DIndexFromPos(float4 pos)
 {
-  // Moving particles in [0 - 2 * ABS_WALL_POS] to have coords matching with cellIndices
-  const float3 posXYZ = clamp(pos.xyz, -ABS_WALL_POS, ABS_WALL_POS) + (float3)(ABS_WALL_POS);
+  // Moving particles in [0 - 2 * ABS_WALL_X] to have coords matching with cellIndices
+  const float3 posXYZ = clamp(pos.xyz, (float3)(-ABS_WALL_X, -ABS_WALL_Y, -ABS_WALL_Z)
+                                     , (float3)( ABS_WALL_X,  ABS_WALL_Y,  ABS_WALL_Z))
+                      + (float3)(ABS_WALL_X, ABS_WALL_Y, ABS_WALL_Z);
 
-  const uint3 cell3DIndex = convert_uint3(floor(posXYZ / GRID_CELL_SIZE));
+  const uint3 cell3DIndex = convert_uint3(floor(posXYZ / GRID_CELL_SIZE_XYZ));
 
   return cell3DIndex;
 }
@@ -27,8 +30,8 @@ inline uint getCell1DIndexFromPos(float4 pos)
 {
   const uint3 cell3DIndex = getCell3DIndexFromPos(pos);
 
-  const uint cell1DIndex = cell3DIndex.x * GRID_RES * GRID_RES
-                         + cell3DIndex.y * GRID_RES
+  const uint cell1DIndex = cell3DIndex.x * GRID_RES_Z * GRID_RES_Y
+                         + cell3DIndex.y * GRID_RES_Z
                          + cell3DIndex.z;
 
   return cell1DIndex;

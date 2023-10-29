@@ -7,24 +7,22 @@
 #include <memory>
 #include <vector>
 
-// Position based fluids model based on NVIDIA paper
-// Macklin and Muller 2013. "Position Based Fluids"
-
 namespace Physics
 {
 // Forward decl
 struct FluidKernelInputs;
+struct CloudKernelInputs;
 
-class Fluids : public Model
+class Clouds : public Model
 {
   public:
   // List of implemented cases
   enum CaseType
   {
-    DAM = 0,
-    BOMB = 1,
-    DROP = 2
+    CUMULUS = 0,
+    HOMOGENEOUS = 1
   };
+
   struct CompareCaseType
   {
     bool operator()(const CaseType& caseA, const CaseType& caseB) const
@@ -32,12 +30,11 @@ class Fluids : public Model
       return (int)caseA < (int)caseB;
     }
   };
-
   // Static member vars must be initialized outside of the class in the global scope
   static const std::map<CaseType, std::string, CompareCaseType> ALL_CASES;
 
-  Fluids(ModelParams params);
-  ~Fluids();
+  Clouds(ModelParams params);
+  ~Clouds();
 
   void update() override;
   void reset() override;
@@ -78,14 +75,40 @@ class Fluids : public Model
   //
   void setXsphViscosityCoeff(float coeff);
   float getXsphViscosityCoeff() const;
+  //
+  void setGroundHeatCoeff(float coeff);
+  float getGroundHeatCoeff() const;
+  //
+  void setBuoyancyCoeff(float coeff);
+  float getBuoyancyCoeff() const;
+  //
+  void setAdiabaticLapseRate(float rate);
+  float getAdiabaticLapseRate() const;
+  //
+  void setPhaseTransitionRate(float rate);
+  float getPhaseTransitionRate() const;
+  //
+  void setLatentHeatCoeff(float coeff);
+  float getLatentHeatCoeff() const;
+  //
+  void setGravCoeff(float coeff);
+  float getGravCoeff() const;
+  //
+  void setWindCoeff(float coeff);
+  float getWindCoeff() const;
+  //
+  void enableTempSmoothing(bool enable);
+  bool isTempSmoothingEnabled() const;
 
   private:
   bool createProgram() const;
-  bool createBuffers() const;
+  bool createBuffers();
   bool createKernels() const;
 
-  void initFluidsParticles();
+  void initCloudsParticles();
+
   void updateFluidsParamsInKernels();
+  void updateCloudsParamsInKernels();
 
   bool m_simplifiedMode;
 
@@ -95,7 +118,8 @@ class Fluids : public Model
 
   RadixSort m_radixSort;
 
-  std::unique_ptr<FluidKernelInputs> m_kernelInputs;
+  std::unique_ptr<FluidKernelInputs> m_fluidKernelInputs;
+  std::unique_ptr<CloudKernelInputs> m_cloudKernelInputs;
 
   CaseType m_initialCase;
 };

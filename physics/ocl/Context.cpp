@@ -17,10 +17,10 @@
 #include "Utils.hpp"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include <filesystem>
 
 Physics::CL::Context& Physics::CL::Context::Get()
 {
@@ -94,12 +94,11 @@ bool Physics::CL::Context::findGPUDevices()
       std::string extensions;
       GPU.getInfo(CL_DEVICE_EXTENSIONS, &extensions);
 
-      if (extensions.find("cl_khr_gl_sharing") != std::string::npos ||
-          extensions.find("cl_APPLE_gl_sharing") != std::string::npos)
+      if (extensions.find("cl_khr_gl_sharing") != std::string::npos || extensions.find("cl_APPLE_gl_sharing") != std::string::npos)
       {
         LOG_INFO("Found GPU {} on platform {} with GL-CL extension", deviceName, platformName);
         // Prioritizing AMD/NVIDIA GPUs, more reliable to init context with them on Macos
-        if(deviceName.find("AMD") != std::string::npos || deviceName.find("NVIDIA") != std::string::npos)
+        if (deviceName.find("AMD") != std::string::npos || deviceName.find("NVIDIA") != std::string::npos)
           GPUsOnPlatformWithInteropCLGL.insert(GPUsOnPlatformWithInteropCLGL.begin(), GPU);
         else // INTEL IGPU most probably
           GPUsOnPlatformWithInteropCLGL.push_back(GPU);
@@ -264,13 +263,20 @@ bool Physics::CL::Context::createProgram(std::string programName, std::vector<st
   auto program = cl::Program(cl_context, sources);
 
   std::string options = specificBuildOptions + std::string(" -cl-denorms-are-zero -cl-fast-relaxed-math");
-  cl_int err = program.build({ cl_device }, options.c_str());
-  if (err != CL_SUCCESS) 
+
+  try
   {
-    CL_ERROR(err, "Cannot build program");
-    LOG_ERROR(program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(cl_device));
+    program.build({ cl_device }, options.c_str());
+  }
+  catch (...)
+  {
+    cl_int buildErr = CL_SUCCESS;
+    auto buildInfo = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(&buildErr);
+    for (auto& pair : buildInfo)
+    {
+      std::cerr << pair.second << std::endl;
+    }
     throw std::runtime_error(" Exiting Program ");
-    return false;
   }
 
   m_programsMap.insert(std::make_pair(programName, program));

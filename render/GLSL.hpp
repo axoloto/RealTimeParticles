@@ -37,23 +37,39 @@ constexpr char PointCloudFragShader[] = R"(#version 330 core
     void main()
     {
       // Additive alpha blending
-      vec3 xyz = u_cameraPos.xyz - vertexPos.xyz;
-
+      //vec3 xyz = u_cameraPos.xyz - vertexPos.xyz;
       // WIP not working well
       // Alpha tending to 1 close from the camera
       // to see non translucent close neighbor particles
       // And down to 0.75 away from the camera to allow additive blending
-      float r2 = dot(xyz, xyz);
-      fragColor.a = 1.0;
+      //float r2 = dot(xyz, xyz);
+      //fragColor.a = 1.0;
       //fragColor.a = 2.5* exp(-r2 / 100000)+0.75;
       //fragColor.rgb = vertexCol.rgb * fragColor.a;
 
-      fragColor = vec4(vertexCol.rgb, 1.0);
+      // We discard particles whose physical quantity is out of range
+      if(vertexCol.a <= 0.0f || vertexCol.a >= 1.0f) discard;
+
+      fragColor = vec4(vertexCol.rgba);
     }
     )";
 
-constexpr char BoxVertShader[] = R"(#version 330 core
-    layout(location = 2) in vec3 aPos;
+constexpr char Box2DVertShader[] = R"(#version 330 core
+    layout(location = 2) in vec2 aPos;
+
+    uniform mat4 u_projView;
+    out vec4 vertexColor;
+
+    void main()
+    {
+        vertexColor = vec4(1.0, 1.0, 1.0, 1.0);
+        gl_Position = u_projView * vec4(0.0, aPos, 1.0);
+        gl_PointSize = 4.0;
+    }
+    )";
+
+constexpr char Box3DVertShader[] = R"(#version 330 core
+    layout(location = 3) in vec3 aPos;
 
     uniform mat4 u_projView;
     out vec4 vertexColor;
@@ -67,8 +83,8 @@ constexpr char BoxVertShader[] = R"(#version 330 core
     )";
 
 constexpr char GridVertShader[] = R"(#version 330 core
-    layout(location = 3) in vec3 aPos;
-    layout(location = 4) in float vertexDetector;
+    layout(location = 4) in vec3 aPos;
+    layout(location = 5) in float vertexDetector;
 
     uniform mat4 u_projView;
     out vec4 vertexColor;
@@ -87,7 +103,7 @@ constexpr char GridVertShader[] = R"(#version 330 core
     )";
 
 constexpr char TargetVertShader[] = R"(#version 330 core
-    layout(location = 5) in vec3 aPos;
+    layout(location = 6) in vec3 aPos;
 
     uniform mat4 u_projView;
     out vec4 vertexColor;
