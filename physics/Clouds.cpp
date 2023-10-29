@@ -113,7 +113,7 @@ struct CloudKernelInputs
   //
   cl_float relaxCFM = 600.0f;
   //
-  cl_float initVaporDensityCoeff = 0.5f;
+  cl_float initVaporDensityCoeff = 0.75f;
   //
   cl_float windCoeff = 1.0f;
 };
@@ -222,7 +222,7 @@ bool Clouds::createBuffers()
   clContext.createBuffer("c_startEndPartID", 2 * m_nbCells * sizeof(unsigned int), CL_MEM_READ_WRITE);
 
   // Physical parameters displayable in UI, only m_maxNbParts * sizeof(float) size supported for now
-  PhysicalQuantity partID { "Particle ID", "p_partID", { 0.0f, (float)(m_maxNbParticles - 1) }, { 0.0f, (float)(2000 - 1) } };
+  PhysicalQuantity partID { "Particle ID", "p_partID", { 0.0f, (float)(m_maxNbParticles - 1) }, { 0.0f, (float)(32000 - 1) } };
   m_allDisplayableQuantities.insert(std::make_pair(partID.name, partID));
   PhysicalQuantity vaporDens { "Vapor Density", "p_vaporDens", { 0.0f, 100.0f }, { 0.001f, 100.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(vaporDens.name, vaporDens));
@@ -233,7 +233,7 @@ bool Clouds::createBuffers()
   PhysicalQuantity temp { "Temperature", "p_temp", { 0.0f, 500.0f }, { 223.0f, 293.0f } };
   m_allDisplayableQuantities.insert(std::make_pair(temp.name, temp));
 
-  m_currentDisplayedQuantityName = partID.name;
+  m_currentDisplayedQuantityName = cloudDens.name;
 
   return true;
 }

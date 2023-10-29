@@ -17,7 +17,7 @@ Minimalist real-time application combining DearImGui/OpenGL and OpenCL to admire
 <img src="./Fluids_128.gif" alt="FLuids" width="300" height="300">
 </p>
 
-3. Clouds using Position Based Fluids model with thermodynamics extension inspired by [C. W. Ferreira Barbosa, Y. Dobashi and T. Yamamoto, 2015. "Adaptive cloud simulation using position based fluids"](https://onlinelibrary.wiley.com/doi/10.1002/cav.1657). Blog post (WIP). 
+3. Clouds using Position Based Fluids model with thermodynamics extension inspired by [C. W. Ferreira Barbosa, Y. Dobashi and T. Yamamoto, 2015. "Adaptive cloud simulation using position based fluids"](https://onlinelibrary.wiley.com/doi/10.1002/cav.1657). **Clouds can take up to 1 min to appear.** Blog post (WIP). 
 <p align = "center">
 <img src="./Clouds.gif" alt="Clouds" width="300" height="300">
 </p>
