@@ -947,6 +947,7 @@ __kernel void cld_updatePosition(//Input
                                         __global float4 *pos)     // 2
 {
   pos[ID] = predPos[ID];
+  // We also update position based on the wind factor depending on the altitude, it is null at ground level
   pos[ID].x += (1 - exp(- (predPos[ID].y + ABS_WALL_Y) * 0.2f)) * cloud.windCoeff * cloud.timeStep * (float)(cloud.dim - 2); //0.02f;
   pos[ID].z += (1 - exp(- (predPos[ID].y + ABS_WALL_Y) * 0.3f)) * 0.7f * cloud.windCoeff * cloud.timeStep; //0.015f;
 }
