@@ -47,10 +47,10 @@ struct BoxSize3D
 };
 
 // Dimensions of the bounding box where the particles evolve
-static constexpr BoxSize3D BOX_SIZE_3D = { 10, 20, 10 };
+static constexpr BoxSize3D BOX_SIZE_3D = { 10, 10, 10 };
 
 // Resolution of the cells forming the 3D grid containing all the particles
-static constexpr BoxSize3D GRID_RES_3D = { 30, 60, 30 };
+static constexpr BoxSize3D GRID_RES_3D = { 30, 30, 30 };
 
 // 3D Box
 using Vertex3D = std::array<float, 3>;

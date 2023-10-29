@@ -250,6 +250,12 @@ bool ParticleSystemApp::initGraphicsEngine()
   params.aspectRatio = (float)m_windowSize.x / m_windowSize.y;
   params.dimension = Geometry::Dimension::dim2D;
 
+  if (m_modelType == Physics::ModelType::CLOUDS)
+  {
+    params.boxSize.y *= 2;
+    params.gridRes.y *= 2;
+  }
+
   m_graphicsEngine = std::make_unique<Render::Engine>(params);
 
   return (m_graphicsEngine.get() != nullptr);
@@ -274,6 +280,12 @@ bool ParticleSystemApp::initPhysicsEngine()
   params.cameraVBO = (unsigned int)m_graphicsEngine->cameraCoordVBO();
   params.gridVBO = (unsigned int)m_graphicsEngine->gridDetectorVBO();
   params.dimension = Geometry::Dimension::dim2D;
+
+  if (m_modelType == Physics::ModelType::CLOUDS)
+  {
+    params.boxSize.y *= 2;
+    params.gridRes.y *= 2;
+  }
 
   if (m_physicsEngine)
   {
@@ -386,6 +398,12 @@ void ParticleSystemApp::displayMainWidget()
       if (ImGui::Selectable(model.second.c_str(), m_modelType == model.first))
       {
         m_modelType = model.first;
+
+        if (!initGraphicsEngine())
+        {
+          LOG_ERROR("Failed to change graphcs engine");
+          return;
+        }
 
         if (!initPhysicsEngine())
         {
