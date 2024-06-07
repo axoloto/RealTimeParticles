@@ -8,7 +8,8 @@ class Conanfile(ConanFile):
                 "opencl-headers/[==2022.09.30]",
                 "opencl-icd-loader/[==2022.09.30]", # might need to be disabled for macos
                 "spdlog/[==1.10.0]",
-                "imgui/[==1.89]"
+                "imgui/[==1.89]",
+                "nlohmann_json/[==3.11.3]"
                 ]
     settings = "os", "compiler", "arch", "build_type"
     exports = "*"

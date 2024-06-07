@@ -2,6 +2,7 @@
 
 #include "Geometry.hpp"
 #include "Math.hpp"
+#include "nlohmann/json.hpp"
 
 #include <array>
 #include <map>
