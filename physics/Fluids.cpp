@@ -67,6 +67,9 @@ struct FluidKernelInputs
   cl_uint isVorticityConfEnabled = 1;
   cl_float vorticityConfCoeff = 0.0004f;
   cl_float xsphViscosityCoeff = 0.0001f;
+
+  NLOHMANN_DEFINE_TYPE_INTRUSIVE(FluidKernelInputs, restDensity, relaxCFM, timeStep,
+      dim, isArtPressureEnabled, artPressureRadius, artPressureCoeff, artPressureExp, isVorticityConfEnabled, vorticityConfCoeff, xsphViscosityCoeff);
 };
 
 const std::map<Fluids::CaseType, std::string, Fluids::CompareCaseType> Fluids::ALL_CASES {
@@ -92,6 +95,9 @@ Fluids::Fluids(ModelParams params)
   createKernels();
 
   m_init = (m_kernelInputs != nullptr);
+
+  json js = *m_kernelInputs;
+  m_jsonBlocks.push_back(js);
 
   reset();
 }
@@ -204,6 +210,9 @@ void Fluids::updateFluidsParamsInKernels()
     return;
 
   CL::Context& clContext = CL::Context::Get();
+
+  json js = m_jsonBlocks[0];
+  *m_kernelInputs = js.template get<FluidKernelInputs>();
 
   m_kernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
 

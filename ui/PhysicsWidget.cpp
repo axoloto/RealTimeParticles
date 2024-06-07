@@ -235,17 +235,27 @@ void displayFluidsParameters(Physics::Fluids* fluidsEngine)
     ImGui::EndCombo();
   }
 
+  json jsBlock = fluidsEngine->GetJsonBlock(0);
+
+  for (auto& el : jsBlock.items())
+  {
+    //LOG_INFO("Key {}, Value ", std::string(el.key()));
+    std::cout << el.key() << " " << el.value() << std::endl;
+  }
+
   ImGui::Value("Particles", (int)fluidsEngine->nbParticles());
 
   ImGui::Spacing();
   ImGui::Text("Fluid parameters");
   ImGui::Spacing();
 
-  float restDensity = fluidsEngine->getRestDensity();
+  float restDensity = jsBlock["restDensity"]; //->getRestDensity();
   if (ImGui::SliderFloat("Rest Density", &restDensity, 10.0f, 1000.0f))
   {
-    fluidsEngine->setRestDensity(restDensity);
+    jsBlock["restDensity"] = restDensity;
   }
+
+  fluidsEngine->SetJsonBlock(0, jsBlock);
 
   float relaxCFM = fluidsEngine->getRelaxCFM();
   if (ImGui::SliderFloat("Relax CFM", &relaxCFM, 100.0f, 1000.f))

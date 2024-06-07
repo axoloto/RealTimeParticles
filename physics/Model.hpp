@@ -2,7 +2,8 @@
 
 #include "Geometry.hpp"
 #include "Math.hpp"
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
 
 #include <array>
 #include <map>
@@ -151,6 +152,13 @@ class Model
   void enableProfiling(bool enable);
   bool isUsingIGPU() const;
 
+  json GetJsonBlock(int i) const { return i < m_jsonBlocks.size() ? m_jsonBlocks.at(i) : json {}; }
+  void SetJsonBlock(int i, const json& js)
+  {
+    if (i < m_jsonBlocks.size())
+      m_jsonBlocks[i] = js;
+  }
+
   protected:
   bool m_init;
   bool m_pause;
@@ -179,5 +187,7 @@ class Model
   std::string m_currentDisplayedQuantityName;
   // All PhysicalQuantities that can be rendered
   std::map<const std::string, PhysicalQuantity> m_allDisplayableQuantities;
+
+  std::vector<json> m_jsonBlocks;
 };
 }
