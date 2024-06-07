@@ -237,11 +237,10 @@ void displayFluidsParameters(Physics::Fluids* fluidsEngine)
 
   json jsBlock = fluidsEngine->GetJsonBlock(0);
 
-  for (auto& el : jsBlock.items())
-  {
-    //LOG_INFO("Key {}, Value ", std::string(el.key()));
-    std::cout << el.key() << " " << el.value() << std::endl;
-  }
+  //for (auto& el : jsBlock.items())
+  //{
+  //std::cout << el.key() << " " << el.value() << std::endl;
+  //}
 
   ImGui::Value("Particles", (int)fluidsEngine->nbParticles());
 
