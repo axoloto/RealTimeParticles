@@ -1,10 +1,10 @@
 #include "Clouds.hpp"
+#include "Context.hpp"
 #include "Geometry.hpp"
 #include "Logging.hpp"
 #include "Parameters.hpp"
 #include "Utils.hpp"
 
-#include "ocl/Context.hpp"
 
 #include <algorithm>
 #include <array>
@@ -17,7 +17,7 @@
 #include <chrono>
 #include <thread>
 
-using namespace Physics;
+using namespace Physics::CL;
 
 #define PROGRAM_CLOUDS "Clouds"
 
@@ -67,6 +67,7 @@ using namespace Physics;
 
 namespace Physics
 {
+/*
 // Fluids params for Position Based Fluids part of clouds sim
 struct FluidKernelInputs
 {
@@ -84,39 +85,7 @@ struct FluidKernelInputs
   cl_float vorticityConfCoeff = 0.0004f;
   cl_float xsphViscosityCoeff = 0.0001f;
 };
-
-// Clouds params for clouds-specific physics
-struct CloudKernelInputs
-{
-  cl_uint dim = 3;
-  // Must be always equal to timeStep of FluidKernelInputs
-  cl_float timeStep = 0.01f;
-  // Must be equal to rest density of FluidKernelInputs
-  cl_float restDensity = 400.0f;
-  // groundHeatCoeff * timeStep = temperature increase due to ground being a heat source
-  // Effect is limited to closest part of the atmosphere and then exponentially reduced to null value
-  cl_float groundHeatCoeff = 10.0f; // i.e here 0.4K/iteration, at 30fps -> 12K/s increase
-  // Buoyancy makes warmer particles to go up and colder ones to go down
-  cl_float buoyancyCoeff = 0.10f;
-  cl_float gravCoeff = 0.0005f;
-  // Adiabatic cooling makes the air parcels to cool down when going up
-  cl_float adiabaticLapseRate = 5.0f;
-  // Phase transition rate decides how fast waper transitions
-  // between vapor and liquid (clouds = droplets)
-  cl_float phaseTransitionRate = 0.3485f;
-  // When particles transition from vapor to liquid, they released heat
-  // increasing their temperature, making them going up some more due to buoyancy
-  cl_float latentHeatCoeff = 0.07f;
-  // Enable constraint on temperature field, forcing its Laplacian field to be null
-  // It helps uniformizing the temperature across particles
-  cl_uint isTempSmoothingEnabled = 1;
-  //
-  cl_float relaxCFM = 600.0f;
-  //
-  cl_float initVaporDensityCoeff = 0.75f;
-  //
-  cl_float windCoeff = 1.0f;
-};
+*/
 
 const std::map<Clouds::CaseType, std::string, Clouds::CompareCaseType> Clouds::ALL_CASES {
   { CaseType::CUMULUS, "Cumulus" },
@@ -125,7 +94,7 @@ const std::map<Clouds::CaseType, std::string, Clouds::CompareCaseType> Clouds::A
 }
 
 Clouds::Clouds(ModelParams params)
-    : Model(params)
+    : OclModel<FluidKernelInputs, CloudKernelInputs>(params, FluidKernelInputs {}, CloudKernelInputs {})
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(100)
     , m_radixSort(params.maxNbParticles)

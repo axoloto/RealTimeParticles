@@ -72,6 +72,7 @@ struct ModelParams
   Geometry::Dimension dimension = Geometry::Dimension::dim3D;
 };
 
+// Models Factory
 class Model;
 std::unique_ptr<Model> CreateModel(ModelType type, ModelParams params);
 
@@ -97,7 +98,7 @@ class Model
       , m_pause(false)
       , m_currentDisplayedQuantityName("") {};
 
-  virtual ~Model();
+  virtual ~Model() {};
 
   size_t maxNbParticles() const { return m_maxNbParticles; }
 
@@ -148,9 +149,9 @@ class Model
   std::map<const std::string, PhysicalQuantity>::const_iterator cbeginDisplayablePhysicalQuantities() { return m_allDisplayableQuantities.cbegin(); }
   std::map<const std::string, PhysicalQuantity>::const_iterator cendDisplayablePhysicalQuantities() { return m_allDisplayableQuantities.cend(); }
 
-  bool isProfilingEnabled() const;
-  void enableProfiling(bool enable);
-  bool isUsingIGPU() const;
+  virtual bool isProfilingEnabled() const { return false; };
+  virtual void enableProfiling(bool enable) {};
+  virtual bool isUsingIGPU() const { return false; };
 
   json GetJsonBlock(int i) const { return i < m_jsonBlocks.size() ? m_jsonBlocks.at(i) : json {}; }
   void SetJsonBlock(int i, const json& js)

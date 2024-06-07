@@ -4,14 +4,12 @@
 #include "Parameters.hpp"
 #include "Utils.hpp"
 
-#include "ocl/Context.hpp"
-
 #include <ctime>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 
-using namespace Physics;
+using namespace Physics::CL;
 
 #define PROGRAM_BOIDS "boids"
 
@@ -41,7 +39,7 @@ using namespace Physics;
 #define KERNEL_ADD_TARGET_RULE "bd_addTargetRule"
 
 Boids::Boids(ModelParams params)
-    : Model(params)
+    : OclModel<BoidsKernelInputs>(params, BoidsKernelInputs {})
     , m_scaleAlignment(1.6f)
     , m_scaleCohesion(1.45f)
     , m_scaleSeparation(1.6f)

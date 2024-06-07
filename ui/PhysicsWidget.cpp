@@ -2,9 +2,9 @@
 #include "Logging.hpp"
 #include "Parameters.hpp"
 
-#include "Boids.hpp"
-#include "Clouds.hpp"
-#include "Fluids.hpp"
+//#include "Boids.hpp"
+//#include "Clouds.hpp"
+//#include "Fluids.hpp"
 
 #include <imgui.h>
 
@@ -40,6 +40,7 @@ void displayBoundaryConditions(Physics::Model* engine)
   }
 }
 
+/*
 void displayCloudsParameters(Physics::Clouds* cloudsEngine)
 {
   if (!cloudsEngine)
@@ -474,6 +475,7 @@ void displayBoidsParameters(Physics::Boids* boidsEngine)
 
   ImGui::End();
 }
+*/
 
 void UI::PhysicsWidget::display()
 {
@@ -481,7 +483,7 @@ void UI::PhysicsWidget::display()
 
   if (!physicsEngine)
     return;
-
+  /*
   auto* boidsEngine = dynamic_cast<Physics::Boids*>(physicsEngine.get());
   auto* fluidsEngine = dynamic_cast<Physics::Fluids*>(physicsEngine.get());
   auto* cloudsEngine = dynamic_cast<Physics::Clouds*>(physicsEngine.get());
@@ -495,4 +497,5 @@ void UI::PhysicsWidget::display()
     displayFluidsParameters(fluidsEngine);
   else if (cloudsEngine)
     displayCloudsParameters(cloudsEngine);
+*/
 }

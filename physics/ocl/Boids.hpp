@@ -1,16 +1,21 @@
 #pragma once
 
-#include "Model.hpp"
-#include "utils/RadixSort.hpp"
-#include "utils/Target.hpp"
+#include "OclModel.hpp"
+
+#include "../utils/RadixSort.hpp"
+#include "../utils/Target.hpp"
 
 #include <array>
 #include <memory>
 #include <vector>
 
-namespace Physics
+namespace Physics::CL
 {
-class Boids : public Model
+struct BoidsKernelInputs
+{
+};
+
+class Boids : public OclModel<BoidsKernelInputs>
 {
   public:
   Boids(ModelParams params);

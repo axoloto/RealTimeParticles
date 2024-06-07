@@ -1,28 +1,48 @@
 #pragma once
 
-#include "Model.hpp"
-#include "utils/RadixSort.hpp"
+#include "OclModel.hpp"
+
+#include "../utils/RadixSort.hpp"
 
 #include <array>
 #include <memory>
 #include <vector>
 
-namespace Physics
-{
-// Forward decl
-struct FluidKernelInputs;
-struct CloudKernelInputs;
+// Position based fluids model based on NVIDIA paper
+// Macklin and Muller 2013. "Position Based Fluids"
 
-class Clouds : public Model
+namespace Physics::CL
+{
+struct FluidKernelInputs
+{
+  cl_float restDensity = 450.0f;
+  cl_float relaxCFM = 600.0f;
+  cl_float timeStep = 0.010f;
+  cl_uint dim = 3;
+  // Artifical pressure if enabled will try to reduce tensile instability
+  cl_uint isArtPressureEnabled = 1;
+  cl_float artPressureRadius = 0.006f;
+  cl_float artPressureCoeff = 0.001f;
+  cl_uint artPressureExp = 4;
+  // Vorticity confinement if enabled will try to replace lost energy due to virtual damping
+  cl_uint isVorticityConfEnabled = 1;
+  cl_float vorticityConfCoeff = 0.0004f;
+  cl_float xsphViscosityCoeff = 0.0001f;
+
+  NLOHMANN_DEFINE_TYPE_INTRUSIVE(FluidKernelInputs, restDensity, relaxCFM, timeStep,
+      dim, isArtPressureEnabled, artPressureRadius, artPressureCoeff, artPressureExp, isVorticityConfEnabled, vorticityConfCoeff, xsphViscosityCoeff);
+};
+
+class Fluids : public OclModel<FluidKernelInputs>
 {
   public:
   // List of implemented cases
   enum CaseType
   {
-    CUMULUS = 0,
-    HOMOGENEOUS = 1
+    DAM = 0,
+    BOMB = 1,
+    DROP = 2
   };
-
   struct CompareCaseType
   {
     bool operator()(const CaseType& caseA, const CaseType& caseB) const
@@ -30,11 +50,12 @@ class Clouds : public Model
       return (int)caseA < (int)caseB;
     }
   };
+
   // Static member vars must be initialized outside of the class in the global scope
   static const std::map<CaseType, std::string, CompareCaseType> ALL_CASES;
 
-  Clouds(ModelParams params);
-  ~Clouds();
+  Fluids(ModelParams params);
+  ~Fluids();
 
   void update() override;
   void reset() override;
@@ -75,40 +96,14 @@ class Clouds : public Model
   //
   void setXsphViscosityCoeff(float coeff);
   float getXsphViscosityCoeff() const;
-  //
-  void setGroundHeatCoeff(float coeff);
-  float getGroundHeatCoeff() const;
-  //
-  void setBuoyancyCoeff(float coeff);
-  float getBuoyancyCoeff() const;
-  //
-  void setAdiabaticLapseRate(float rate);
-  float getAdiabaticLapseRate() const;
-  //
-  void setPhaseTransitionRate(float rate);
-  float getPhaseTransitionRate() const;
-  //
-  void setLatentHeatCoeff(float coeff);
-  float getLatentHeatCoeff() const;
-  //
-  void setGravCoeff(float coeff);
-  float getGravCoeff() const;
-  //
-  void setWindCoeff(float coeff);
-  float getWindCoeff() const;
-  //
-  void enableTempSmoothing(bool enable);
-  bool isTempSmoothingEnabled() const;
 
   private:
   bool createProgram() const;
-  bool createBuffers();
+  bool createBuffers() const;
   bool createKernels() const;
 
-  void initCloudsParticles();
-
+  void initFluidsParticles();
   void updateFluidsParamsInKernels();
-  void updateCloudsParamsInKernels();
 
   bool m_simplifiedMode;
 
@@ -118,8 +113,7 @@ class Clouds : public Model
 
   RadixSort m_radixSort;
 
-  std::unique_ptr<FluidKernelInputs> m_fluidKernelInputs;
-  std::unique_ptr<CloudKernelInputs> m_cloudKernelInputs;
+  FluidKernelInputs m_kernelInputs;
 
   CaseType m_initialCase;
 };
