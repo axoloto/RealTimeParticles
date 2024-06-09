@@ -15,8 +15,8 @@ template <typename... KernelInputs>
 class OclModel : public Model
 {
   public:
-  OclModel(ModelParams params, KernelInputs... kernelInputs)
-      : Model(params)
+  OclModel(ModelParams params, KernelInputs... kernelInputs, json inputJson = {})
+      : Model(params, inputJson)
   {
     // Adding all inputs to kernel inputs for GPU-CPU interaction
     (m_kernelInputs.push_back(kernelInputs), ...);

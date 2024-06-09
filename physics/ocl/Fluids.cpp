@@ -59,7 +59,22 @@ const std::map<Fluids::CaseType, std::string, Fluids::CompareCaseType> Fluids::A
 }
 
 Fluids::Fluids(ModelParams params)
-    : OclModel<FluidKernelInputs>(params, FluidKernelInputs {})
+    : OclModel<FluidKernelInputs>(params, FluidKernelInputs {},
+        // clang-format off
+        json {
+            { "Rest Density", { 450.0f, 10.0f, 1000.0f } },
+            { "Relax CFM", { 600.0f, 100.0f, 1000.0f } },
+            { "Time Step", { 0.010f, 0.0001f, 0.020f } },
+            { "Use 3D Dimension", true },
+            { "Nb Jacobi Iterations", { 2, 1, 6 } },
+            { "Artificial Pressure",
+                { { "Enable", true },
+                  { "Coefficient", { 0, 0, 0 } }
+                }
+            }
+        }
+        // clang-format on
+        )
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(100)
     , m_radixSort(params.maxNbParticles)
