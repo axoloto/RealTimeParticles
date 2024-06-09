@@ -28,9 +28,6 @@ struct FluidKernelInputs
   cl_uint isVorticityConfEnabled = 1;
   cl_float vorticityConfCoeff = 0.0004f;
   cl_float xsphViscosityCoeff = 0.0001f;
-
-  NLOHMANN_DEFINE_TYPE_INTRUSIVE(FluidKernelInputs, restDensity, relaxCFM, timeStep,
-      dim, isArtPressureEnabled, artPressureRadius, artPressureCoeff, artPressureExp, isVorticityConfEnabled, vorticityConfCoeff, xsphViscosityCoeff);
 };
 
 class Fluids : public OclModel<FluidKernelInputs>
@@ -59,6 +56,11 @@ class Fluids : public OclModel<FluidKernelInputs>
 
   void update() override;
   void reset() override;
+
+  // Model.hpp
+  void updateModelWithInputJson() override;
+  // OclModel.hpp
+  void transferKernelInputsToGPU() override;
 
   void setInitialCase(CaseType caseT) { m_initialCase = caseT; }
   const CaseType getInitialCase() const { return m_initialCase; }

@@ -13,6 +13,7 @@ namespace Physics::CL
 {
 struct BoidsKernelInputs
 {
+  int test;
 };
 
 class Boids : public OclModel<BoidsKernelInputs>

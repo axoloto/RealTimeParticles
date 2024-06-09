@@ -3,7 +3,6 @@
 #include "../Model.hpp"
 #include "Context.hpp"
 
-
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
@@ -19,7 +18,7 @@ class OclModel : public Model
   OclModel(ModelParams params, KernelInputs... kernelInputs)
       : Model(params)
   {
-    // Adding all inputs
+    // Adding all inputs to kernel inputs for GPU-CPU interaction
     (m_kernelInputs.push_back(kernelInputs), ...);
   };
 
@@ -47,15 +46,16 @@ class OclModel : public Model
     return (platformName.find("Intel") != std::string::npos);
   }
 
-  // json GetJsonBlock(int i) const { return i < m_jsonBlocks.size() ? m_jsonBlocks.at(i) : json {}; }
-  // void SetJsonBlock(int i, const json& js)
-  // {
-  //    if (i < m_jsonBlocks.size())
-  //      m_jsonBlocks[i] = js;
-  //  }
+  virtual void transferKernelInputsToGPU() {}; // = 0
+
+  template <typename T>
+  T& GetKernelInput(int index)
+  {
+    // risky business
+    return std::get<T>(m_kernelInputs.at(index));
+  }
 
   protected:
   std::vector<std::variant<KernelInputs...>> m_kernelInputs;
-  // std::vector<json> m_jsonBlocks;
 };
 }

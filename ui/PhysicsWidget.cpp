@@ -476,6 +476,57 @@ void displayBoidsParameters(Physics::Boids* boidsEngine)
   ImGui::End();
 }
 */
+/*
+void drawImguiCheckBoxFromJson(json& js)
+{
+  bool isCohesion = true;
+  if (ImGui::Checkbox("Cohesion", &isCohesion))
+  {
+  }
+}
+
+void drawImguiSliderInt(json& js)
+{
+  int artPressureExp = 7;
+  if (ImGui::SliderInt("Exponent", &artPressureExp, 1, 6))
+  {
+  }
+}
+
+void drawImguiSliderFloat(json& js)
+{
+  float scaleSeparation = 7.8f;
+  if (ImGui::SliderFloat("##scaleSep", &scaleSeparation, 0.0f, 3.0f))
+  {
+  }
+}
+*/
+void drawImguiObjectFromJson(json& js)
+{
+  for (auto& el : js.items())
+  {
+    if (el.value().is_object())
+    {
+      // Recursive call
+      ImGui::Spacing();
+      ImGui::Text(el.key().c_str());
+      drawImguiObjectFromJson(el.value());
+      ImGui::Spacing();
+    }
+    else if (el.value().is_boolean())
+    {
+      // drawImguiCheckBoxFromJson(el.value());
+    }
+    else if (el.value().is_number_integer())
+    {
+      //  drawImguiSliderInt(el.value());
+    }
+    else if (el.value().is_number_float())
+    {
+      //  drawImguiSliderFloat(el.value());
+    }
+  }
+}
 
 void UI::PhysicsWidget::display()
 {
@@ -483,6 +534,20 @@ void UI::PhysicsWidget::display()
 
   if (!physicsEngine)
     return;
+
+  json js = physicsEngine->getInputJson();
+
+  //for (auto& el : jsBlock.items())
+  //{
+  //std::cout << el.key() << " " << el.value() << std::endl;
+  //}
+
+  ImGui::Value("Particles", (int)physicsEngine->nbParticles());
+
+  drawImguiObjectFromJson(js);
+
+  physicsEngine->updateInputJson(js);
+
   /*
   auto* boidsEngine = dynamic_cast<Physics::Boids*>(physicsEngine.get());
   auto* fluidsEngine = dynamic_cast<Physics::Fluids*>(physicsEngine.get());

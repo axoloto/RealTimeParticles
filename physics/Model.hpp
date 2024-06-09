@@ -81,7 +81,7 @@ std::unique_ptr<Model> CreateModel(ModelType type, ModelParams params);
 class Model
 {
   public:
-  Model(ModelParams params)
+  Model(ModelParams params, json js = {})
       : m_maxNbParticles(params.maxNbParticles)
       , m_currNbParticles(params.currNbParticles)
       , m_boxSize(params.boxSize)
@@ -96,7 +96,8 @@ class Model
       , m_boundary(Boundary::BouncingWall)
       , m_init(false)
       , m_pause(false)
-      , m_currentDisplayedQuantityName("") {};
+      , m_currentDisplayedQuantityName("")
+      , m_inputJson(js) {};
 
   virtual ~Model() {};
 
@@ -153,12 +154,18 @@ class Model
   virtual void enableProfiling(bool enable) {};
   virtual bool isUsingIGPU() const { return false; };
 
-  json GetJsonBlock(int i) const { return i < m_jsonBlocks.size() ? m_jsonBlocks.at(i) : json {}; }
-  void SetJsonBlock(int i, const json& js)
+  json getInputJson() const
   {
-    if (i < m_jsonBlocks.size())
-      m_jsonBlocks[i] = js;
+    return m_inputJson;
   }
+
+  void updateInputJson(const json& patch)
+  {
+    m_inputJson.merge_patch(patch);
+    updateModelWithInputJson();
+  }
+
+  virtual void updateModelWithInputJson() {}; // = 0;
 
   protected:
   bool m_init;
@@ -189,6 +196,7 @@ class Model
   // All PhysicalQuantities that can be rendered
   std::map<const std::string, PhysicalQuantity> m_allDisplayableQuantities;
 
-  std::vector<json> m_jsonBlocks;
+  // Container for model parameters available in UI
+  json m_inputJson;
 };
 }
