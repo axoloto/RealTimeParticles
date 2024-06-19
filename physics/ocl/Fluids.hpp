@@ -38,7 +38,8 @@ class Fluids : public OclModel<FluidKernelInputs>
   {
     DAM = 0,
     BOMB = 1,
-    DROP = 2
+    DROP = 2,
+    TEST = 4
   };
   struct CompareCaseType
   {
