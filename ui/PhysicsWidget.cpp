@@ -1,7 +1,7 @@
 #include "PhysicsWidget.hpp"
 #include "Logging.hpp"
 #include "Parameters.hpp"
-
+#include <vector>
 //#include "Boids.hpp"
 //#include "Clouds.hpp"
 //#include "Fluids.hpp"
@@ -476,54 +476,62 @@ void displayBoidsParameters(Physics::Boids* boidsEngine)
   ImGui::End();
 }
 */
-/*
-void drawImguiCheckBoxFromJson(json& js)
+
+void drawImguiCheckBoxFromJson(const std::string& name, bool& enable)
 {
-  bool isCohesion = true;
-  if (ImGui::Checkbox("Cohesion", &isCohesion))
+  ImGui::Checkbox(name.c_str(), &enable);
+}
+
+void drawImguiSliderInt(const std::string& name, json& js)
+{
+  int intVal = js.at(0);
+  int minVal = js.at(1);
+  int maxVal = js.at(2);
+  if (ImGui::SliderInt(name.c_str(), &intVal, minVal, maxVal))
   {
+    js.at(0) = intVal;
   }
 }
 
-void drawImguiSliderInt(json& js)
+void drawImguiSliderFloat(const std::string& name, json& js)
 {
-  int artPressureExp = 7;
-  if (ImGui::SliderInt("Exponent", &artPressureExp, 1, 6))
+  float floatVal = js.at(0);
+  float minVal = js.at(1);
+  float maxVal = js.at(2);
+  if (ImGui::SliderFloat(name.c_str(), &floatVal, minVal, maxVal))
   {
+    js.at(0) = floatVal;
   }
 }
 
-void drawImguiSliderFloat(json& js)
-{
-  float scaleSeparation = 7.8f;
-  if (ImGui::SliderFloat("##scaleSep", &scaleSeparation, 0.0f, 3.0f))
-  {
-  }
-}
-*/
 void drawImguiObjectFromJson(json& js)
 {
   for (auto& el : js.items())
   {
-    if (el.value().is_object())
+    auto& val = el.value();
+    if (val.is_object())
     {
-      // Recursive call
       ImGui::Spacing();
       ImGui::Text(el.key().c_str());
-      drawImguiObjectFromJson(el.value());
+      ImGui::Indent(15.0f);
+      // Recursive call
+      drawImguiObjectFromJson(val);
+      ImGui::Unindent(15.0f);
       ImGui::Spacing();
     }
-    else if (el.value().is_boolean())
+    else if (val.is_boolean())
     {
-      // drawImguiCheckBoxFromJson(el.value());
+      drawImguiCheckBoxFromJson(el.key(), val.get_ref<bool&>());
     }
-    else if (el.value().is_number_integer())
+    else if (val.is_array() && val.size() == 3 && val[0].is_number_integer())
     {
-      //  drawImguiSliderInt(el.value());
+      // cannot directly access json array items by reference
+      drawImguiSliderInt(el.key(), val);
     }
-    else if (el.value().is_number_float())
+    else if (val.is_array() && val.size() == 3 && val[0].is_number_float())
     {
-      //  drawImguiSliderFloat(el.value());
+      // cannot directly access json array items by reference
+      drawImguiSliderFloat(el.key(), val);
     }
   }
 }
@@ -535,17 +543,13 @@ void UI::PhysicsWidget::display()
   if (!physicsEngine)
     return;
 
-  json js = physicsEngine->getInputJson();
-
-  //for (auto& el : jsBlock.items())
-  //{
-  //std::cout << el.key() << " " << el.value() << std::endl;
-  //}
-
   ImGui::Value("Particles", (int)physicsEngine->nbParticles());
 
+  // Retrieve input json from the physics engine with all available parameters
+  json js = physicsEngine->getInputJson();
+  // Draw all items from input json
   drawImguiObjectFromJson(js);
-
+  // Update physics engine with new parameters values if any
   physicsEngine->updateInputJson(js);
 
   /*

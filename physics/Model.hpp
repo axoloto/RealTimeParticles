@@ -159,9 +159,13 @@ class Model
     return m_inputJson;
   }
 
-  void updateInputJson(const json& patch)
+  void updateInputJson(const json& newJson)
   {
-    m_inputJson.merge_patch(patch);
+    // No modification
+    if (json::diff(m_inputJson, newJson).empty())
+      return;
+
+    m_inputJson.merge_patch(newJson);
     updateModelWithInputJson();
   }
 
