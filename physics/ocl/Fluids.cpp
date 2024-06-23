@@ -61,7 +61,8 @@ const std::map<Fluids::CaseType, std::string, Fluids::CompareCaseType> Fluids::A
 Fluids::Fluids(ModelParams params)
     : OclModel<FluidKernelInputs>(params, FluidKernelInputs {},
         // clang-format off
-        json {
+        json { {"Fluids", {
+            { "Case", {Utils::TaskState::TS_STOPPED, Utils::TaskState::TS_BEGIN, Utils::TaskState::TS_END}},
             { "Rest Density", { 450.0f, 10.0f, 1000.0f } },
             { "Relax CFM", { 600.0f, 100.0f, 1000.0f } },
             { "Time Step", { 0.010f, 0.0001f, 0.020f } },
@@ -72,7 +73,8 @@ Fluids::Fluids(ModelParams params)
                   { "Coefficient", { 0, 0, 0 } }
                 }
             }
-        }
+          }
+        } }
         // clang-format on
         )
     , m_simplifiedMode(true)

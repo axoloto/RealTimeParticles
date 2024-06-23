@@ -3,12 +3,36 @@
 
 #include <array>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
+using json = nlohmann::json;
+
 namespace Utils
 {
+enum TaskState
+{
+  TS_BEGIN,
+  TS_STOPPED,
+  TS_RUNNING,
+  TS_COMPLETED,
+  TS_END,
+  TS_AFTER_END,
+  TS_INVALID = -1,
+};
+
+// map TaskState values to JSON as strings
+NLOHMANN_JSON_SERIALIZE_ENUM(TaskState, {
+                                            { TS_INVALID, nullptr },
+                                            { TS_BEGIN, "b" },
+                                            { TS_STOPPED, "stopped" },
+                                            { TS_RUNNING, "running" },
+                                            { TS_COMPLETED, "completed" },
+                                            { TS_END, "e" },
+                                        })
+
 // List of supported particles system sizes
 enum NbParticles
 {

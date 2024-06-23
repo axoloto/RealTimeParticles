@@ -504,6 +504,31 @@ void drawImguiSliderFloat(const std::string& name, json& js)
   }
 }
 
+template <typename EnumType>
+void drawImguiEnumCombo(const std::string& name, json& js)
+{
+  if (ImGui::BeginCombo(name.c_str(), js.at(0).get<std::string>().c_str()))
+  {
+    int min = static_cast<int>(js.at(1).get<EnumType>());
+    int max = static_cast<int>(js.at(2).get<EnumType>());
+
+    // we skip min and max values, only here as boundaries
+    for (int caseIndex = min + 1; caseIndex < max; ++caseIndex)
+    {
+      // int -> enum conversion
+      auto caseT = static_cast<EnumType>(caseIndex);
+      // Using json to do the enum -> string conversion
+      json selJs = caseT;
+
+      if (ImGui::Selectable(selJs.get<std::string>().c_str(), js.at(0).get<EnumType>() == caseT))
+      {
+        js.at(0) = caseT;
+      }
+    }
+    ImGui::EndCombo();
+  }
+}
+
 void drawImguiObjectFromJson(json& js)
 {
   for (auto& el : js.items())
@@ -522,6 +547,10 @@ void drawImguiObjectFromJson(json& js)
     else if (val.is_boolean())
     {
       drawImguiCheckBoxFromJson(el.key(), val.get_ref<bool&>());
+    }
+    else if (val.is_array() && val[0].get<Utils::TaskState>() != Utils::TaskState::TS_INVALID)
+    {
+      drawImguiEnumCombo<Utils::TaskState>(el.key(), val);
     }
     else if (val.is_array() && val.size() == 3 && val[0].is_number_integer())
     {
@@ -543,6 +572,9 @@ void UI::PhysicsWidget::display()
   if (!physicsEngine)
     return;
 
+  // First default pos
+  ImGui::SetNextWindowPos(ImVec2(15, 355), ImGuiCond_FirstUseEver);
+
   ImGui::Value("Particles", (int)physicsEngine->nbParticles());
 
   // Retrieve input json from the physics engine with all available parameters
@@ -551,20 +583,4 @@ void UI::PhysicsWidget::display()
   drawImguiObjectFromJson(js);
   // Update physics engine with new parameters values if any
   physicsEngine->updateInputJson(js);
-
-  /*
-  auto* boidsEngine = dynamic_cast<Physics::Boids*>(physicsEngine.get());
-  auto* fluidsEngine = dynamic_cast<Physics::Fluids*>(physicsEngine.get());
-  auto* cloudsEngine = dynamic_cast<Physics::Clouds*>(physicsEngine.get());
-
-  // First default pos
-  ImGui::SetNextWindowPos(ImVec2(15, 355), ImGuiCond_FirstUseEver);
-
-  if (boidsEngine)
-    displayBoidsParameters(boidsEngine);
-  else if (fluidsEngine)
-    displayFluidsParameters(fluidsEngine);
-  else if (cloudsEngine)
-    displayCloudsParameters(cloudsEngine);
-*/
 }
