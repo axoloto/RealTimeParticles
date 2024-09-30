@@ -549,7 +549,6 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Spacing();
 
   // Selection of the physical quantity to render through particles intensity color (will fill color buffer used by fragment shader)
-  // const auto& allDisplayableQuantities = m_physicsEngine->allDisplayablePhysicalQuantities();
   if (m_physicsEngine->cbeginDisplayablePhysicalQuantities() != m_physicsEngine->cendDisplayablePhysicalQuantities())
   {
     const auto& selDisplayedQuantityName = m_physicsEngine->currentDisplayedPhysicalQuantityName();

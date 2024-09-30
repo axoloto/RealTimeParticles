@@ -95,6 +95,7 @@ class Model
       , m_cameraVBO(params.cameraVBO)
       , m_gridVBO(params.gridVBO)
       , m_dimension(params.dimension)
+      , m_case(params.pCase)
       , m_boundary(Boundary::BouncingWall)
       , m_init(false)
       , m_pause(false)
