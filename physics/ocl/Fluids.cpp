@@ -62,11 +62,9 @@ Fluids::Fluids(ModelParams params)
     : OclModel<FluidKernelInputs>(params, FluidKernelInputs {},
         // clang-format off
         json { {"Fluids", {
-            { "Case", {Utils::PhysicsCase::FLUIDS_DAM, Utils::PhysicsCase::FLUIDS_BEGIN, Utils::PhysicsCase::FLUIDS_END}},
             { "Rest Density", { 450.0f, 10.0f, 1000.0f } },
             { "Relax CFM", { 600.0f, 100.0f, 1000.0f } },
             { "Time Step", { 0.010f, 0.0001f, 0.020f } },
-            { "Use 3D Dimension", true },
             { "Nb Jacobi Iterations", { 2, 1, 6 } },
             { "Artificial Pressure",
                 { { "Enable##Pressure", true },
@@ -87,7 +85,6 @@ Fluids::Fluids(ModelParams params)
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(100)
     , m_radixSort(params.maxNbParticles)
-    , m_case(Utils::PhysicsCase::FLUIDS_DAM)
     , m_nbJacobiIters(2)
 {
   createProgram();
@@ -209,7 +206,6 @@ void Fluids::transferJsonInputsToModel()
     return;
   LOG_INFO("Me");
 
-  m_case = m_inputJson["Fluids"]["Case"].at(0).get<Utils::PhysicsCase>();
   //
   // m_nbJacobiIters = (size_t)(m_inputJson["Nb Jacobi Iterations"][0]);
   for (auto& el : m_inputJson.items())
@@ -223,7 +219,7 @@ void Fluids::transferJsonInputsToModel()
   //  kernelInputs.restDensity = m_inputJson.at("Rest Density").at(0);
   //  kernelInputs.relaxCFM = m_inputJson.at("Relax CFM").at(0);
   //  kernelInputs.timeStep = m_inputJson.at("Time Step").at(0);
-  // kernelInputs.dim = m_inputJson["Fluids"]["Use 3D Dimension"] == true ? 3 : 2;
+  kernelInputs.dim = m_dimension == Geometry::Dimension::dim2D ? 2 : 3;
   //  kernelInputs.isArtPressureEnabled = m_inputJson.at("ArtificialPressure").at("Enable##Pressure") == true ? 1 : 0;
   //  kernelInputs.artPressureRadius = m_inputJson.at("ArtificialPressure").at(0);
   //  kernelInputs.artPressureCoeff = m_inputJson.at("ArtificialPressure").at(0);

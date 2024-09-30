@@ -99,7 +99,6 @@ Clouds::Clouds(ModelParams params)
     , m_radixSort(params.maxNbParticles)
     , m_fluidKernelInputs(std::make_unique<FluidKernelInputs>())
     , m_cloudKernelInputs(std::make_unique<CloudKernelInputs>())
-    , m_case(CaseType::CUMULUS)
     , m_nbJacobiIters(1)
 {
   createProgram();
@@ -351,13 +350,13 @@ void Clouds::initCloudsParticles()
 
     switch (m_case)
     {
-    case CaseType::CUMULUS:
+    case Utils::PhysicsCase::CLOUDS_CUMULUS:
       m_currNbParticles = Utils::NbParticles::P8K;
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { 0.0f, 0.0f, m_boxSize.z / 2.0f };
       break;
-    case CaseType::HOMOGENEOUS:
+    case Utils::PhysicsCase::CLOUDS_HOMOGENEOUS:
       m_currNbParticles = Utils::NbParticles::P8K;
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
@@ -379,13 +378,13 @@ void Clouds::initCloudsParticles()
 
     switch (m_case)
     {
-    case CaseType::CUMULUS:
+    case Utils::PhysicsCase::CLOUDS_CUMULUS:
       m_currNbParticles = Utils::NbParticles::P65K;
       shape = Geometry::Shape3D::Box;
       startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { m_boxSize.x / 2.0f, m_boxSize.y / -4.0f, m_boxSize.z / 2.0f };
       break;
-    case CaseType::HOMOGENEOUS:
+    case Utils::PhysicsCase::CLOUDS_HOMOGENEOUS:
       m_currNbParticles = Utils::NbParticles::P65K;
       shape = Geometry::Shape3D::Box;
       startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };

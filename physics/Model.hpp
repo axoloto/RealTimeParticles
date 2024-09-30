@@ -71,6 +71,7 @@ struct ModelParams
   unsigned int cameraVBO = 0;
   unsigned int gridVBO = 0;
   Geometry::Dimension dimension = Geometry::Dimension::dim3D;
+  Utils::PhysicsCase pCase = Utils::PhysicsCase::CASE_INVALID;
 };
 
 // Models Factory
@@ -172,6 +173,9 @@ class Model
 
   virtual void updateModelWithInputJson() {}; // = 0;
 
+  void setCase(Utils::PhysicsCase caseType) { m_case = caseType; }
+  const Utils::PhysicsCase getCase() const { return m_case; }
+
   protected:
   bool m_init;
   bool m_pause;
@@ -187,6 +191,8 @@ class Model
   float m_velocity;
 
   Geometry::Dimension m_dimension;
+
+  Utils::PhysicsCase m_case;
 
   Boundary m_boundary;
 

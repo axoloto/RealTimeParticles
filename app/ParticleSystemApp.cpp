@@ -285,10 +285,25 @@ bool ParticleSystemApp::initPhysicsEngine()
   params.gridVBO = (unsigned int)m_graphicsEngine->gridDetectorVBO();
   params.dimension = m_graphicsEngine->dimension();
 
-  if (m_modelType == Physics::ModelType::CLOUDS)
+  switch (m_modelType)
   {
+  case Physics::BOIDS:
+  {
+    params.pCase = Utils::PhysicsCase::BOIDS_SMALL;
+    break;
+  }
+  case Physics::FLUIDS:
+  {
+    params.pCase = Utils::PhysicsCase::FLUIDS_DAM;
+    break;
+  }
+  case Physics::CLOUDS:
+  {
+    params.pCase = Utils::PhysicsCase::CLOUDS_CUMULUS;
     params.boxSize.y *= 2;
     params.gridRes.y *= 2;
+    break;
+  }
   }
 
   if (m_physicsEngine)
@@ -428,6 +443,56 @@ void ParticleSystemApp::displayMainWidget()
         }
 
         LOG_INFO("Application correctly switched to {}", Physics::ALL_MODELS.find(m_modelType)->second);
+      }
+    }
+    ImGui::EndCombo();
+  }
+
+  // Selection of the physical case
+
+  // Current physical case
+  auto selectedCaseType = m_physicsEngine->getCase();
+
+  // Using json to do the mapping to the string equivalent
+  std::string strCaseType = json(selectedCaseType);
+  if (ImGui::BeginCombo("Physical case", strCaseType.c_str()))
+  {
+    auto beginCaseType = Utils::PhysicsCase::CASE_INVALID;
+    auto endCaseType = Utils::PhysicsCase::CASE_INVALID;
+
+    switch (m_modelType)
+    {
+    case Physics::BOIDS:
+    {
+      beginCaseType = Utils::PhysicsCase::BOIDS_BEGIN;
+      endCaseType = Utils::PhysicsCase::BOIDS_END;
+      break;
+    }
+    case Physics::FLUIDS:
+    {
+      beginCaseType = Utils::PhysicsCase::FLUIDS_BEGIN;
+      endCaseType = Utils::PhysicsCase::FLUIDS_END;
+      break;
+    }
+    case Physics::CLOUDS:
+    {
+      beginCaseType = Utils::PhysicsCase::CLOUDS_BEGIN;
+      endCaseType = Utils::PhysicsCase::CLOUDS_END;
+      break;
+    }
+    }
+
+    for (int iCaseType = beginCaseType + 1; iCaseType != endCaseType; iCaseType++)
+    {
+      auto caseType = static_cast<Utils::PhysicsCase>(iCaseType);
+      strCaseType = json(caseType);
+
+      if (ImGui::Selectable(strCaseType.c_str(), selectedCaseType == caseType))
+      {
+        selectedCaseType = caseType;
+
+        m_physicsEngine->setCase(selectedCaseType);
+        m_physicsEngine->reset();
       }
     }
     ImGui::EndCombo();

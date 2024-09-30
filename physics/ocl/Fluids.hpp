@@ -65,9 +65,6 @@ class Fluids : public OclModel<FluidKernelInputs>
 
   void transferJsonInputsToModel();
 
-  //void setInitialCase(CaseType caseT) { m_case = caseT; }
-  //const CaseType getInitialCase() const { return m_case; }
-
   //
   void setRestDensity(float restDensity);
   float getRestDensity() const;
@@ -119,7 +116,5 @@ class Fluids : public OclModel<FluidKernelInputs>
   RadixSort m_radixSort;
 
   FluidKernelInputs m_kernelInputs;
-
-  Utils::PhysicsCase m_case;
 };
 }
