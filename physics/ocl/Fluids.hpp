@@ -3,6 +3,7 @@
 #include "OclModel.hpp"
 
 #include "../utils/RadixSort.hpp"
+#include "Parameters.hpp"
 
 #include <array>
 #include <memory>
@@ -62,8 +63,10 @@ class Fluids : public OclModel<FluidKernelInputs>
   // OclModel.hpp
   void transferKernelInputsToGPU() override;
 
-  void setInitialCase(CaseType caseT) { m_initialCase = caseT; }
-  const CaseType getInitialCase() const { return m_initialCase; }
+  void transferJsonInputsToModel();
+
+  //void setInitialCase(CaseType caseT) { m_case = caseT; }
+  //const CaseType getInitialCase() const { return m_case; }
 
   //
   void setRestDensity(float restDensity);
@@ -117,6 +120,6 @@ class Fluids : public OclModel<FluidKernelInputs>
 
   FluidKernelInputs m_kernelInputs;
 
-  CaseType m_initialCase;
+  Utils::PhysicsCase m_case;
 };
 }

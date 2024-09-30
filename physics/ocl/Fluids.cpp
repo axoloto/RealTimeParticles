@@ -62,25 +62,32 @@ Fluids::Fluids(ModelParams params)
     : OclModel<FluidKernelInputs>(params, FluidKernelInputs {},
         // clang-format off
         json { {"Fluids", {
-            { "Case", {Utils::TaskState::TS_STOPPED, Utils::TaskState::TS_BEGIN, Utils::TaskState::TS_END}},
+            { "Case", {Utils::PhysicsCase::FLUIDS_DAM, Utils::PhysicsCase::FLUIDS_BEGIN, Utils::PhysicsCase::FLUIDS_END}},
             { "Rest Density", { 450.0f, 10.0f, 1000.0f } },
             { "Relax CFM", { 600.0f, 100.0f, 1000.0f } },
             { "Time Step", { 0.010f, 0.0001f, 0.020f } },
             { "Use 3D Dimension", true },
             { "Nb Jacobi Iterations", { 2, 1, 6 } },
             { "Artificial Pressure",
-                { { "Enable", true },
-                  { "Coefficient", { 0, 0, 0 } }
+                { { "Enable##Pressure", true },
+                  { "Coefficient##Pressure", { 0.001f, 0.0f, 0.001f} },
+                  { "Radius", {0.006f, 0.001f, 0.015f}},
+                  { "Exp", {4, 1, 6}}
+                }
+            },
+            { "Vorticity Confinement",
+                { { "Enable##Vorticity", true },
+                  { "Coefficient##Vorticity", {0.0004f, 0.0f, 0.001f}},
+                  { "xSPH Viscosity Coefficient", {0.0001f, 0.0f, 0.001f}}
                 }
             }
           }
-        } }
-        // clang-format on
+        } } // clang-format on
         )
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(100)
     , m_radixSort(params.maxNbParticles)
-    , m_initialCase(CaseType::DAM)
+    , m_case(Utils::PhysicsCase::FLUIDS_DAM)
     , m_nbJacobiIters(2)
 {
   createProgram();
@@ -196,18 +203,47 @@ bool Fluids::createKernels() const
   return true;
 }
 
+void Fluids::transferJsonInputsToModel()
+{
+  if (!m_init)
+    return;
+  LOG_INFO("Me");
+
+  m_case = m_inputJson["Fluids"]["Case"].at(0).get<Utils::PhysicsCase>();
+  //
+  // m_nbJacobiIters = (size_t)(m_inputJson["Nb Jacobi Iterations"][0]);
+  for (auto& el : m_inputJson.items())
+  {
+    std::cout << el.key() << "  " << el.value() << std::endl;
+  }
+  // std::cout << m_inputJson["Fluids"]["Relax CFM"].at(0) << std::endl;
+  LOG_INFO("Te");
+
+  auto& kernelInputs = getKernelInput<FluidKernelInputs>(0);
+  //  kernelInputs.restDensity = m_inputJson.at("Rest Density").at(0);
+  //  kernelInputs.relaxCFM = m_inputJson.at("Relax CFM").at(0);
+  //  kernelInputs.timeStep = m_inputJson.at("Time Step").at(0);
+  // kernelInputs.dim = m_inputJson["Fluids"]["Use 3D Dimension"] == true ? 3 : 2;
+  //  kernelInputs.isArtPressureEnabled = m_inputJson.at("ArtificialPressure").at("Enable##Pressure") == true ? 1 : 0;
+  //  kernelInputs.artPressureRadius = m_inputJson.at("ArtificialPressure").at(0);
+  //  kernelInputs.artPressureCoeff = m_inputJson.at("ArtificialPressure").at(0);
+  //  kernelInputs.artPressureExp = m_inputJson.at("ArtificialPressure").at(0);
+  //  kernelInputs.isVorticityConfEnabled = m_inputJson.at("Vorticity Confinement").at("Enable##Vorticity") == true ? 1 : 0;
+  //  kernelInputs.vorticityConfCoeff = m_inputJson.at("Vorticity Confinement").at("Coefficient##Vorticity").at(0);
+  //  kernelInputs.xsphViscosityCoeff = m_inputJson.at("Vorticity Confinement").at("xSPH Viscosity Coefficient").at(0);
+
+  LOG_INFO("EST");
+};
+
 void Fluids::transferKernelInputsToGPU()
 {
   if (!m_init)
     return;
 
+  assert(getNbKernelInputs() == 1);
+  auto kernelInputs = getKernelInput<FluidKernelInputs>(0);
+
   CL::Context& clContext = CL::Context::Get();
-
-  // auto kernelInputs = m_jsonBlocks.at(0).template get<FluidKernelInputs>();
-
-  auto kernelInputs = GetKernelInput<FluidKernelInputs>(0);
-  kernelInputs.dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
-
   clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(FluidKernelInputs), &kernelInputs);
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), &kernelInputs);
   clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), &kernelInputs);
@@ -241,6 +277,8 @@ void Fluids::reset()
 
 void Fluids::updateModelWithInputJson()
 {
+  transferJsonInputsToModel();
+
   transferKernelInputsToGPU();
 }
 
@@ -262,22 +300,22 @@ void Fluids::initFluidsParticles()
   {
     Geometry::Shape2D shape = Geometry::Shape2D::Rectangle;
 
-    switch (m_initialCase)
+    switch (m_case)
     {
-    case CaseType::DAM:
+    case Utils::PhysicsCase::FLUIDS_DAM:
       m_currNbParticles = Utils::NbParticles::P4K;
 
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { 0.0f, 0.0f, 0.0f };
       break;
-    case CaseType::BOMB:
+    case Utils::PhysicsCase::FLUIDS_BOMB:
       m_currNbParticles = Utils::NbParticles::P4K;
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize.y / -6.0f, m_boxSize.z / -6.0f };
       endFluidPos = { 0.0f, m_boxSize.y / 6.0f, m_boxSize.z / 6.0f };
       break;
-    case CaseType::DROP:
+    case Utils::PhysicsCase::FLUIDS_DROP:
       m_currNbParticles = Utils::NbParticles::P512;
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, 2.0f * m_boxSize.y / 10.0f, m_boxSize.z / -10.0f };
@@ -294,7 +332,7 @@ void Fluids::initFluidsParticles()
     gridVerts = Geometry::Generate2DGrid(shape, Geometry::Plane::YZ, grid2DRes, startFluidPos, endFluidPos);
 
     // Specific case
-    if (m_initialCase == CaseType::DROP)
+    if (m_case == Utils::PhysicsCase::FLUIDS_DROP)
     {
       m_currNbParticles += Utils::NbParticles::P4K;
       Math::int2 grid2DRes = { 64, 128 };
@@ -310,21 +348,21 @@ void Fluids::initFluidsParticles()
   {
     Geometry::Shape3D shape = Geometry::Shape3D::Box;
 
-    switch (m_initialCase)
+    switch (m_case)
     {
-    case CaseType::DAM:
+    case Utils::PhysicsCase::FLUIDS_DAM:
       m_currNbParticles = Utils::NbParticles::P130K;
       shape = Geometry::Shape3D::Box;
       startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { m_boxSize.x / 2.0f, 0.0f, 0.0f };
       break;
-    case CaseType::BOMB:
+    case Utils::PhysicsCase::FLUIDS_BOMB:
       m_currNbParticles = Utils::NbParticles::P65K;
       shape = Geometry::Shape3D::Sphere;
       startFluidPos = { m_boxSize.x / -6.0f, m_boxSize.y / -6.0f, m_boxSize.z / -6.0f };
       endFluidPos = { m_boxSize.x / 6.0f, m_boxSize.y / 6.0f, m_boxSize.z / 6.0f };
       break;
-    case CaseType::DROP:
+    case Utils::PhysicsCase::FLUIDS_DROP:
       m_currNbParticles = Utils::NbParticles::P4K;
       shape = Geometry::Shape3D::Box;
       startFluidPos = { m_boxSize.x / -10.0f, 2.0f * m_boxSize.y / 10.0f, m_boxSize.z / -10.0f };
@@ -341,7 +379,7 @@ void Fluids::initFluidsParticles()
     gridVerts = Geometry::Generate3DGrid(shape, grid3DRes, startFluidPos, endFluidPos);
 
     // Specific case
-    if (m_initialCase == CaseType::DROP)
+    if (m_case == Utils::PhysicsCase::FLUIDS_DROP)
     {
       m_currNbParticles += Utils::NbParticles::P65K;
       Math::int3 grid3DRes = { 64, 16, 64 };

@@ -8,30 +8,55 @@
 #include <utility>
 #include <vector>
 
-using json = nlohmann::json;
+// Using ordered version to keep inputs in the same order
+using json = nlohmann::ordered_json;
 
 namespace Utils
 {
-enum TaskState
+// Enum that goes into the input json for each physics model and is available on UI side
+enum PhysicsCase
 {
-  TS_BEGIN,
-  TS_STOPPED,
-  TS_RUNNING,
-  TS_COMPLETED,
-  TS_END,
-  TS_AFTER_END,
-  TS_INVALID = -1,
+  // Boids
+  BOIDS_BEGIN,
+  BOIDS_SMALL,
+  BOIDS_MEDIUM,
+  BOIDS_LARGE,
+  BOIDS_XLARGE,
+  BOIDS_END,
+  // Fluids
+  FLUIDS_BEGIN,
+  FLUIDS_DAM,
+  FLUIDS_BOMB,
+  FLUIDS_DROP,
+  FLUIDS_END,
+  // Clouds
+  CLOUDS_BEGIN,
+  CLOUDS_CUMULUS,
+  CLOUDS_HOMOGENEOUS,
+  CLOUDS_END,
+  //
+  CASE_INVALID = -1,
 };
 
-// map TaskState values to JSON as strings
-NLOHMANN_JSON_SERIALIZE_ENUM(TaskState, {
-                                            { TS_INVALID, nullptr },
-                                            { TS_BEGIN, "b" },
-                                            { TS_STOPPED, "stopped" },
-                                            { TS_RUNNING, "running" },
-                                            { TS_COMPLETED, "completed" },
-                                            { TS_END, "e" },
-                                        })
+// map PhysicsCase values to JSON as strings
+NLOHMANN_JSON_SERIALIZE_ENUM(PhysicsCase, {
+                                              { CASE_INVALID, nullptr },
+                                              { BOIDS_BEGIN, "boids_begin" },
+                                              { BOIDS_SMALL, "Small" },
+                                              { BOIDS_MEDIUM, "Medium" },
+                                              { BOIDS_LARGE, "Large" },
+                                              { BOIDS_XLARGE, "Extra Large" },
+                                              { BOIDS_END, "boids_end" },
+                                              { FLUIDS_BEGIN, "fluids_begin" },
+                                              { FLUIDS_DAM, "Dam" },
+                                              { FLUIDS_BOMB, "Bomb" },
+                                              { FLUIDS_DROP, "Drop" },
+                                              { FLUIDS_END, "fluids_end" },
+                                              { CLOUDS_BEGIN, "clouds_begin" },
+                                              { CLOUDS_CUMULUS, "Cumulus" },
+                                              { CLOUDS_HOMOGENEOUS, "Homogeneous" },
+                                              { CLOUDS_END, "clouds_end" },
+                                          })
 
 // List of supported particles system sizes
 enum NbParticles

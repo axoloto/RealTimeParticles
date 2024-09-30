@@ -2,8 +2,9 @@
 
 #include "Geometry.hpp"
 #include "Math.hpp"
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
+#include "Parameters.hpp"
+//#include <nlohmann/json.hpp>
+//using json = nlohmann::ordered_json;
 
 #include <array>
 #include <map>

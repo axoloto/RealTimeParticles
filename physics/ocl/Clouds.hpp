@@ -70,8 +70,8 @@ class Clouds : public OclModel<FluidKernelInputs, CloudKernelInputs>
   void update() override;
   void reset() override;
 
-  void setInitialCase(CaseType caseT) { m_initialCase = caseT; }
-  const CaseType getInitialCase() const { return m_initialCase; }
+  void setInitialCase(CaseType caseT) { m_case = caseT; }
+  const CaseType getInitialCase() const { return m_case; }
 
   //
   void setRestDensity(float restDensity);
@@ -152,6 +152,6 @@ class Clouds : public OclModel<FluidKernelInputs, CloudKernelInputs>
   std::unique_ptr<FluidKernelInputs> m_fluidKernelInputs;
   std::unique_ptr<CloudKernelInputs> m_cloudKernelInputs;
 
-  CaseType m_initialCase;
+  CaseType m_case;
 };
 }

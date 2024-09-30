@@ -3,11 +3,7 @@
 #include "../Model.hpp"
 #include "Context.hpp"
 
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
-
 #include <variant>
-//class Model;
 
 namespace Physics::CL
 {
@@ -49,11 +45,13 @@ class OclModel : public Model
   virtual void transferKernelInputsToGPU() {}; // = 0
 
   template <typename T>
-  T& GetKernelInput(int index)
+  T& getKernelInput(int index)
   {
     // risky business
     return std::get<T>(m_kernelInputs.at(index));
   }
+
+  size_t getNbKernelInputs() { return m_kernelInputs.size(); }
 
   protected:
   std::vector<std::variant<KernelInputs...>> m_kernelInputs;

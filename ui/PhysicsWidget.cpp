@@ -498,7 +498,8 @@ void drawImguiSliderFloat(const std::string& name, json& js)
   float floatVal = js.at(0);
   float minVal = js.at(1);
   float maxVal = js.at(2);
-  if (ImGui::SliderFloat(name.c_str(), &floatVal, minVal, maxVal))
+  std::string precision = floatVal <= 0.1f ? "%.4f" : "%.2f";
+  if (ImGui::SliderFloat(name.c_str(), &floatVal, minVal, maxVal, precision.c_str()))
   {
     js.at(0) = floatVal;
   }
@@ -548,9 +549,9 @@ void drawImguiObjectFromJson(json& js)
     {
       drawImguiCheckBoxFromJson(el.key(), val.get_ref<bool&>());
     }
-    else if (val.is_array() && val[0].get<Utils::TaskState>() != Utils::TaskState::TS_INVALID)
+    else if (val.is_array() && val[0].get<Utils::PhysicsCase>() != Utils::PhysicsCase::CASE_INVALID)
     {
-      drawImguiEnumCombo<Utils::TaskState>(el.key(), val);
+      drawImguiEnumCombo<Utils::PhysicsCase>(el.key(), val);
     }
     else if (val.is_array() && val.size() == 3 && val[0].is_number_integer())
     {

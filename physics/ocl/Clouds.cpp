@@ -5,7 +5,6 @@
 #include "Parameters.hpp"
 #include "Utils.hpp"
 
-
 #include <algorithm>
 #include <array>
 #include <ctime>
@@ -100,7 +99,7 @@ Clouds::Clouds(ModelParams params)
     , m_radixSort(params.maxNbParticles)
     , m_fluidKernelInputs(std::make_unique<FluidKernelInputs>())
     , m_cloudKernelInputs(std::make_unique<CloudKernelInputs>())
-    , m_initialCase(CaseType::CUMULUS)
+    , m_case(CaseType::CUMULUS)
     , m_nbJacobiIters(1)
 {
   createProgram();
@@ -350,7 +349,7 @@ void Clouds::initCloudsParticles()
   {
     Geometry::Shape2D shape = Geometry::Shape2D::Rectangle;
 
-    switch (m_initialCase)
+    switch (m_case)
     {
     case CaseType::CUMULUS:
       m_currNbParticles = Utils::NbParticles::P8K;
@@ -378,7 +377,7 @@ void Clouds::initCloudsParticles()
   {
     Geometry::Shape3D shape = Geometry::Shape3D::Box;
 
-    switch (m_initialCase)
+    switch (m_case)
     {
     case CaseType::CUMULUS:
       m_currNbParticles = Utils::NbParticles::P65K;
