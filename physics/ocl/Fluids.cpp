@@ -49,19 +49,9 @@ using namespace Physics::CL;
 #define KERNEL_UPDATE_POS "fld_updatePosition"
 #define KERNEL_FILL_COLOR "fld_fillFluidColor"
 
-namespace Physics
-{
-const std::map<Fluids::CaseType, std::string, Fluids::CompareCaseType> Fluids::ALL_CASES {
-  { CaseType::DAM, "Dam-Break" },
-  { CaseType::BOMB, "Bomb" },
-  { CaseType::DROP, "Drop" },
-};
-}
-
-Fluids::Fluids(ModelParams params)
-    : OclModel<FluidKernelInputs>(params, FluidKernelInputs {},
-        // clang-format off
-        json { {"Fluids", {
+static const json initJson // clang-format off
+      { 
+        {"Fluids", {
             { "Rest Density", { 450.0f, 10.0f, 1000.0f } },
             { "Relax CFM", { 600.0f, 100.0f, 1000.0f } },
             { "Time Step", { 0.010f, 0.0001f, 0.020f } },
@@ -80,8 +70,11 @@ Fluids::Fluids(ModelParams params)
                 }
             }
           }
-        } } // clang-format on
-        )
+        }
+      }; // clang-format on
+
+Fluids::Fluids(ModelParams params)
+    : OclModel<FluidKernelInputs>(params, FluidKernelInputs {}, json(initJson))
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(100)
     , m_radixSort(params.maxNbParticles)
@@ -204,31 +197,28 @@ void Fluids::transferJsonInputsToModel()
 {
   if (!m_init)
     return;
-  LOG_INFO("Me");
 
-  //
-  // m_nbJacobiIters = (size_t)(m_inputJson["Nb Jacobi Iterations"][0]);
-  for (auto& el : m_inputJson.items())
-  {
-    std::cout << el.key() << "  " << el.value() << std::endl;
-  }
-  // std::cout << m_inputJson["Fluids"]["Relax CFM"].at(0) << std::endl;
-  LOG_INFO("Te");
+  // Make sure the json path is perfectly correct or expect instant crashes
+  // Might be worth it to add a try catch
 
+  auto& fluidsJson = m_inputJson["Fluids"];
   auto& kernelInputs = getKernelInput<FluidKernelInputs>(0);
-  //  kernelInputs.restDensity = m_inputJson.at("Rest Density").at(0);
-  //  kernelInputs.relaxCFM = m_inputJson.at("Relax CFM").at(0);
-  //  kernelInputs.timeStep = m_inputJson.at("Time Step").at(0);
-  kernelInputs.dim = m_dimension == Geometry::Dimension::dim2D ? 2 : 3;
-  //  kernelInputs.isArtPressureEnabled = m_inputJson.at("ArtificialPressure").at("Enable##Pressure") == true ? 1 : 0;
-  //  kernelInputs.artPressureRadius = m_inputJson.at("ArtificialPressure").at(0);
-  //  kernelInputs.artPressureCoeff = m_inputJson.at("ArtificialPressure").at(0);
-  //  kernelInputs.artPressureExp = m_inputJson.at("ArtificialPressure").at(0);
-  //  kernelInputs.isVorticityConfEnabled = m_inputJson.at("Vorticity Confinement").at("Enable##Vorticity") == true ? 1 : 0;
-  //  kernelInputs.vorticityConfCoeff = m_inputJson.at("Vorticity Confinement").at("Coefficient##Vorticity").at(0);
-  //  kernelInputs.xsphViscosityCoeff = m_inputJson.at("Vorticity Confinement").at("xSPH Viscosity Coefficient").at(0);
 
-  LOG_INFO("EST");
+  m_nbJacobiIters = fluidsJson["Nb Jacobi Iterations"][0];
+
+  kernelInputs.restDensity = (cl_float)(fluidsJson["Rest Density"][0]);
+  kernelInputs.relaxCFM = (cl_float)(fluidsJson["Relax CFM"][0]);
+  kernelInputs.timeStep = (cl_float)(fluidsJson["Time Step"][0]);
+  kernelInputs.dim = (cl_uint)((m_dimension == Geometry::Dimension::dim2D) ? 2 : 3);
+
+  kernelInputs.isArtPressureEnabled = (cl_uint)((fluidsJson["Artificial Pressure"]["Enable##Pressure"] == true) ? 1 : 0);
+  kernelInputs.artPressureCoeff = (cl_float)(fluidsJson["Artificial Pressure"]["Coefficient##Pressure"][0]);
+  kernelInputs.artPressureRadius = (cl_float)(fluidsJson["Artificial Pressure"]["Radius"][0]);
+  kernelInputs.artPressureExp = (cl_uint)(fluidsJson["Artificial Pressure"]["Exp"][0]);
+
+  kernelInputs.isVorticityConfEnabled = (cl_uint)((fluidsJson["Vorticity Confinement"]["Enable##Vorticity"] == true) ? 1 : 0);
+  kernelInputs.vorticityConfCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["Coefficient##Vorticity"][0]);
+  kernelInputs.xsphViscosityCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["xSPH Viscosity Coefficient"][0]);
 };
 
 void Fluids::transferKernelInputsToGPU()
@@ -258,6 +248,8 @@ void Fluids::reset()
 
   CL::Context& clContext = CL::Context::Get();
 
+  m_inputJson = initJson;
+
   updateModelWithInputJson();
 
   initFluidsParticles();
@@ -273,8 +265,9 @@ void Fluids::reset()
 
 void Fluids::updateModelWithInputJson()
 {
+  // First transfer inputs from json to model and kernel inputs
   transferJsonInputsToModel();
-
+  // Then transfer kernel inputs from CPU to GPU
   transferKernelInputsToGPU();
 }
 
@@ -449,9 +442,9 @@ void Fluids::update()
     // Updating velocity
     clContext.runKernel(KERNEL_UPDATE_VEL, m_currNbParticles);
 
-    if (1) // todo
+    if (getKernelInput<FluidKernelInputs>(0).isVorticityConfEnabled)
     {
-      // Computing vorticity
+      // Computing vorticityx
       clContext.runKernel(KERNEL_COMPUTE_VORTICITY, m_currNbParticles);
       // Applying vorticity confinement to attenue virtual damping
       clContext.runKernel(KERNEL_VORTICITY_CONFINEMENT, m_currNbParticles);
@@ -477,132 +470,3 @@ void Fluids::update()
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }
-
-// Storing definitions here to prevent cl_types in headers
-void Fluids::setRestDensity(float restDensity)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs.restDensity = (cl_float)restDensity;
-}
-
-//
-void Fluids::setRelaxCFM(float relaxCFM)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs.relaxCFM = (cl_float)relaxCFM;
-}
-
-//
-void Fluids::setTimeStep(float timeStep)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs.timeStep = (cl_float)timeStep;
-  //updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setNbJacobiIters(size_t nbIters)
-{
-  if (!m_init)
-    return;
-  m_nbJacobiIters = nbIters;
-}
-
-//
-void Fluids::enableArtPressure(bool enable)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs.isArtPressureEnabled = (cl_uint)enable;
-  // updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setArtPressureRadius(float radius)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs.artPressureRadius = (cl_float)radius;
-  //updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setArtPressureExp(size_t exp)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs.artPressureExp = (cl_uint)exp;
-  // updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setArtPressureCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs.artPressureCoeff = (cl_float)coeff;
-  // updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::enableVorticityConfinement(bool enable)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs.isVorticityConfEnabled = (cl_uint)enable;
-  // updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setVorticityConfinementCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs.vorticityConfCoeff = (cl_float)coeff;
-  // updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setXsphViscosityCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs.xsphViscosityCoeff = (cl_float)coeff;
-  // updateFluidsParamsInKernels();
-}
-
-//
-float Fluids::getRestDensity() const { return m_init ? (float)m_kernelInputs.restDensity : 0.0f; }
-
-//
-float Fluids::getRelaxCFM() const { return m_init ? (float)m_kernelInputs.relaxCFM : 0.0f; }
-
-//
-float Fluids::getTimeStep() const { return m_init ? (float)m_kernelInputs.timeStep : 0.0f; }
-
-//
-size_t Fluids::getNbJacobiIters() const { return m_init ? m_nbJacobiIters : 0; }
-
-//
-bool Fluids::isArtPressureEnabled() const { return m_init ? (bool)m_kernelInputs.isArtPressureEnabled : false; }
-
-//
-float Fluids::getArtPressureRadius() const { return m_init ? (float)m_kernelInputs.artPressureRadius : 0.0f; }
-
-//
-size_t Fluids::getArtPressureExp() const { return m_init ? (size_t)m_kernelInputs.artPressureExp : 0; }
-
-//
-float Fluids::getArtPressureCoeff() const { return m_init ? (float)m_kernelInputs.artPressureCoeff : 0.0f; }
-
-//
-bool Fluids::isVorticityConfinementEnabled() const { return m_init ? (bool)m_kernelInputs.isVorticityConfEnabled : 0.0f; }
-
-//
-float Fluids::getVorticityConfinementCoeff() const { return m_init ? (float)m_kernelInputs.vorticityConfCoeff : 0.0f; }
-
-//
-float Fluids::getXsphViscosityCoeff() const { return m_init ? (float)m_kernelInputs.xsphViscosityCoeff : 0.0f; }

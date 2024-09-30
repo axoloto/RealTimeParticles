@@ -34,24 +34,6 @@ struct FluidKernelInputs
 class Fluids : public OclModel<FluidKernelInputs>
 {
   public:
-  // List of implemented cases
-  enum CaseType
-  {
-    DAM = 0,
-    BOMB = 1,
-    DROP = 2
-  };
-  struct CompareCaseType
-  {
-    bool operator()(const CaseType& caseA, const CaseType& caseB) const
-    {
-      return (int)caseA < (int)caseB;
-    }
-  };
-
-  // Static member vars must be initialized outside of the class in the global scope
-  static const std::map<CaseType, std::string, CompareCaseType> ALL_CASES;
-
   Fluids(ModelParams params);
   ~Fluids();
 
@@ -62,42 +44,7 @@ class Fluids : public OclModel<FluidKernelInputs>
   void updateModelWithInputJson() override;
   // OclModel.hpp
   void transferKernelInputsToGPU() override;
-
   void transferJsonInputsToModel();
-
-  //
-  void setRestDensity(float restDensity);
-  float getRestDensity() const;
-  //
-  void setRelaxCFM(float relaxCFM);
-  float getRelaxCFM() const;
-  //
-  void setTimeStep(float timeStep);
-  float getTimeStep() const;
-  //
-  void setNbJacobiIters(size_t nbIters);
-  size_t getNbJacobiIters() const;
-  //
-  void enableArtPressure(bool enable);
-  bool isArtPressureEnabled() const;
-  //
-  void setArtPressureRadius(float radius);
-  float getArtPressureRadius() const;
-  //
-  void setArtPressureExp(size_t exp);
-  size_t getArtPressureExp() const;
-  //
-  void setArtPressureCoeff(float coeff);
-  float getArtPressureCoeff() const;
-  //
-  void enableVorticityConfinement(bool enable);
-  bool isVorticityConfinementEnabled() const;
-  //
-  void setVorticityConfinementCoeff(float coeff);
-  float getVorticityConfinementCoeff() const;
-  //
-  void setXsphViscosityCoeff(float coeff);
-  float getXsphViscosityCoeff() const;
 
   private:
   bool createProgram() const;
@@ -111,10 +58,9 @@ class Fluids : public OclModel<FluidKernelInputs>
 
   size_t m_maxNbPartsInCell;
 
+  // Input available in UI through input json
   size_t m_nbJacobiIters;
 
   RadixSort m_radixSort;
-
-  FluidKernelInputs m_kernelInputs;
 };
 }
