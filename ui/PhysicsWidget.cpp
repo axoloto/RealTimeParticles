@@ -548,6 +548,12 @@ void drawImguiObjectFromJson(json& js)
     else if (val.is_boolean())
     {
       drawImguiCheckBoxFromJson(el.key(), val.get_ref<bool&>());
+
+      // special case where we skip the rest of the items if "Enable" param is false
+      bool skipRestOfItems = el.key().find("Enable##") != std::string::npos && val == false;
+
+      if (skipRestOfItems)
+        return;
     }
     else if (val.is_array() && val[0].get<Utils::PhysicsCase>() != Utils::PhysicsCase::CASE_INVALID)
     {
