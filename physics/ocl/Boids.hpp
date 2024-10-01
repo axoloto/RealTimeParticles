@@ -25,6 +25,7 @@ class Boids : public OclModel<BoidsKernelInputs>
   void update() override;
   void reset() override;
 
+  /*
   //
   void setVelocity(float velocity) override
   {
@@ -110,7 +111,7 @@ class Boids : public OclModel<BoidsKernelInputs>
     updateBoidsParamsInKernel();
   }
   int targetSignEffect() const { return m_target.signEffect(); }
-
+*/
   private:
   void initBoidsParticles();
   bool createProgram() const;
@@ -118,6 +119,9 @@ class Boids : public OclModel<BoidsKernelInputs>
   bool createKernels() const;
   void updateBoidsParamsInKernel();
   void updateGridParamsInKernel();
+
+  void transferJsonInputsToModel() override;
+  void transferKernelInputsToGPU() override;
 
   bool m_activeAlignment;
   bool m_activeCohesion;

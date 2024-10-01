@@ -193,6 +193,28 @@ bool Fluids::createKernels() const
   return true;
 }
 
+void Fluids::reset()
+{
+  if (!m_init)
+    return;
+
+  CL::Context& clContext = CL::Context::Get();
+
+  m_inputJson = initJson;
+
+  updateModelWithInputJson();
+
+  initFluidsParticles();
+
+  clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
+  clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
+  clContext.runKernel(KERNEL_FILL_PART_DETECTOR, m_currNbParticles);
+  clContext.releaseGLBuffers({ "p_pos", "c_partDetector" });
+
+  clContext.runKernel(KERNEL_RESET_CELL_ID, m_maxNbParticles);
+  clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
+}
+
 void Fluids::transferJsonInputsToModel()
 {
   if (!m_init)
@@ -239,36 +261,6 @@ void Fluids::transferKernelInputsToGPU()
   clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), &kernelInputs);
   clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), &kernelInputs);
   clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), &kernelInputs);
-}
-
-void Fluids::reset()
-{
-  if (!m_init)
-    return;
-
-  CL::Context& clContext = CL::Context::Get();
-
-  m_inputJson = initJson;
-
-  updateModelWithInputJson();
-
-  initFluidsParticles();
-
-  clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
-  clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
-  clContext.runKernel(KERNEL_FILL_PART_DETECTOR, m_currNbParticles);
-  clContext.releaseGLBuffers({ "p_pos", "c_partDetector" });
-
-  clContext.runKernel(KERNEL_RESET_CELL_ID, m_maxNbParticles);
-  clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
-}
-
-void Fluids::updateModelWithInputJson()
-{
-  // First transfer inputs from json to model and kernel inputs
-  transferJsonInputsToModel();
-  // Then transfer kernel inputs from CPU to GPU
-  transferKernelInputsToGPU();
 }
 
 void Fluids::initFluidsParticles()

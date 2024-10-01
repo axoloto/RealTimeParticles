@@ -148,13 +148,17 @@ bool Boids::createKernels() const
   return true;
 }
 
-void Boids::updateBoidsParamsInKernel()
+void Boids::transferJsonInputsToModel()
+{
+}
+
+void Boids::transferKernelInputsToGPU()
 {
   CL::Context& clContext = CL::Context::Get();
 
   float vel = m_velocity;
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &vel);
-
+  /*
   std::array<float, 8> boidsParams;
   boidsParams[0] = m_velocity;
   boidsParams[1] = m_activeCohesion ? m_scaleCohesion : 0.0f;
@@ -171,6 +175,7 @@ void Boids::updateBoidsParamsInKernel()
     clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(float), &squaredRadiusEffect);
     clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 3, sizeof(int), &signEffect);
   }
+*/
 }
 
 void Boids::reset()
@@ -178,7 +183,7 @@ void Boids::reset()
   if (!m_init)
     return;
 
-  updateBoidsParamsInKernel();
+  updateModelWithInputJson();
 
   CL::Context& clContext = CL::Context::Get();
 
@@ -270,7 +275,7 @@ void Boids::update()
     else
       clContext.runKernel(KERNEL_BOIDS_RULES_GRID_3D, m_currNbParticles);
 
-    if (isTargetActivated())
+    // if (isTargetActivated())
     {
       m_target.updatePos(m_dimension, m_velocity);
       auto targetXYZ = m_target.pos();

@@ -42,7 +42,17 @@ class OclModel : public Model
     return (platformName.find("Intel") != std::string::npos);
   }
 
-  virtual void transferKernelInputsToGPU() {}; // = 0
+  // Model.hpp
+  void updateModelWithInputJson() override
+  {
+    // First transfer inputs from json to model and kernel inputs
+    transferJsonInputsToModel();
+    // Then transfer kernel inputs from CPU to GPU
+    transferKernelInputsToGPU();
+  }
+
+  virtual void transferJsonInputsToModel() = 0;
+  virtual void transferKernelInputsToGPU() = 0;
 
   template <typename T>
   T& getKernelInput(int index)

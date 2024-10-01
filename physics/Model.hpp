@@ -172,7 +172,7 @@ class Model
     updateModelWithInputJson();
   }
 
-  virtual void updateModelWithInputJson() {}; // = 0;
+  virtual void updateModelWithInputJson() = 0;
 
   void setCase(Utils::PhysicsCase caseType) { m_case = caseType; }
   const Utils::PhysicsCase getCase() const { return m_case; }
