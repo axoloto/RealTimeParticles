@@ -74,14 +74,16 @@ static const json initJson // clang-format off
       { "Time Step", { 0.010f, 0.0001f, 0.020f } },
       { "Nb Jacobi Iterations", { 2, 1, 6 } },
       { "Artificial Pressure",
-          { { "Enable##Pressure", true },
+          { 
+            { "Enable##Pressure", true },
             { "Coefficient##Pressure", { 0.001f, 0.0f, 0.001f} },
             { "Radius", {0.006f, 0.001f, 0.015f}},
             { "Exp", {4, 1, 6}}
           }
       },
       { "Vorticity Confinement",
-          { { "Enable##Vorticity", true },
+          { 
+            { "Enable##Vorticity", true },
             { "Coefficient##Vorticity", {0.0004f, 0.0f, 0.001f}},
             { "xSPH Viscosity Coefficient", {0.0001f, 0.0f, 0.001f}}
           }

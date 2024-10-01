@@ -89,7 +89,6 @@ class Model
       , m_boxSize(params.boxSize)
       , m_gridRes(params.gridRes)
       , m_nbCells(params.gridRes.x * params.gridRes.y * params.gridRes.z)
-      , m_velocity(params.velocity)
       , m_particlePosVBO(params.particlePosVBO)
       , m_particleColVBO(params.particleColVBO)
       , m_cameraVBO(params.cameraVBO)
@@ -129,9 +128,6 @@ class Model
 
   void pause(bool pause) { m_pause = pause; }
   bool onPause() const { return m_pause; }
-
-  virtual void setVelocity(float velocity) { m_velocity = velocity; }
-  float velocity() const { return m_velocity; }
 
   virtual Math::float3 targetPos() const { return { 0.0f, 0.0f, 0.0f }; }
   virtual bool isTargetActivated() const { return false; }
@@ -188,8 +184,6 @@ class Model
 
   Geometry::BoxSize3D m_gridRes;
   size_t m_nbCells;
-
-  float m_velocity;
 
   Geometry::Dimension m_dimension;
 
