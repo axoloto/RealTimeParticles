@@ -339,13 +339,13 @@ void Clouds::updateFluidsParamsInKernels()
 
   m_fluidKernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
 
-  clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
+  clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs);
 }
 
 void Clouds::updateCloudsParamsInKernels()
@@ -357,18 +357,18 @@ void Clouds::updateCloudsParamsInKernels()
 
   m_cloudKernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
 
-  clContext.setKernelArg(KERNEL_INIT_VAPOR_DENSITY, 0, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_HEAT_GROUND, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_BUOYANCY, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_ADIABATIC_COOLING, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CLOUD_GENERATION, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_PHASE_TRANSITION, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_LATENT_HEAT, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_PREDICT_POS, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_LAPLACIAN_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_UPDATE_POS, 1, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
+  clContext.setKernelArg(KERNEL_INIT_VAPOR_DENSITY, 0, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_HEAT_GROUND, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_BUOYANCY, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_ADIABATIC_COOLING, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_CLOUD_GENERATION, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_PHASE_TRANSITION, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_LATENT_HEAT, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_PREDICT_POS, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_LAPLACIAN_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_UPDATE_POS, 1, sizeof(CloudKernelInputs), m_cloudKernelInputs);
 }
 
 void Clouds::reset()
@@ -376,13 +376,13 @@ void Clouds::reset()
   if (!m_init)
     return;
 
-  CL::Context& clContext = CL::Context::Get();
-
   m_inputJson = initJson;
 
   updateModelWithInputJson();
 
   initCloudsParticles();
+
+  CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
   clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);

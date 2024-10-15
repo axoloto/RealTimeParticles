@@ -74,7 +74,7 @@ class Clouds : public OclModel<FluidKernelInputs, CloudKernelInputs>
 
   RadixSort m_radixSort;
 
-  std::unique_ptr<FluidKernelInputs> m_fluidKernelInputs;
-  std::unique_ptr<CloudKernelInputs> m_cloudKernelInputs;
+  FluidKernelInputs* m_fluidKernelInputs;
+  CloudKernelInputs* m_cloudKernelInputs;
 };
 }
