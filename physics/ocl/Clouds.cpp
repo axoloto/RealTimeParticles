@@ -64,9 +64,7 @@ using namespace Physics::CL;
 #define KERNEL_CONSTRAINT_CORRECTION_TEMP "cld_computeConstraintCorrectionTemp"
 #define KERNEL_CORRECT_TEMP "cld_correctTemperature"
 
-namespace Physics
-{
-static const json initJson // clang-format off
+static const json initCloudsJson // clang-format off
 { 
   {"Fluids", {
       { "Rest Density", { 450.0f, 10.0f, 1000.0f } },
@@ -102,10 +100,9 @@ static const json initJson // clang-format off
     }
   }
 }; // clang-format on
-}
 
 Clouds::Clouds(ModelParams params)
-    : OclModel<FluidKernelInputs, CloudKernelInputs>(params, FluidKernelInputs {}, CloudKernelInputs {}, json(initJson))
+    : OclModel<FluidKernelInputs, CloudKernelInputs>(params, FluidKernelInputs {}, CloudKernelInputs {}, json(initCloudsJson))
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(100)
     , m_radixSort(params.maxNbParticles)
@@ -129,8 +126,6 @@ Clouds::~Clouds() {};
 
 bool Clouds::createProgram() const
 {
-  CL::Context& clContext = CL::Context::Get();
-
   assert(m_boxSize.x / m_gridRes.x == m_boxSize.y / m_gridRes.y);
   assert(m_boxSize.z / m_gridRes.z == m_boxSize.y / m_gridRes.y);
 
@@ -152,6 +147,9 @@ bool Clouds::createProgram() const
   clBuildOptions << " -DMAX_VEL=" << Utils::FloatToStr(30.0f);
 
   LOG_INFO(clBuildOptions.str());
+
+  CL::Context& clContext = CL::Context::Get();
+
   // file.cl order matters
   // 1/ define.cl must be first as it defines variables used by other kernels
   // 2/ fluids.cl contains Position Based Fluids algorithms needed for the fluids part of the cloud sim
@@ -284,9 +282,9 @@ void Clouds::transferJsonInputsToModel()
     return;
 
   // Make sure the json path is perfectly correct or expect instant crashes
-  // Might be worth it to add a try catch
+  // Might be worth it to add a try catch here
 
-  auto& fluidsJson = m_inputJson["Fluids"];
+  const auto& fluidsJson = m_inputJson["Fluids"];
 
   m_nbJacobiIters = fluidsJson["Nb Jacobi Iterations"][0];
 
@@ -304,7 +302,7 @@ void Clouds::transferJsonInputsToModel()
   m_fluidKernelInputs->vorticityConfCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["Coefficient##Vorticity"][0]);
   m_fluidKernelInputs->xsphViscosityCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["xSPH Viscosity Coefficient"][0]);
 
-  auto& cloudsJson = m_inputJson["Clouds"];
+  const auto& cloudsJson = m_inputJson["Clouds"];
 
   // Some values are taken from the fluids input json as values must remain equal
   m_cloudKernelInputs->restDensity = (cl_float)(fluidsJson["Rest Density"][0]);
@@ -335,9 +333,9 @@ void Clouds::updateFluidsParamsInKernels()
   if (!m_init)
     return;
 
-  CL::Context& clContext = CL::Context::Get();
-
   m_fluidKernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
+
+  CL::Context& clContext = CL::Context::Get();
 
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(FluidKernelInputs), m_fluidKernelInputs);
   clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs);
@@ -353,9 +351,9 @@ void Clouds::updateCloudsParamsInKernels()
   if (!m_init)
     return;
 
-  CL::Context& clContext = CL::Context::Get();
-
   m_cloudKernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
+
+  CL::Context& clContext = CL::Context::Get();
 
   clContext.setKernelArg(KERNEL_INIT_VAPOR_DENSITY, 0, sizeof(CloudKernelInputs), m_cloudKernelInputs);
   clContext.setKernelArg(KERNEL_HEAT_GROUND, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs);
@@ -376,7 +374,7 @@ void Clouds::reset()
   if (!m_init)
     return;
 
-  m_inputJson = initJson;
+  m_inputJson = initCloudsJson;
 
   updateModelWithInputJson();
 
