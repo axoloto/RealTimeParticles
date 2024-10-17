@@ -37,45 +37,43 @@ using namespace Physics::CL;
 #define KERNEL_BOIDS_RULES_GRID_2D "bd_applyBoidsRulesWithGrid2D"
 #define KERNEL_BOIDS_RULES_GRID_3D "bd_applyBoidsRulesWithGrid3D"
 #define KERNEL_ADD_TARGET_RULE "bd_addTargetRule"
-namespace Physics
-{
-static const json initJson // clang-format off
-      { 
-        {"Boids", {
-            { "Velocity", { 0.5f, 0.01f, 5.0f } },
-            { "Target",
-              {
-                { "Enable##Target", false },
-                { "Show", true },
-                { "Radius", { 2.0f, 1.0f, 20.0f } },
-                { "Attract", true}
-              }
-            },
-            { "Alignment",
-              {
-                { "Enable##Alignment", true},
-                { "Scale##Alignment", { 1.6f, 0.0f, 3.0f} },
-              }
-            },
-            { "Cohesion", 
-              {
-                { "Enable##Cohesion", true},
-                { "Scale##Cohesion", { 1.45f, 0.0f, 3.0f} },
-              }
-            },           
-            { "Separation", 
-              {
-                { "Enable##Separation", true},
-                { "Scale##Separation", { 1.6f, 0.0f, 3.0f} },
-              }
-            }
-          }
+
+static const json initBoidsJson // clang-format off
+{ 
+  {"Boids", {
+      { "Velocity", { 0.5f, 0.01f, 5.0f } },
+      { "Target",
+        {
+          { "Enable##Target", false },
+          { "Show", true },
+          { "Radius", { 2.0f, 1.0f, 20.0f } },
+          { "Attract", true}
         }
-      }; // clang-format on
-}
+      },
+      { "Alignment",
+        {
+          { "Enable##Alignment", true},
+          { "Scale##Alignment", { 1.6f, 0.0f, 3.0f} },
+        }
+      },
+      { "Cohesion", 
+        {
+          { "Enable##Cohesion", true},
+          { "Scale##Cohesion", { 1.45f, 0.0f, 3.0f} },
+        }
+      },           
+      { "Separation", 
+        {
+          { "Enable##Separation", true},
+          { "Scale##Separation", { 1.6f, 0.0f, 3.0f} },
+        }
+      }
+    }
+  }
+}; // clang-format on
 
 Boids::Boids(ModelParams params)
-    : OclModel<BoidsRuleKernelInputs, TargetKernelInputs>(params, BoidsRuleKernelInputs {}, TargetKernelInputs {}, json(initJson))
+    : OclModel<BoidsRuleKernelInputs, TargetKernelInputs>(params, BoidsRuleKernelInputs {}, TargetKernelInputs {}, json(initBoidsJson))
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(3000)
     , m_radixSort(params.maxNbParticles)
@@ -222,7 +220,7 @@ void Boids::reset()
   if (!m_init)
     return;
 
-  m_inputJson = initJson;
+  m_inputJson = initBoidsJson;
 
   switch (m_case)
   {
