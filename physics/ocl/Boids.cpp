@@ -179,7 +179,8 @@ void Boids::transferJsonInputsToModel()
   if (!m_init)
     return;
 
-  auto& boidsJson = m_inputJson["Boids"];
+  const auto& boidsJson = m_inputJson["Boids"];
+
   auto& boidsRuleKernelInputs = getKernelInput<BoidsRuleKernelInputs>(0);
 
   boidsRuleKernelInputs.velocityScale = (cl_float)(boidsJson["Velocity"][0]);
@@ -203,14 +204,14 @@ void Boids::transferKernelInputsToGPU()
 {
   CL::Context& clContext = CL::Context::Get();
 
-  auto boidsRuleKernelInputs = getKernelInput<BoidsRuleKernelInputs>(0);
+  const auto& boidsRuleKernelInputs = getKernelInput<BoidsRuleKernelInputs>(0);
   clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &boidsRuleKernelInputs.velocityScale);
   clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_2D, 3, sizeof(BoidsRuleKernelInputs), &boidsRuleKernelInputs);
   clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_3D, 3, sizeof(BoidsRuleKernelInputs), &boidsRuleKernelInputs);
 
   if (isTargetActivated())
   {
-    auto targetKernelInputs = getKernelInput<TargetKernelInputs>(1);
+    const auto& targetKernelInputs = getKernelInput<TargetKernelInputs>(1);
     clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(TargetKernelInputs), &targetKernelInputs);
   }
 }
@@ -248,9 +249,9 @@ void Boids::reset()
 
   updateModelWithInputJson();
 
-  CL::Context& clContext = CL::Context::Get();
-
   initBoidsParticles();
+
+  CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_pos", "p_col", "c_partDetector" });
 
