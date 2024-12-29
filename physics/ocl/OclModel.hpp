@@ -7,6 +7,8 @@
 
 namespace Physics::CL
 {
+// OpenCL-specific template based on top of Physics::Model
+// It owns the different OpenCL kernel inputs needed for a given physical model
 template <typename... KernelInputs>
 class OclModel : public Model
 {
