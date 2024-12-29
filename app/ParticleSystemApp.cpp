@@ -535,7 +535,7 @@ void ParticleSystemApp::selectPhysicalCase()
   // Current physical case
   auto selectedCaseType = m_physicsEngine->getCase();
 
-  // Using json to do the mapping to the string equivalent
+  // Using json to do the mapping to the equivalent string
   std::string strCaseType = json(selectedCaseType);
   if (ImGui::BeginCombo("Physical case", strCaseType.c_str()))
   {
