@@ -74,6 +74,7 @@ class Clouds : public OclModel<FluidKernelInputs, CloudKernelInputs>
 
   RadixSort m_radixSort;
 
+  // To simplify access to the different kernel inputs that are stored at OclModel level
   FluidKernelInputs* m_fluidKernelInputs;
   CloudKernelInputs* m_cloudKernelInputs;
 };
