@@ -91,13 +91,15 @@ void drawImguiEnumCombo(const std::string& name, json& js)
 
 void drawImguiObjectFromJson(json& js)
 {
-  for (auto& el : js.items())
+  for (auto& pair : js.items())
   {
-    auto& val = el.value();
+    const auto& name = pair.key();
+    auto& val = pair.value();
+
     if (val.is_object())
     {
       ImGui::Spacing();
-      ImGui::Text(el.key().c_str());
+      ImGui::Text(name.c_str());
       ImGui::Indent(15.0f);
       // Recursive call
       drawImguiObjectFromJson(val);
@@ -106,27 +108,31 @@ void drawImguiObjectFromJson(json& js)
     }
     else if (val.is_boolean())
     {
-      drawImguiCheckBoxFromJson(el.key(), val.get_ref<bool&>());
+      // accessing json bool value by reference, directly modifying the value within the json
+      drawImguiCheckBoxFromJson(name, val.get_ref<bool&>());
 
       // special case where we skip the rest of the items if "Enable" param is false
-      bool skipRestOfItems = el.key().find("Enable##") != std::string::npos && val == false;
+      bool skipRestOfItems = name.find("Enable##") != std::string::npos && val == false;
 
       if (skipRestOfItems)
         return;
     }
-    else if (val.is_array() && val[0].get<Utils::PhysicsCase>() != Utils::PhysicsCase::CASE_INVALID)
+    else if (val.is_array() && val.size() == 3)
     {
-      drawImguiEnumCombo<Utils::PhysicsCase>(el.key(), val);
+      if (val[0].is_number_integer())
+      {
+        // cannot directly access json array items by reference, one copy needed
+        drawImguiSliderInt(name, val);
+      }
+      else if (val[0].is_number_float())
+      {
+        // cannot directly access json array items by reference, one copy needed
+        drawImguiSliderFloat(name, val);
+      }
     }
-    else if (val.is_array() && val.size() == 3 && val[0].is_number_integer())
+    else
     {
-      // cannot directly access json array items by reference
-      drawImguiSliderInt(el.key(), val);
-    }
-    else if (val.is_array() && val.size() == 3 && val[0].is_number_float())
-    {
-      // cannot directly access json array items by reference
-      drawImguiSliderFloat(el.key(), val);
+      LOG_ERROR("{} type is not supported by PhysicsWidget drawer", name);
     }
   }
 }
@@ -142,6 +148,8 @@ void UI::PhysicsWidget::display()
   ImGui::SetNextWindowPos(ImVec2(15, 355), ImGuiCond_FirstUseEver);
 
   ImGui::Value("Particles", (int)physicsEngine->nbParticles());
+
+  displayBoundaryConditions(physicsEngine.get());
 
   // Retrieve input json from the physics engine with all available parameters
   json js = physicsEngine->getInputJson();

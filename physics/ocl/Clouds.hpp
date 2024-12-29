@@ -63,7 +63,7 @@ class Clouds : public OclModel<FluidKernelInputs, CloudKernelInputs>
   void updateFluidsParamsInKernels();
   void updateCloudsParamsInKernels();
 
-  void transferJsonInputsToModel() override;
+  void transferJsonInputsToModel(json& inputJson) override;
   void transferKernelInputsToGPU() override;
 
   bool m_simplifiedMode;

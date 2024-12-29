@@ -49,32 +49,32 @@ using namespace Physics::CL;
 #define KERNEL_UPDATE_POS "fld_updatePosition"
 #define KERNEL_FILL_COLOR "fld_fillFluidColor"
 
-static const json initJson // clang-format off
-      { 
-        {"Fluids", {
-            { "Rest Density", { 450.0f, 10.0f, 1000.0f } },
-            { "Relax CFM", { 600.0f, 100.0f, 1000.0f } },
-            { "Time Step", { 0.010f, 0.0001f, 0.020f } },
-            { "Nb Jacobi Iterations", { 2, 1, 6 } },
-            { "Artificial Pressure",
-                { { "Enable##Pressure", true },
-                  { "Coefficient##Pressure", { 0.001f, 0.0f, 0.001f} },
-                  { "Radius", {0.006f, 0.001f, 0.015f}},
-                  { "Exp", {4, 1, 6}}
-                }
-            },
-            { "Vorticity Confinement",
-                { { "Enable##Vorticity", true },
-                  { "Coefficient##Vorticity", {0.0004f, 0.0f, 0.001f}},
-                  { "xSPH Viscosity Coefficient", {0.0001f, 0.0f, 0.001f}}
-                }
-            }
+static const json initFluidsJson // clang-format off
+{ 
+  {"Fluids", {
+      { "Rest Density", { 450.0f, 10.0f, 1000.0f } },
+      { "Relax CFM", { 600.0f, 100.0f, 1000.0f } },
+      { "Time Step", { 0.010f, 0.0001f, 0.020f } },
+      { "Nb Jacobi Iterations", { 2, 1, 6 } },
+      { "Artificial Pressure",
+          { { "Enable##Pressure", true },
+            { "Coefficient##Pressure", { 0.001f, 0.0f, 0.001f} },
+            { "Radius", {0.006f, 0.001f, 0.015f}},
+            { "Exp", {4, 1, 6}}
           }
-        }
-      }; // clang-format on
+      },
+      { "Vorticity Confinement",
+          { { "Enable##Vorticity", true },
+            { "Coefficient##Vorticity", {0.0004f, 0.0f, 0.001f}},
+            { "xSPH Viscosity Coefficient", {0.0001f, 0.0f, 0.001f}}
+          }
+      }
+    }
+  }
+}; // clang-format on
 
 Fluids::Fluids(ModelParams params)
-    : OclModel<FluidKernelInputs>(params, FluidKernelInputs {}, json(initJson))
+    : OclModel<FluidKernelInputs>(params, FluidKernelInputs {}, json(initFluidsJson))
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(100)
     , m_radixSort(params.maxNbParticles)
@@ -198,13 +198,13 @@ void Fluids::reset()
   if (!m_init)
     return;
 
-  CL::Context& clContext = CL::Context::Get();
+  resetInputJson(initFluidsJson);
 
-  m_inputJson = initJson;
-
-  updateModelWithInputJson();
+  updateModelWithInputJson(getInputJson());
 
   initFluidsParticles();
+
+  CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
   clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
@@ -215,32 +215,39 @@ void Fluids::reset()
   clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
 }
 
-void Fluids::transferJsonInputsToModel()
+void Fluids::transferJsonInputsToModel(json& inputJson)
 {
-  if (!m_init)
+  if (!m_init || inputJson.empty())
     return;
 
-  // Make sure the json path is perfectly correct or expect instant crashes
-  // Might be worth it to add a try catch
+  try
+  {
+    const auto& fluidsJson = inputJson["Fluids"];
 
-  auto& fluidsJson = m_inputJson["Fluids"];
-  auto& kernelInputs = getKernelInput<FluidKernelInputs>(0);
+    m_nbJacobiIters = fluidsJson["Nb Jacobi Iterations"][0];
 
-  m_nbJacobiIters = fluidsJson["Nb Jacobi Iterations"][0];
+    auto& kernelInputs = getKernelInput<FluidKernelInputs>(0);
 
-  kernelInputs.restDensity = (cl_float)(fluidsJson["Rest Density"][0]);
-  kernelInputs.relaxCFM = (cl_float)(fluidsJson["Relax CFM"][0]);
-  kernelInputs.timeStep = (cl_float)(fluidsJson["Time Step"][0]);
-  kernelInputs.dim = (cl_uint)((m_dimension == Geometry::Dimension::dim2D) ? 2 : 3);
+    kernelInputs.restDensity = (cl_float)(fluidsJson["Rest Density"][0]);
+    kernelInputs.relaxCFM = (cl_float)(fluidsJson.at("Relax CFM")[0]);
+    kernelInputs.timeStep = (cl_float)(fluidsJson["Time Step"][0]);
+    kernelInputs.dim = (cl_uint)((m_dimension == Geometry::Dimension::dim2D) ? 2 : 3);
 
-  kernelInputs.isArtPressureEnabled = (cl_uint)((fluidsJson["Artificial Pressure"]["Enable##Pressure"] == true) ? 1 : 0);
-  kernelInputs.artPressureCoeff = (cl_float)(fluidsJson["Artificial Pressure"]["Coefficient##Pressure"][0]);
-  kernelInputs.artPressureRadius = (cl_float)(fluidsJson["Artificial Pressure"]["Radius"][0]);
-  kernelInputs.artPressureExp = (cl_uint)(fluidsJson["Artificial Pressure"]["Exp"][0]);
+    kernelInputs.isArtPressureEnabled = (cl_uint)((fluidsJson["Artificial Pressure"]["Enable##Pressure"] == true) ? 1 : 0);
+    kernelInputs.artPressureCoeff = (cl_float)(fluidsJson["Artificial Pressure"]["Coefficient##Pressure"][0]);
+    kernelInputs.artPressureRadius = (cl_float)(fluidsJson["Artificial Pressure"]["Radius"][0]);
+    kernelInputs.artPressureExp = (cl_uint)(fluidsJson["Artificial Pressure"]["Exp"][0]);
 
-  kernelInputs.isVorticityConfEnabled = (cl_uint)((fluidsJson["Vorticity Confinement"]["Enable##Vorticity"] == true) ? 1 : 0);
-  kernelInputs.vorticityConfCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["Coefficient##Vorticity"][0]);
-  kernelInputs.xsphViscosityCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["xSPH Viscosity Coefficient"][0]);
+    kernelInputs.isVorticityConfEnabled = (cl_uint)((fluidsJson["Vorticity Confinement"]["Enable##Vorticity"] == true) ? 1 : 0);
+    kernelInputs.vorticityConfCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["Coefficient##Vorticity"][0]);
+    kernelInputs.xsphViscosityCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["xSPH Viscosity Coefficient"][0]);
+  }
+  catch (...)
+  {
+    LOG_ERROR("Fluids Input Json parsing is incorrect, did you use a wrong path for a parameter?");
+
+    throw std::runtime_error("Wrong Json parsing");
+  }
 };
 
 void Fluids::transferKernelInputsToGPU()
@@ -249,7 +256,7 @@ void Fluids::transferKernelInputsToGPU()
     return;
 
   assert(getNbKernelInputs() == 1);
-  auto kernelInputs = getKernelInput<FluidKernelInputs>(0);
+  const auto& kernelInputs = getKernelInput<FluidKernelInputs>(0);
 
   CL::Context& clContext = CL::Context::Get();
   clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(FluidKernelInputs), &kernelInputs);

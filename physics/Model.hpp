@@ -156,6 +156,11 @@ class Model
     return m_inputJson;
   }
 
+  void resetInputJson(const json& newJson)
+  {
+    m_inputJson = newJson;
+  }
+
   void updateInputJson(const json& newJson)
   {
     // No modification
@@ -163,10 +168,10 @@ class Model
       return;
 
     m_inputJson.merge_patch(newJson);
-    updateModelWithInputJson();
+    updateModelWithInputJson(m_inputJson);
   }
 
-  virtual void updateModelWithInputJson() = 0;
+  virtual void updateModelWithInputJson(json& inputJson) = 0;
 
   void setCase(Utils::PhysicsCase caseType) { m_case = caseType; }
   const Utils::PhysicsCase getCase() const { return m_case; }
@@ -200,7 +205,13 @@ class Model
   // All PhysicalQuantities that can be rendered
   std::map<const std::string, PhysicalQuantity> m_allDisplayableQuantities;
 
+  private:
   // Container for model parameters available in UI
+  // Set as private to force a data transfer cascade within physics model
+  // and avoid source of truth confusion during physics processing.
+  // Derived classes must retrieve data from it within updateModelWithInputJson() and then transfer
+  // to their kernel inputs or strongly typed member vars.
+  // The cost of this approach is the copy overhead and the extra memory
   json m_inputJson;
 };
 }

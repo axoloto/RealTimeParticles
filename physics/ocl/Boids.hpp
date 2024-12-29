@@ -49,7 +49,7 @@ class Boids : public OclModel<BoidsRuleKernelInputs, TargetKernelInputs>
   void updateBoidsParamsInKernel();
   void updateGridParamsInKernel();
 
-  void transferJsonInputsToModel() override;
+  void transferJsonInputsToModel(json& inputJson) override;
   void transferKernelInputsToGPU() override;
 
   bool m_activeAlignment;

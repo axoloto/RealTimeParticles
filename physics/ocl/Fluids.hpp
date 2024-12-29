@@ -41,7 +41,7 @@ class Fluids : public OclModel<FluidKernelInputs>
   void reset() override;
 
   // OclModel.hpp
-  void transferJsonInputsToModel() override;
+  void transferJsonInputsToModel(json& getInputJson) override;
   void transferKernelInputsToGPU() override;
 
   private:

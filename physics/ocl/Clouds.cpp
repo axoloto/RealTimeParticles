@@ -276,49 +276,56 @@ bool Clouds::createKernels() const
   return true;
 }
 
-void Clouds::transferJsonInputsToModel()
+void Clouds::transferJsonInputsToModel(json& inputJson)
 {
   if (!m_init)
     return;
 
-  // Make sure the json path is perfectly correct or expect instant crashes
-  // Might be worth it to add a try catch here
+  // Make sure the json path is perfectly correct
+  try
+  {
+    const auto& fluidsJson = inputJson["Fluids"];
 
-  const auto& fluidsJson = m_inputJson["Fluids"];
+    m_nbJacobiIters = fluidsJson["Nb Jacobi Iterations"][0];
 
-  m_nbJacobiIters = fluidsJson["Nb Jacobi Iterations"][0];
+    m_fluidKernelInputs->restDensity = (cl_float)(fluidsJson["Rest Density"][0]);
+    m_fluidKernelInputs->relaxCFM = (cl_float)(fluidsJson["Relax CFM"][0]);
+    m_fluidKernelInputs->timeStep = (cl_float)(fluidsJson["Time Step"][0]);
+    m_fluidKernelInputs->dim = (cl_uint)((m_dimension == Geometry::Dimension::dim2D) ? 2 : 3);
 
-  m_fluidKernelInputs->restDensity = (cl_float)(fluidsJson["Rest Density"][0]);
-  m_fluidKernelInputs->relaxCFM = (cl_float)(fluidsJson["Relax CFM"][0]);
-  m_fluidKernelInputs->timeStep = (cl_float)(fluidsJson["Time Step"][0]);
-  m_fluidKernelInputs->dim = (cl_uint)((m_dimension == Geometry::Dimension::dim2D) ? 2 : 3);
+    m_fluidKernelInputs->isArtPressureEnabled = (cl_uint)((fluidsJson["Artificial Pressure"]["Enable##Pressure"] == true) ? 1 : 0);
+    m_fluidKernelInputs->artPressureCoeff = (cl_float)(fluidsJson["Artificial Pressure"]["Coefficient##Pressure"][0]);
+    m_fluidKernelInputs->artPressureRadius = (cl_float)(fluidsJson["Artificial Pressure"]["Radius"][0]);
+    m_fluidKernelInputs->artPressureExp = (cl_uint)(fluidsJson["Artificial Pressure"]["Exp"][0]);
 
-  m_fluidKernelInputs->isArtPressureEnabled = (cl_uint)((fluidsJson["Artificial Pressure"]["Enable##Pressure"] == true) ? 1 : 0);
-  m_fluidKernelInputs->artPressureCoeff = (cl_float)(fluidsJson["Artificial Pressure"]["Coefficient##Pressure"][0]);
-  m_fluidKernelInputs->artPressureRadius = (cl_float)(fluidsJson["Artificial Pressure"]["Radius"][0]);
-  m_fluidKernelInputs->artPressureExp = (cl_uint)(fluidsJson["Artificial Pressure"]["Exp"][0]);
+    m_fluidKernelInputs->isVorticityConfEnabled = (cl_uint)((fluidsJson["Vorticity Confinement"]["Enable##Vorticity"] == true) ? 1 : 0);
+    m_fluidKernelInputs->vorticityConfCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["Coefficient##Vorticity"][0]);
+    m_fluidKernelInputs->xsphViscosityCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["xSPH Viscosity Coefficient"][0]);
 
-  m_fluidKernelInputs->isVorticityConfEnabled = (cl_uint)((fluidsJson["Vorticity Confinement"]["Enable##Vorticity"] == true) ? 1 : 0);
-  m_fluidKernelInputs->vorticityConfCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["Coefficient##Vorticity"][0]);
-  m_fluidKernelInputs->xsphViscosityCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["xSPH Viscosity Coefficient"][0]);
+    const auto& cloudsJson = inputJson["Clouds"];
 
-  const auto& cloudsJson = m_inputJson["Clouds"];
+    // Some values are taken from the fluids input json as values must remain equal
+    m_cloudKernelInputs->restDensity = (cl_float)(fluidsJson["Rest Density"][0]);
+    m_cloudKernelInputs->timeStep = (cl_float)(fluidsJson["Time Step"][0]);
+    m_cloudKernelInputs->dim = (cl_uint)((m_dimension == Geometry::Dimension::dim2D) ? 2 : 3);
+    m_cloudKernelInputs->relaxCFM = (cl_float)(fluidsJson["Relax CFM"][0]);
 
-  // Some values are taken from the fluids input json as values must remain equal
-  m_cloudKernelInputs->restDensity = (cl_float)(fluidsJson["Rest Density"][0]);
-  m_cloudKernelInputs->timeStep = (cl_float)(fluidsJson["Time Step"][0]);
-  m_cloudKernelInputs->dim = (cl_uint)((m_dimension == Geometry::Dimension::dim2D) ? 2 : 3);
-  m_cloudKernelInputs->relaxCFM = (cl_float)(fluidsJson["Relax CFM"][0]);
+    // Other are purely specific to the clouds model
+    m_cloudKernelInputs->isTempSmoothingEnabled = (cl_uint)(cloudsJson["Enable Temperature Smoothing"] ? 1 : 0);
+    m_cloudKernelInputs->groundHeatCoeff = (cl_float)(cloudsJson["Ground Heat Coefficient"][0]);
+    m_cloudKernelInputs->buoyancyCoeff = (cl_float)(cloudsJson["Buoyancy Heat Coefficient"][0]);
+    m_cloudKernelInputs->gravCoeff = (cl_float)(cloudsJson["Gravity Coefficient"][0]);
+    m_cloudKernelInputs->adiabaticLapseRate = (cl_float)(cloudsJson["Adiabatic Lapse Rate"][0]);
+    m_cloudKernelInputs->phaseTransitionRate = (cl_float)(cloudsJson["Phase Transition Rate"][0]);
+    m_cloudKernelInputs->latentHeatCoeff = (cl_float)(cloudsJson["Latent Heat Coefficient"][0]);
+    m_cloudKernelInputs->windCoeff = (cl_float)(cloudsJson["Wind Coefficient"][0]);
+  }
+  catch (...)
+  {
+    LOG_ERROR("Clouds Input Json parsing is incorrect, did you use a wrong path for a parameter?");
 
-  // Other are purely specific to the clouds model
-  m_cloudKernelInputs->isTempSmoothingEnabled = (cl_uint)(cloudsJson["Enable Temperature Smoothing"] ? 1 : 0);
-  m_cloudKernelInputs->groundHeatCoeff = (cl_float)(cloudsJson["Ground Heat Coefficient"][0]);
-  m_cloudKernelInputs->buoyancyCoeff = (cl_float)(cloudsJson["Buoyancy Heat Coefficient"][0]);
-  m_cloudKernelInputs->gravCoeff = (cl_float)(cloudsJson["Gravity Coefficient"][0]);
-  m_cloudKernelInputs->adiabaticLapseRate = (cl_float)(cloudsJson["Adiabatic Lapse Rate"][0]);
-  m_cloudKernelInputs->phaseTransitionRate = (cl_float)(cloudsJson["Phase Transition Rate"][0]);
-  m_cloudKernelInputs->latentHeatCoeff = (cl_float)(cloudsJson["Latent Heat Coefficient"][0]);
-  m_cloudKernelInputs->windCoeff = (cl_float)(cloudsJson["Wind Coefficient"][0]);
+    throw std::runtime_error("Wrong Json parsing");
+  }
 };
 
 void Clouds::transferKernelInputsToGPU()
@@ -374,9 +381,9 @@ void Clouds::reset()
   if (!m_init)
     return;
 
-  m_inputJson = initCloudsJson;
+  resetInputJson(initCloudsJson);
 
-  updateModelWithInputJson();
+  updateModelWithInputJson(getInputJson());
 
   initCloudsParticles();
 

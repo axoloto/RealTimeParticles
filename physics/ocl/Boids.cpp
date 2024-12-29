@@ -174,30 +174,39 @@ bool Boids::createKernels() const
   return true;
 }
 
-void Boids::transferJsonInputsToModel()
+void Boids::transferJsonInputsToModel(json& inputJson)
 {
   if (!m_init)
     return;
 
-  const auto& boidsJson = m_inputJson["Boids"];
+  try
+  {
+    const auto& boidsJson = inputJson["Boids"];
 
-  auto& boidsRuleKernelInputs = getKernelInput<BoidsRuleKernelInputs>(0);
+    auto& boidsRuleKernelInputs = getKernelInput<BoidsRuleKernelInputs>(0);
 
-  boidsRuleKernelInputs.velocityScale = (cl_float)(boidsJson["Velocity"][0]);
-  boidsRuleKernelInputs.alignmentScale = boidsJson["Alignment"]["Enable##Alignment"] ? (cl_float)(boidsJson["Alignment"]["Scale##Alignment"][0]) : 0.0f;
-  boidsRuleKernelInputs.separationScale = boidsJson["Separation"]["Enable##Separation"] ? (cl_float)(boidsJson["Separation"]["Scale##Separation"][0]) : 0.0f;
-  boidsRuleKernelInputs.cohesionScale = boidsJson["Cohesion"]["Enable##Cohesion"] ? (cl_float)(boidsJson["Cohesion"]["Scale##Cohesion"][0]) : 0.0f;
+    boidsRuleKernelInputs.velocityScale = (cl_float)(boidsJson["Velocity"][0]);
+    boidsRuleKernelInputs.alignmentScale = boidsJson["Alignment"]["Enable##Alignment"] ? (cl_float)(boidsJson["Alignment"]["Scale##Alignment"][0]) : 0.0f;
+    boidsRuleKernelInputs.separationScale = boidsJson["Separation"]["Enable##Separation"] ? (cl_float)(boidsJson["Separation"]["Scale##Separation"][0]) : 0.0f;
+    boidsRuleKernelInputs.cohesionScale = boidsJson["Cohesion"]["Enable##Cohesion"] ? (cl_float)(boidsJson["Cohesion"]["Scale##Cohesion"][0]) : 0.0f;
 
-  auto& targetKernelInputs = getKernelInput<TargetKernelInputs>(1);
+    auto& targetKernelInputs = getKernelInput<TargetKernelInputs>(1);
 
-  m_target.activate(boidsJson["Target"]["Enable##Target"]);
-  m_target.show(boidsJson["Target"]["Show"]);
+    m_target.activate(boidsJson["Target"]["Enable##Target"]);
+    m_target.show(boidsJson["Target"]["Show"]);
 
-  m_target.setRadiusEffect(boidsJson["Target"]["Radius"][0]);
-  targetKernelInputs.targetRadiusEffect = m_target.radiusEffect();
+    m_target.setRadiusEffect(boidsJson["Target"]["Radius"][0]);
+    targetKernelInputs.targetRadiusEffect = m_target.radiusEffect();
 
-  m_target.setSignEffect((int)(boidsJson["Target"]["Attract"]));
-  targetKernelInputs.targetSignEffect = m_target.signEffect();
+    m_target.setSignEffect((int)(boidsJson["Target"]["Attract"]));
+    targetKernelInputs.targetSignEffect = m_target.signEffect();
+  }
+  catch (...)
+  {
+    LOG_ERROR("Boids Input Json parsing is incorrect, did you use a wrong path for a parameter?");
+
+    throw std::runtime_error("Wrong Json parsing");
+  }
 }
 
 void Boids::transferKernelInputsToGPU()
@@ -221,7 +230,7 @@ void Boids::reset()
   if (!m_init)
     return;
 
-  m_inputJson = initBoidsJson;
+  resetInputJson(initBoidsJson);
 
   switch (m_case)
   {
@@ -247,7 +256,7 @@ void Boids::reset()
   }
   }
 
-  updateModelWithInputJson();
+  updateModelWithInputJson(getInputJson());
 
   initBoidsParticles();
 

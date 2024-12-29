@@ -43,15 +43,15 @@ class OclModel : public Model
   }
 
   // Model.hpp
-  void updateModelWithInputJson() override
+  void updateModelWithInputJson(json& inputJson) override
   {
     // First transfer inputs from json to model and kernel inputs
-    transferJsonInputsToModel();
+    transferJsonInputsToModel(inputJson);
     // Then transfer kernel inputs from CPU to GPU
     transferKernelInputsToGPU();
   }
 
-  virtual void transferJsonInputsToModel() = 0;
+  virtual void transferJsonInputsToModel(json& inputJson) = 0;
   virtual void transferKernelInputsToGPU() = 0;
 
   template <typename T>
