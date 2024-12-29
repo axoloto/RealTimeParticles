@@ -3,12 +3,61 @@
 
 #include <array>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
+// Using ordered version to keep inputs in the same order
+using json = nlohmann::ordered_json;
+
 namespace Utils
 {
+// Enum that goes into the input json for each physics model and is available on UI side
+enum PhysicsCase
+{
+  // Boids
+  BOIDS_BEGIN,
+  BOIDS_SMALL,
+  BOIDS_MEDIUM,
+  BOIDS_LARGE,
+  BOIDS_XLARGE,
+  BOIDS_END,
+  // Fluids
+  FLUIDS_BEGIN,
+  FLUIDS_DAM,
+  FLUIDS_BOMB,
+  FLUIDS_DROP,
+  FLUIDS_END,
+  // Clouds
+  CLOUDS_BEGIN,
+  CLOUDS_CUMULUS,
+  CLOUDS_HOMOGENEOUS,
+  CLOUDS_END,
+  //
+  CASE_INVALID = -1,
+};
+
+// map PhysicsCase values to JSON as strings
+NLOHMANN_JSON_SERIALIZE_ENUM(PhysicsCase, {
+                                              { CASE_INVALID, nullptr },
+                                              { BOIDS_BEGIN, "boids_begin" },
+                                              { BOIDS_SMALL, "Small" },
+                                              { BOIDS_MEDIUM, "Medium" },
+                                              { BOIDS_LARGE, "Large" },
+                                              { BOIDS_XLARGE, "Extra Large" },
+                                              { BOIDS_END, "boids_end" },
+                                              { FLUIDS_BEGIN, "fluids_begin" },
+                                              { FLUIDS_DAM, "Dam" },
+                                              { FLUIDS_BOMB, "Bomb" },
+                                              { FLUIDS_DROP, "Drop" },
+                                              { FLUIDS_END, "fluids_end" },
+                                              { CLOUDS_BEGIN, "clouds_begin" },
+                                              { CLOUDS_CUMULUS, "Cumulus" },
+                                              { CLOUDS_HOMOGENEOUS, "Homogeneous" },
+                                              { CLOUDS_END, "clouds_end" },
+                                          })
+
 // List of supported particles system sizes
 enum NbParticles
 {

@@ -1,10 +1,9 @@
 #include "Clouds.hpp"
+#include "Context.hpp"
 #include "Geometry.hpp"
 #include "Logging.hpp"
 #include "Parameters.hpp"
 #include "Utils.hpp"
-
-#include "ocl/Context.hpp"
 
 #include <algorithm>
 #include <array>
@@ -17,7 +16,7 @@
 #include <chrono>
 #include <thread>
 
-using namespace Physics;
+using namespace Physics::CL;
 
 #define PROGRAM_CLOUDS "Clouds"
 
@@ -65,73 +64,50 @@ using namespace Physics;
 #define KERNEL_CONSTRAINT_CORRECTION_TEMP "cld_computeConstraintCorrectionTemp"
 #define KERNEL_CORRECT_TEMP "cld_correctTemperature"
 
-namespace Physics
-{
-// Fluids params for Position Based Fluids part of clouds sim
-struct FluidKernelInputs
-{
-  cl_float restDensity = 400.0f;
-  cl_float relaxCFM = 600.0f;
-  cl_float timeStep = 0.01f;
-  cl_uint dim = 3;
-  // Artifical pressure if enabled will try to reduce tensile instability
-  cl_uint isArtPressureEnabled = 0;
-  cl_float artPressureRadius = 0.006f;
-  cl_float artPressureCoeff = 0.001f;
-  cl_uint artPressureExp = 4;
-  // Vorticity confinement if enabled will try to replace lost energy due to virtual damping
-  cl_uint isVorticityConfEnabled = 1;
-  cl_float vorticityConfCoeff = 0.0004f;
-  cl_float xsphViscosityCoeff = 0.0001f;
-};
-
-// Clouds params for clouds-specific physics
-struct CloudKernelInputs
-{
-  cl_uint dim = 3;
-  // Must be always equal to timeStep of FluidKernelInputs
-  cl_float timeStep = 0.01f;
-  // Must be equal to rest density of FluidKernelInputs
-  cl_float restDensity = 400.0f;
-  // groundHeatCoeff * timeStep = temperature increase due to ground being a heat source
-  // Effect is limited to closest part of the atmosphere and then exponentially reduced to null value
-  cl_float groundHeatCoeff = 10.0f; // i.e here 0.4K/iteration, at 30fps -> 12K/s increase
-  // Buoyancy makes warmer particles to go up and colder ones to go down
-  cl_float buoyancyCoeff = 0.10f;
-  cl_float gravCoeff = 0.0005f;
-  // Adiabatic cooling makes the air parcels to cool down when going up
-  cl_float adiabaticLapseRate = 5.0f;
-  // Phase transition rate decides how fast waper transitions
-  // between vapor and liquid (clouds = droplets)
-  cl_float phaseTransitionRate = 0.3485f;
-  // When particles transition from vapor to liquid, they released heat
-  // increasing their temperature, making them going up some more due to buoyancy
-  cl_float latentHeatCoeff = 0.07f;
-  // Enable constraint on temperature field, forcing its Laplacian field to be null
-  // It helps uniformizing the temperature across particles
-  cl_uint isTempSmoothingEnabled = 1;
-  //
-  cl_float relaxCFM = 600.0f;
-  //
-  cl_float initVaporDensityCoeff = 0.75f;
-  //
-  cl_float windCoeff = 1.0f;
-};
-
-const std::map<Clouds::CaseType, std::string, Clouds::CompareCaseType> Clouds::ALL_CASES {
-  { CaseType::CUMULUS, "Cumulus" },
-  { CaseType::HOMOGENEOUS, "Homogeneous" }
-};
-}
+static const json initCloudsJson // clang-format off
+{ 
+  {"Fluids", {
+      { "Rest Density", { 450.0f, 10.0f, 1000.0f } },
+      { "Relax CFM", { 600.0f, 100.0f, 1000.0f } },
+      { "Time Step", { 0.010f, 0.0001f, 0.020f } },
+      { "Nb Jacobi Iterations", { 2, 1, 6 } },
+      { "Artificial Pressure",
+          { 
+            { "Enable##Pressure", true },
+            { "Coefficient##Pressure", { 0.001f, 0.0f, 0.001f} },
+            { "Radius", {0.006f, 0.001f, 0.015f}},
+            { "Exp", {4, 1, 6}}
+          }
+      },
+      { "Vorticity Confinement",
+          { 
+            { "Enable##Vorticity", true },
+            { "Coefficient##Vorticity", {0.0004f, 0.0f, 0.001f}},
+            { "xSPH Viscosity Coefficient", {0.0001f, 0.0f, 0.001f}}
+          }
+      }
+    }
+  },
+  {"Clouds", {
+      { "Enable Temperature Smoothing", true },    
+      { "Ground Heat Coefficient", { 10.0f, 0.0f, 1000.0f } },
+      { "Buoyancy Heat Coefficient", { 0.10f, 0.0f, 5.0f } },
+      { "Gravity Coefficient", { 0.0005f, 0.0f, 0.1f } },
+      { "Adiabatic Lapse Rate", { 5.0f, 0.0f, 20.0f } },
+      { "Phase Transition Rate", { 0.3485f, 0.0f, 20.0f } },
+      { "Latent Heat Coefficient", { 0.07f, 0.0f, 0.100f } },
+      { "Wind Coefficient", { 1.0f, 0.0f, 1.0f } },
+    }
+  }
+}; // clang-format on
 
 Clouds::Clouds(ModelParams params)
-    : Model(params)
+    : OclModel<FluidKernelInputs, CloudKernelInputs>(params, FluidKernelInputs {}, CloudKernelInputs {}, json(initCloudsJson))
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(100)
     , m_radixSort(params.maxNbParticles)
-    , m_fluidKernelInputs(std::make_unique<FluidKernelInputs>())
-    , m_cloudKernelInputs(std::make_unique<CloudKernelInputs>())
-    , m_initialCase(CaseType::CUMULUS)
+    , m_fluidKernelInputs(&getKernelInput<FluidKernelInputs>(0))
+    , m_cloudKernelInputs(&getKernelInput<CloudKernelInputs>(1))
     , m_nbJacobiIters(1)
 {
   createProgram();
@@ -150,8 +126,6 @@ Clouds::~Clouds() {};
 
 bool Clouds::createProgram() const
 {
-  CL::Context& clContext = CL::Context::Get();
-
   assert(m_boxSize.x / m_gridRes.x == m_boxSize.y / m_gridRes.y);
   assert(m_boxSize.z / m_gridRes.z == m_boxSize.y / m_gridRes.y);
 
@@ -173,6 +147,9 @@ bool Clouds::createProgram() const
   clBuildOptions << " -DMAX_VEL=" << Utils::FloatToStr(30.0f);
 
   LOG_INFO(clBuildOptions.str());
+
+  CL::Context& clContext = CL::Context::Get();
+
   // file.cl order matters
   // 1/ define.cl must be first as it defines variables used by other kernels
   // 2/ fluids.cl contains Position Based Fluids algorithms needed for the fluids part of the cloud sim
@@ -299,22 +276,81 @@ bool Clouds::createKernels() const
   return true;
 }
 
+void Clouds::transferJsonInputsToModel(json& inputJson)
+{
+  if (!m_init)
+    return;
+
+  // Make sure the json path is perfectly correct
+  try
+  {
+    const auto& fluidsJson = inputJson["Fluids"];
+
+    m_nbJacobiIters = fluidsJson["Nb Jacobi Iterations"][0];
+
+    m_fluidKernelInputs->restDensity = (cl_float)(fluidsJson["Rest Density"][0]);
+    m_fluidKernelInputs->relaxCFM = (cl_float)(fluidsJson["Relax CFM"][0]);
+    m_fluidKernelInputs->timeStep = (cl_float)(fluidsJson["Time Step"][0]);
+    m_fluidKernelInputs->dim = (cl_uint)((m_dimension == Geometry::Dimension::dim2D) ? 2 : 3);
+
+    m_fluidKernelInputs->isArtPressureEnabled = (cl_uint)((fluidsJson["Artificial Pressure"]["Enable##Pressure"] == true) ? 1 : 0);
+    m_fluidKernelInputs->artPressureCoeff = (cl_float)(fluidsJson["Artificial Pressure"]["Coefficient##Pressure"][0]);
+    m_fluidKernelInputs->artPressureRadius = (cl_float)(fluidsJson["Artificial Pressure"]["Radius"][0]);
+    m_fluidKernelInputs->artPressureExp = (cl_uint)(fluidsJson["Artificial Pressure"]["Exp"][0]);
+
+    m_fluidKernelInputs->isVorticityConfEnabled = (cl_uint)((fluidsJson["Vorticity Confinement"]["Enable##Vorticity"] == true) ? 1 : 0);
+    m_fluidKernelInputs->vorticityConfCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["Coefficient##Vorticity"][0]);
+    m_fluidKernelInputs->xsphViscosityCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["xSPH Viscosity Coefficient"][0]);
+
+    const auto& cloudsJson = inputJson["Clouds"];
+
+    // Some values are taken from the fluids input json as values must remain equal
+    m_cloudKernelInputs->restDensity = (cl_float)(fluidsJson["Rest Density"][0]);
+    m_cloudKernelInputs->timeStep = (cl_float)(fluidsJson["Time Step"][0]);
+    m_cloudKernelInputs->dim = (cl_uint)((m_dimension == Geometry::Dimension::dim2D) ? 2 : 3);
+    m_cloudKernelInputs->relaxCFM = (cl_float)(fluidsJson["Relax CFM"][0]);
+
+    // Other are purely specific to the clouds model
+    m_cloudKernelInputs->isTempSmoothingEnabled = (cl_uint)(cloudsJson["Enable Temperature Smoothing"] ? 1 : 0);
+    m_cloudKernelInputs->groundHeatCoeff = (cl_float)(cloudsJson["Ground Heat Coefficient"][0]);
+    m_cloudKernelInputs->buoyancyCoeff = (cl_float)(cloudsJson["Buoyancy Heat Coefficient"][0]);
+    m_cloudKernelInputs->gravCoeff = (cl_float)(cloudsJson["Gravity Coefficient"][0]);
+    m_cloudKernelInputs->adiabaticLapseRate = (cl_float)(cloudsJson["Adiabatic Lapse Rate"][0]);
+    m_cloudKernelInputs->phaseTransitionRate = (cl_float)(cloudsJson["Phase Transition Rate"][0]);
+    m_cloudKernelInputs->latentHeatCoeff = (cl_float)(cloudsJson["Latent Heat Coefficient"][0]);
+    m_cloudKernelInputs->windCoeff = (cl_float)(cloudsJson["Wind Coefficient"][0]);
+  }
+  catch (...)
+  {
+    LOG_ERROR("Clouds Input Json parsing is incorrect, did you use a wrong path for a parameter?");
+
+    throw std::runtime_error("Wrong Json parsing");
+  }
+};
+
+void Clouds::transferKernelInputsToGPU()
+{
+  updateFluidsParamsInKernels();
+
+  updateCloudsParamsInKernels();
+};
+
 void Clouds::updateFluidsParamsInKernels()
 {
   if (!m_init)
     return;
 
-  CL::Context& clContext = CL::Context::Get();
-
   m_fluidKernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
 
-  clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
-  clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs.get());
+  CL::Context& clContext = CL::Context::Get();
+
+  clContext.setKernelArg(KERNEL_UPDATE_VEL, 1, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_FLUIDS, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs);
+  clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), m_fluidKernelInputs);
 }
 
 void Clouds::updateCloudsParamsInKernels()
@@ -322,22 +358,22 @@ void Clouds::updateCloudsParamsInKernels()
   if (!m_init)
     return;
 
-  CL::Context& clContext = CL::Context::Get();
-
   m_cloudKernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
 
-  clContext.setKernelArg(KERNEL_INIT_VAPOR_DENSITY, 0, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_HEAT_GROUND, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_BUOYANCY, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_ADIABATIC_COOLING, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CLOUD_GENERATION, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_PHASE_TRANSITION, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_LATENT_HEAT, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_PREDICT_POS, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_LAPLACIAN_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
-  clContext.setKernelArg(KERNEL_UPDATE_POS, 1, sizeof(CloudKernelInputs), m_cloudKernelInputs.get());
+  CL::Context& clContext = CL::Context::Get();
+
+  clContext.setKernelArg(KERNEL_INIT_VAPOR_DENSITY, 0, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_HEAT_GROUND, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_BUOYANCY, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_ADIABATIC_COOLING, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_CLOUD_GENERATION, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_PHASE_TRANSITION, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_LATENT_HEAT, 2, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_PREDICT_POS, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_LAPLACIAN_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION_TEMP, 3, sizeof(CloudKernelInputs), m_cloudKernelInputs);
+  clContext.setKernelArg(KERNEL_UPDATE_POS, 1, sizeof(CloudKernelInputs), m_cloudKernelInputs);
 }
 
 void Clouds::reset()
@@ -345,12 +381,13 @@ void Clouds::reset()
   if (!m_init)
     return;
 
-  CL::Context& clContext = CL::Context::Get();
+  resetInputJson(initCloudsJson);
 
-  updateFluidsParamsInKernels();
-  updateCloudsParamsInKernels();
+  updateModelWithInputJson(getInputJson());
 
   initCloudsParticles();
+
+  CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
   clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
@@ -381,15 +418,15 @@ void Clouds::initCloudsParticles()
   {
     Geometry::Shape2D shape = Geometry::Shape2D::Rectangle;
 
-    switch (m_initialCase)
+    switch (m_case)
     {
-    case CaseType::CUMULUS:
+    case Utils::PhysicsCase::CLOUDS_CUMULUS:
       m_currNbParticles = Utils::NbParticles::P8K;
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { 0.0f, 0.0f, m_boxSize.z / 2.0f };
       break;
-    case CaseType::HOMOGENEOUS:
+    case Utils::PhysicsCase::CLOUDS_HOMOGENEOUS:
       m_currNbParticles = Utils::NbParticles::P8K;
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
@@ -409,15 +446,15 @@ void Clouds::initCloudsParticles()
   {
     Geometry::Shape3D shape = Geometry::Shape3D::Box;
 
-    switch (m_initialCase)
+    switch (m_case)
     {
-    case CaseType::CUMULUS:
+    case Utils::PhysicsCase::CLOUDS_CUMULUS:
       m_currNbParticles = Utils::NbParticles::P65K;
       shape = Geometry::Shape3D::Box;
       startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { m_boxSize.x / 2.0f, m_boxSize.y / -4.0f, m_boxSize.z / 2.0f };
       break;
-    case CaseType::HOMOGENEOUS:
+    case Utils::PhysicsCase::CLOUDS_HOMOGENEOUS:
       m_currNbParticles = Utils::NbParticles::P65K;
       shape = Geometry::Shape3D::Box;
       startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
@@ -587,288 +624,4 @@ void Clouds::update()
   m_radixSort.sort("p_cameraDist", { "p_pos", "p_col", "p_vel", "p_predPos" }, { "p_temp", "p_buoyancy", "p_vaporDens", "p_cloudDens", "p_partID" });
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
-}
-
-// Storing definitions here to prevent cl_types in headers
-void Clouds::setRestDensity(float restDensity)
-{
-  if (!m_init)
-    return;
-  m_fluidKernelInputs->restDensity = (cl_float)restDensity;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Clouds::setRelaxCFM(float relaxCFM)
-{
-  if (!m_init)
-    return;
-  m_fluidKernelInputs->relaxCFM = (cl_float)relaxCFM;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Clouds::setTimeStep(float timeStep)
-{
-  if (!m_init)
-    return;
-  m_fluidKernelInputs->timeStep = (cl_float)timeStep;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Clouds::setNbJacobiIters(size_t nbIters)
-{
-  if (!m_init)
-    return;
-  m_nbJacobiIters = nbIters;
-}
-
-//
-void Clouds::enableArtPressure(bool enable)
-{
-  if (!m_init)
-    return;
-  m_fluidKernelInputs->isArtPressureEnabled = (cl_uint)enable;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Clouds::setArtPressureRadius(float radius)
-{
-  if (!m_init)
-    return;
-  m_fluidKernelInputs->artPressureRadius = (cl_float)radius;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Clouds::setArtPressureExp(size_t exp)
-{
-  if (!m_init)
-    return;
-  m_fluidKernelInputs->artPressureExp = (cl_uint)exp;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Clouds::setArtPressureCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_fluidKernelInputs->artPressureCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Clouds::enableVorticityConfinement(bool enable)
-{
-  if (!m_init)
-    return;
-  m_fluidKernelInputs->isVorticityConfEnabled = (cl_uint)enable;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Clouds::enableTempSmoothing(bool enable)
-{
-  if (!m_init)
-    return;
-  m_cloudKernelInputs->isTempSmoothingEnabled = (cl_uint)enable;
-  updateCloudsParamsInKernels();
-}
-
-//
-void Clouds::setVorticityConfinementCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_fluidKernelInputs->vorticityConfCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Clouds::setXsphViscosityCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_fluidKernelInputs->xsphViscosityCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Clouds::setGroundHeatCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_cloudKernelInputs->groundHeatCoeff = (cl_float)coeff;
-  updateCloudsParamsInKernels();
-}
-
-//
-void Clouds::setBuoyancyCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_cloudKernelInputs->buoyancyCoeff = (cl_float)coeff;
-  updateCloudsParamsInKernels();
-}
-
-//
-void Clouds::setAdiabaticLapseRate(float rate)
-{
-  if (!m_init)
-    return;
-  m_cloudKernelInputs->adiabaticLapseRate = (cl_float)rate;
-  updateCloudsParamsInKernels();
-}
-
-//
-void Clouds::setPhaseTransitionRate(float rate)
-{
-  if (!m_init)
-    return;
-  m_cloudKernelInputs->phaseTransitionRate = (cl_float)rate;
-  updateCloudsParamsInKernels();
-}
-
-//
-void Clouds::setLatentHeatCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_cloudKernelInputs->latentHeatCoeff = (cl_float)coeff;
-  updateCloudsParamsInKernels();
-}
-
-//
-void Clouds::setGravCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_cloudKernelInputs->gravCoeff = (cl_float)coeff;
-  updateCloudsParamsInKernels();
-}
-
-//
-void Clouds::setWindCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_cloudKernelInputs->windCoeff = (cl_float)coeff;
-  updateCloudsParamsInKernels();
-}
-
-//
-float Clouds::getRestDensity() const
-{
-  return m_init ? (float)m_fluidKernelInputs->restDensity : 0.0f;
-}
-
-//
-float Clouds::getRelaxCFM() const
-{
-  return m_init ? (float)m_fluidKernelInputs->relaxCFM : 0.0f;
-}
-
-//
-float Clouds::getTimeStep() const
-{
-  return m_init ? (float)m_fluidKernelInputs->timeStep : 0.0f;
-}
-
-//
-size_t Clouds::getNbJacobiIters() const
-{
-  return m_init ? m_nbJacobiIters : 0;
-}
-
-//
-bool Clouds::isArtPressureEnabled() const
-{
-  return m_init ? (bool)m_fluidKernelInputs->isArtPressureEnabled : false;
-}
-
-//
-float Clouds::getArtPressureRadius() const
-{
-  return m_init ? (float)m_fluidKernelInputs->artPressureRadius : 0.0f;
-}
-
-//
-size_t Clouds::getArtPressureExp() const
-{
-  return m_init ? (size_t)m_fluidKernelInputs->artPressureExp : 0;
-}
-
-//
-float Clouds::getArtPressureCoeff() const
-{
-  return m_init ? (float)m_fluidKernelInputs->artPressureCoeff : 0.0f;
-}
-
-//
-bool Clouds::isVorticityConfinementEnabled() const
-{
-  return m_init ? (bool)m_fluidKernelInputs->isVorticityConfEnabled : 0.0f;
-}
-
-//
-float Clouds::getVorticityConfinementCoeff() const
-{
-  return m_init ? (float)m_fluidKernelInputs->vorticityConfCoeff : 0.0f;
-}
-
-//
-float Clouds::getXsphViscosityCoeff() const
-{
-  return m_init ? (float)m_fluidKernelInputs->xsphViscosityCoeff : 0.0f;
-}
-
-//
-float Clouds::getGroundHeatCoeff() const
-{
-  return m_init ? (float)m_cloudKernelInputs->groundHeatCoeff : 0.0f;
-}
-
-//
-float Clouds::getBuoyancyCoeff() const
-{
-  return m_init ? (float)m_cloudKernelInputs->buoyancyCoeff : 0.0f;
-}
-
-//
-float Clouds::getAdiabaticLapseRate() const
-{
-  return m_init ? (float)m_cloudKernelInputs->adiabaticLapseRate : 0.0f;
-}
-
-//
-float Clouds::getPhaseTransitionRate() const
-{
-  return m_init ? (float)m_cloudKernelInputs->phaseTransitionRate : 0.0f;
-}
-
-//
-float Clouds::getLatentHeatCoeff() const
-{
-  return m_init ? (float)m_cloudKernelInputs->latentHeatCoeff : 0.0f;
-}
-
-//
-float Clouds::getGravCoeff() const
-{
-  return m_init ? (float)m_cloudKernelInputs->gravCoeff : 0.0f;
-}
-
-//
-bool Clouds::isTempSmoothingEnabled() const
-{
-  return m_init ? (bool)m_cloudKernelInputs->isTempSmoothingEnabled : 0.0f;
-}
-
-//
-float Clouds::getWindCoeff() const
-{
-  return m_init ? (float)m_cloudKernelInputs->windCoeff : 0.0f;
 }

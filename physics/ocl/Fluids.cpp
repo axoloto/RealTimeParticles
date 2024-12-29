@@ -1,10 +1,9 @@
 #include "Fluids.hpp"
+#include "Context.hpp"
 #include "Geometry.hpp"
 #include "Logging.hpp"
 #include "Parameters.hpp"
 #include "Utils.hpp"
-
-#include "ocl/Context.hpp"
 
 #include <algorithm>
 #include <array>
@@ -17,7 +16,7 @@
 #include <chrono>
 #include <thread>
 
-using namespace Physics;
+using namespace Physics::CL;
 
 #define PROGRAM_FLUIDS "fluids"
 
@@ -50,39 +49,35 @@ using namespace Physics;
 #define KERNEL_UPDATE_POS "fld_updatePosition"
 #define KERNEL_FILL_COLOR "fld_fillFluidColor"
 
-namespace Physics
-{
-struct FluidKernelInputs
-{
-  cl_float restDensity = 450.0f;
-  cl_float relaxCFM = 600.0f;
-  cl_float timeStep = 0.010f;
-  cl_uint dim = 3;
-  // Artifical pressure if enabled will try to reduce tensile instability
-  cl_uint isArtPressureEnabled = 1;
-  cl_float artPressureRadius = 0.006f;
-  cl_float artPressureCoeff = 0.001f;
-  cl_uint artPressureExp = 4;
-  // Vorticity confinement if enabled will try to replace lost energy due to virtual damping
-  cl_uint isVorticityConfEnabled = 1;
-  cl_float vorticityConfCoeff = 0.0004f;
-  cl_float xsphViscosityCoeff = 0.0001f;
-};
-
-const std::map<Fluids::CaseType, std::string, Fluids::CompareCaseType> Fluids::ALL_CASES {
-  { CaseType::DAM, "Dam-Break" },
-  { CaseType::BOMB, "Bomb" },
-  { CaseType::DROP, "Drop" },
-};
-}
+static const json initFluidsJson // clang-format off
+{ 
+  {"Fluids", {
+      { "Rest Density", { 450.0f, 10.0f, 1000.0f } },
+      { "Relax CFM", { 600.0f, 100.0f, 1000.0f } },
+      { "Time Step", { 0.010f, 0.0001f, 0.020f } },
+      { "Nb Jacobi Iterations", { 2, 1, 6 } },
+      { "Artificial Pressure",
+          { { "Enable##Pressure", true },
+            { "Coefficient##Pressure", { 0.001f, 0.0f, 0.001f} },
+            { "Radius", {0.006f, 0.001f, 0.015f}},
+            { "Exp", {4, 1, 6}}
+          }
+      },
+      { "Vorticity Confinement",
+          { { "Enable##Vorticity", true },
+            { "Coefficient##Vorticity", {0.0004f, 0.0f, 0.001f}},
+            { "xSPH Viscosity Coefficient", {0.0001f, 0.0f, 0.001f}}
+          }
+      }
+    }
+  }
+}; // clang-format on
 
 Fluids::Fluids(ModelParams params)
-    : Model(params)
+    : OclModel<FluidKernelInputs>(params, FluidKernelInputs {}, json(initFluidsJson))
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(100)
     , m_radixSort(params.maxNbParticles)
-    , m_kernelInputs(std::make_unique<FluidKernelInputs>())
-    , m_initialCase(CaseType::DAM)
     , m_nbJacobiIters(2)
 {
   createProgram();
@@ -91,7 +86,7 @@ Fluids::Fluids(ModelParams params)
 
   createKernels();
 
-  m_init = (m_kernelInputs != nullptr);
+  m_init = true;
 
   reset();
 }
@@ -198,36 +193,18 @@ bool Fluids::createKernels() const
   return true;
 }
 
-void Fluids::updateFluidsParamsInKernels()
-{
-  if (!m_init)
-    return;
-
-  CL::Context& clContext = CL::Context::Get();
-
-  m_kernelInputs->dim = (m_dimension == Geometry::Dimension::dim2D) ? 2 : 3;
-
-  clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
-  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
-  clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), m_kernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR, 3, sizeof(FluidKernelInputs), m_kernelInputs.get());
-  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION, 3, sizeof(FluidKernelInputs), m_kernelInputs.get());
-  clContext.setKernelArg(KERNEL_FILL_COLOR, 1, sizeof(FluidKernelInputs), m_kernelInputs.get());
-  clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), m_kernelInputs.get());
-  clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), m_kernelInputs.get());
-  clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), m_kernelInputs.get());
-}
-
 void Fluids::reset()
 {
   if (!m_init)
     return;
 
-  CL::Context& clContext = CL::Context::Get();
+  resetInputJson(initFluidsJson);
 
-  updateFluidsParamsInKernels();
+  updateModelWithInputJson(getInputJson());
 
   initFluidsParticles();
+
+  CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_pos", "c_partDetector" });
   clContext.runKernel(KERNEL_RESET_PART_DETECTOR, m_nbCells);
@@ -236,6 +213,61 @@ void Fluids::reset()
 
   clContext.runKernel(KERNEL_RESET_CELL_ID, m_maxNbParticles);
   clContext.runKernel(KERNEL_RESET_CAMERA_DIST, m_maxNbParticles);
+}
+
+void Fluids::transferJsonInputsToModel(json& inputJson)
+{
+  if (!m_init || inputJson.empty())
+    return;
+
+  try
+  {
+    const auto& fluidsJson = inputJson["Fluids"];
+
+    m_nbJacobiIters = fluidsJson["Nb Jacobi Iterations"][0];
+
+    auto& kernelInputs = getKernelInput<FluidKernelInputs>(0);
+
+    kernelInputs.restDensity = (cl_float)(fluidsJson["Rest Density"][0]);
+    kernelInputs.relaxCFM = (cl_float)(fluidsJson.at("Relax CFM")[0]);
+    kernelInputs.timeStep = (cl_float)(fluidsJson["Time Step"][0]);
+    kernelInputs.dim = (cl_uint)((m_dimension == Geometry::Dimension::dim2D) ? 2 : 3);
+
+    kernelInputs.isArtPressureEnabled = (cl_uint)((fluidsJson["Artificial Pressure"]["Enable##Pressure"] == true) ? 1 : 0);
+    kernelInputs.artPressureCoeff = (cl_float)(fluidsJson["Artificial Pressure"]["Coefficient##Pressure"][0]);
+    kernelInputs.artPressureRadius = (cl_float)(fluidsJson["Artificial Pressure"]["Radius"][0]);
+    kernelInputs.artPressureExp = (cl_uint)(fluidsJson["Artificial Pressure"]["Exp"][0]);
+
+    kernelInputs.isVorticityConfEnabled = (cl_uint)((fluidsJson["Vorticity Confinement"]["Enable##Vorticity"] == true) ? 1 : 0);
+    kernelInputs.vorticityConfCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["Coefficient##Vorticity"][0]);
+    kernelInputs.xsphViscosityCoeff = (cl_float)(fluidsJson["Vorticity Confinement"]["xSPH Viscosity Coefficient"][0]);
+  }
+  catch (...)
+  {
+    LOG_ERROR("Fluids Input Json parsing is incorrect, did you use a wrong path for a parameter?");
+
+    throw std::runtime_error("Wrong Json parsing");
+  }
+};
+
+void Fluids::transferKernelInputsToGPU()
+{
+  if (!m_init)
+    return;
+
+  assert(getNbKernelInputs() == 1);
+  const auto& kernelInputs = getKernelInput<FluidKernelInputs>(0);
+
+  CL::Context& clContext = CL::Context::Get();
+  clContext.setKernelArg(KERNEL_PREDICT_POS, 2, sizeof(FluidKernelInputs), &kernelInputs);
+  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(FluidKernelInputs), &kernelInputs);
+  clContext.setKernelArg(KERNEL_DENSITY, 2, sizeof(FluidKernelInputs), &kernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_FACTOR, 3, sizeof(FluidKernelInputs), &kernelInputs);
+  clContext.setKernelArg(KERNEL_CONSTRAINT_CORRECTION, 3, sizeof(FluidKernelInputs), &kernelInputs);
+  clContext.setKernelArg(KERNEL_FILL_COLOR, 1, sizeof(FluidKernelInputs), &kernelInputs);
+  clContext.setKernelArg(KERNEL_COMPUTE_VORTICITY, 3, sizeof(FluidKernelInputs), &kernelInputs);
+  clContext.setKernelArg(KERNEL_VORTICITY_CONFINEMENT, 3, sizeof(FluidKernelInputs), &kernelInputs);
+  clContext.setKernelArg(KERNEL_XSPH_VISCOSITY, 3, sizeof(FluidKernelInputs), &kernelInputs);
 }
 
 void Fluids::initFluidsParticles()
@@ -256,22 +288,22 @@ void Fluids::initFluidsParticles()
   {
     Geometry::Shape2D shape = Geometry::Shape2D::Rectangle;
 
-    switch (m_initialCase)
+    switch (m_case)
     {
-    case CaseType::DAM:
+    case Utils::PhysicsCase::FLUIDS_DAM:
       m_currNbParticles = Utils::NbParticles::P4K;
 
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { 0.0f, 0.0f, 0.0f };
       break;
-    case CaseType::BOMB:
+    case Utils::PhysicsCase::FLUIDS_BOMB:
       m_currNbParticles = Utils::NbParticles::P4K;
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, m_boxSize.y / -6.0f, m_boxSize.z / -6.0f };
       endFluidPos = { 0.0f, m_boxSize.y / 6.0f, m_boxSize.z / 6.0f };
       break;
-    case CaseType::DROP:
+    case Utils::PhysicsCase::FLUIDS_DROP:
       m_currNbParticles = Utils::NbParticles::P512;
       shape = Geometry::Shape2D::Rectangle;
       startFluidPos = { 0.0f, 2.0f * m_boxSize.y / 10.0f, m_boxSize.z / -10.0f };
@@ -288,7 +320,7 @@ void Fluids::initFluidsParticles()
     gridVerts = Geometry::Generate2DGrid(shape, Geometry::Plane::YZ, grid2DRes, startFluidPos, endFluidPos);
 
     // Specific case
-    if (m_initialCase == CaseType::DROP)
+    if (m_case == Utils::PhysicsCase::FLUIDS_DROP)
     {
       m_currNbParticles += Utils::NbParticles::P4K;
       Math::int2 grid2DRes = { 64, 128 };
@@ -304,21 +336,21 @@ void Fluids::initFluidsParticles()
   {
     Geometry::Shape3D shape = Geometry::Shape3D::Box;
 
-    switch (m_initialCase)
+    switch (m_case)
     {
-    case CaseType::DAM:
+    case Utils::PhysicsCase::FLUIDS_DAM:
       m_currNbParticles = Utils::NbParticles::P130K;
       shape = Geometry::Shape3D::Box;
       startFluidPos = { m_boxSize.x / -2.0f, m_boxSize.y / -2.0f, m_boxSize.z / -2.0f };
       endFluidPos = { m_boxSize.x / 2.0f, 0.0f, 0.0f };
       break;
-    case CaseType::BOMB:
+    case Utils::PhysicsCase::FLUIDS_BOMB:
       m_currNbParticles = Utils::NbParticles::P65K;
       shape = Geometry::Shape3D::Sphere;
       startFluidPos = { m_boxSize.x / -6.0f, m_boxSize.y / -6.0f, m_boxSize.z / -6.0f };
       endFluidPos = { m_boxSize.x / 6.0f, m_boxSize.y / 6.0f, m_boxSize.z / 6.0f };
       break;
-    case CaseType::DROP:
+    case Utils::PhysicsCase::FLUIDS_DROP:
       m_currNbParticles = Utils::NbParticles::P4K;
       shape = Geometry::Shape3D::Box;
       startFluidPos = { m_boxSize.x / -10.0f, 2.0f * m_boxSize.y / 10.0f, m_boxSize.z / -10.0f };
@@ -335,7 +367,7 @@ void Fluids::initFluidsParticles()
     gridVerts = Geometry::Generate3DGrid(shape, grid3DRes, startFluidPos, endFluidPos);
 
     // Specific case
-    if (m_initialCase == CaseType::DROP)
+    if (m_case == Utils::PhysicsCase::FLUIDS_DROP)
     {
       m_currNbParticles += Utils::NbParticles::P65K;
       Math::int3 grid3DRes = { 64, 16, 64 };
@@ -409,9 +441,9 @@ void Fluids::update()
     // Updating velocity
     clContext.runKernel(KERNEL_UPDATE_VEL, m_currNbParticles);
 
-    if (m_kernelInputs->isVorticityConfEnabled)
+    if (getKernelInput<FluidKernelInputs>(0).isVorticityConfEnabled)
     {
-      // Computing vorticity
+      // Computing vorticityx
       clContext.runKernel(KERNEL_COMPUTE_VORTICITY, m_currNbParticles);
       // Applying vorticity confinement to attenue virtual damping
       clContext.runKernel(KERNEL_VORTICITY_CONFINEMENT, m_currNbParticles);
@@ -437,134 +469,3 @@ void Fluids::update()
 
   clContext.releaseGLBuffers({ "p_pos", "p_col", "c_partDetector", "u_cameraPos" });
 }
-
-// Storing definitions here to prevent cl_types in headers
-void Fluids::setRestDensity(float restDensity)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs->restDensity = (cl_float)restDensity;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setRelaxCFM(float relaxCFM)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs->relaxCFM = (cl_float)relaxCFM;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setTimeStep(float timeStep)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs->timeStep = (cl_float)timeStep;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setNbJacobiIters(size_t nbIters)
-{
-  if (!m_init)
-    return;
-  m_nbJacobiIters = nbIters;
-}
-
-//
-void Fluids::enableArtPressure(bool enable)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs->isArtPressureEnabled = (cl_uint)enable;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setArtPressureRadius(float radius)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs->artPressureRadius = (cl_float)radius;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setArtPressureExp(size_t exp)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs->artPressureExp = (cl_uint)exp;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setArtPressureCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs->artPressureCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::enableVorticityConfinement(bool enable)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs->isVorticityConfEnabled = (cl_uint)enable;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setVorticityConfinementCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs->vorticityConfCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernels();
-}
-
-//
-void Fluids::setXsphViscosityCoeff(float coeff)
-{
-  if (!m_init)
-    return;
-  m_kernelInputs->xsphViscosityCoeff = (cl_float)coeff;
-  updateFluidsParamsInKernels();
-}
-
-//
-float Fluids::getRestDensity() const { return m_init ? (float)m_kernelInputs->restDensity : 0.0f; }
-
-//
-float Fluids::getRelaxCFM() const { return m_init ? (float)m_kernelInputs->relaxCFM : 0.0f; }
-
-//
-float Fluids::getTimeStep() const { return m_init ? (float)m_kernelInputs->timeStep : 0.0f; }
-
-//
-size_t Fluids::getNbJacobiIters() const { return m_init ? m_nbJacobiIters : 0; }
-
-//
-bool Fluids::isArtPressureEnabled() const { return m_init ? (bool)m_kernelInputs->isArtPressureEnabled : false; }
-
-//
-float Fluids::getArtPressureRadius() const { return m_init ? (float)m_kernelInputs->artPressureRadius : 0.0f; }
-
-//
-size_t Fluids::getArtPressureExp() const { return m_init ? (size_t)m_kernelInputs->artPressureExp : 0; }
-
-//
-float Fluids::getArtPressureCoeff() const { return m_init ? (float)m_kernelInputs->artPressureCoeff : 0.0f; }
-
-//
-bool Fluids::isVorticityConfinementEnabled() const { return m_init ? (bool)m_kernelInputs->isVorticityConfEnabled : 0.0f; }
-
-//
-float Fluids::getVorticityConfinementCoeff() const { return m_init ? (float)m_kernelInputs->vorticityConfCoeff : 0.0f; }
-
-//
-float Fluids::getXsphViscosityCoeff() const { return m_init ? (float)m_kernelInputs->xsphViscosityCoeff : 0.0f; }

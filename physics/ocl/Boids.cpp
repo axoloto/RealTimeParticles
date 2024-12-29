@@ -4,14 +4,12 @@
 #include "Parameters.hpp"
 #include "Utils.hpp"
 
-#include "ocl/Context.hpp"
-
 #include <ctime>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 
-using namespace Physics;
+using namespace Physics::CL;
 
 #define PROGRAM_BOIDS "boids"
 
@@ -40,21 +38,47 @@ using namespace Physics;
 #define KERNEL_BOIDS_RULES_GRID_3D "bd_applyBoidsRulesWithGrid3D"
 #define KERNEL_ADD_TARGET_RULE "bd_addTargetRule"
 
+static const json initBoidsJson // clang-format off
+{ 
+  {"Boids", {
+      { "Velocity", { 0.5f, 0.01f, 5.0f } },
+      { "Target",
+        {
+          { "Enable##Target", false },
+          { "Show", true },
+          { "Radius", { 2.0f, 1.0f, 20.0f } },
+          { "Attract", true}
+        }
+      },
+      { "Alignment",
+        {
+          { "Enable##Alignment", true},
+          { "Scale##Alignment", { 1.6f, 0.0f, 3.0f} },
+        }
+      },
+      { "Cohesion", 
+        {
+          { "Enable##Cohesion", true},
+          { "Scale##Cohesion", { 1.45f, 0.0f, 3.0f} },
+        }
+      },           
+      { "Separation", 
+        {
+          { "Enable##Separation", true},
+          { "Scale##Separation", { 1.6f, 0.0f, 3.0f} },
+        }
+      }
+    }
+  }
+}; // clang-format on
+
 Boids::Boids(ModelParams params)
-    : Model(params)
-    , m_scaleAlignment(1.6f)
-    , m_scaleCohesion(1.45f)
-    , m_scaleSeparation(1.6f)
-    , m_activeAlignment(true)
-    , m_activeSeparation(true)
-    , m_activeCohesion(true)
+    : OclModel<BoidsRuleKernelInputs, TargetKernelInputs>(params, BoidsRuleKernelInputs {}, TargetKernelInputs {}, json(initBoidsJson))
     , m_simplifiedMode(true)
     , m_maxNbPartsInCell(3000)
     , m_radixSort(params.maxNbParticles)
     , m_target(params.boxSize.x)
 {
-  m_currNbParticles = Utils::NbParticles::P512;
-
   createProgram();
 
   createBuffers();
@@ -145,33 +169,59 @@ bool Boids::createKernels() const
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID_2D, { "p_pos", "p_vel", "c_startEndPartID", "", "p_acc" });
   clContext.createKernel(PROGRAM_BOIDS, KERNEL_BOIDS_RULES_GRID_3D, { "p_pos", "p_vel", "c_startEndPartID", "", "p_acc" });
 
-  clContext.createKernel(PROGRAM_BOIDS, KERNEL_ADD_TARGET_RULE, { "p_pos", "", "", "", "p_acc" });
+  clContext.createKernel(PROGRAM_BOIDS, KERNEL_ADD_TARGET_RULE, { "p_pos", "", "", "p_acc" });
 
   return true;
 }
 
-void Boids::updateBoidsParamsInKernel()
+void Boids::transferJsonInputsToModel(json& inputJson)
+{
+  if (!m_init)
+    return;
+
+  try
+  {
+    const auto& boidsJson = inputJson["Boids"];
+
+    auto& boidsRuleKernelInputs = getKernelInput<BoidsRuleKernelInputs>(0);
+
+    boidsRuleKernelInputs.velocityScale = (cl_float)(boidsJson["Velocity"][0]);
+    boidsRuleKernelInputs.alignmentScale = boidsJson["Alignment"]["Enable##Alignment"] ? (cl_float)(boidsJson["Alignment"]["Scale##Alignment"][0]) : 0.0f;
+    boidsRuleKernelInputs.separationScale = boidsJson["Separation"]["Enable##Separation"] ? (cl_float)(boidsJson["Separation"]["Scale##Separation"][0]) : 0.0f;
+    boidsRuleKernelInputs.cohesionScale = boidsJson["Cohesion"]["Enable##Cohesion"] ? (cl_float)(boidsJson["Cohesion"]["Scale##Cohesion"][0]) : 0.0f;
+
+    auto& targetKernelInputs = getKernelInput<TargetKernelInputs>(1);
+
+    m_target.activate(boidsJson["Target"]["Enable##Target"]);
+    m_target.show(boidsJson["Target"]["Show"]);
+
+    m_target.setRadiusEffect(boidsJson["Target"]["Radius"][0]);
+    targetKernelInputs.targetRadiusEffect = m_target.radiusEffect();
+
+    m_target.setSignEffect((int)(boidsJson["Target"]["Attract"]));
+    targetKernelInputs.targetSignEffect = m_target.signEffect();
+  }
+  catch (...)
+  {
+    LOG_ERROR("Boids Input Json parsing is incorrect, did you use a wrong path for a parameter?");
+
+    throw std::runtime_error("Wrong Json parsing");
+  }
+}
+
+void Boids::transferKernelInputsToGPU()
 {
   CL::Context& clContext = CL::Context::Get();
 
-  float vel = m_velocity;
-  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &vel);
-
-  std::array<float, 8> boidsParams;
-  boidsParams[0] = m_velocity;
-  boidsParams[1] = m_activeCohesion ? m_scaleCohesion : 0.0f;
-  boidsParams[2] = m_activeAlignment ? m_scaleAlignment : 0.0f;
-  boidsParams[3] = m_activeSeparation ? m_scaleSeparation : 0.0f;
-  boidsParams[4] = isTargetActivated() ? 1.0f : 0.0f;
-  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_2D, 3, sizeof(boidsParams), &boidsParams);
-  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_3D, 3, sizeof(boidsParams), &boidsParams);
+  const auto& boidsRuleKernelInputs = getKernelInput<BoidsRuleKernelInputs>(0);
+  clContext.setKernelArg(KERNEL_UPDATE_VEL, 2, sizeof(float), &boidsRuleKernelInputs.velocityScale);
+  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_2D, 3, sizeof(BoidsRuleKernelInputs), &boidsRuleKernelInputs);
+  clContext.setKernelArg(KERNEL_BOIDS_RULES_GRID_3D, 3, sizeof(BoidsRuleKernelInputs), &boidsRuleKernelInputs);
 
   if (isTargetActivated())
   {
-    const auto squaredRadiusEffect = targetRadiusEffect() * targetRadiusEffect();
-    const auto signEffect = targetSignEffect();
-    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(float), &squaredRadiusEffect);
-    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 3, sizeof(int), &signEffect);
+    const auto& targetKernelInputs = getKernelInput<TargetKernelInputs>(1);
+    clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 2, sizeof(TargetKernelInputs), &targetKernelInputs);
   }
 }
 
@@ -180,11 +230,37 @@ void Boids::reset()
   if (!m_init)
     return;
 
-  updateBoidsParamsInKernel();
+  resetInputJson(initBoidsJson);
 
-  CL::Context& clContext = CL::Context::Get();
+  switch (m_case)
+  {
+  case Utils::PhysicsCase::BOIDS_SMALL:
+  {
+    m_currNbParticles = Utils::NbParticles::P512;
+    break;
+  }
+  case Utils::PhysicsCase::BOIDS_MEDIUM:
+  {
+    m_currNbParticles = Utils::NbParticles::P16K;
+    break;
+  }
+  case Utils::PhysicsCase::BOIDS_LARGE:
+  {
+    m_currNbParticles = Utils::NbParticles::P65K;
+    break;
+  }
+  case Utils::PhysicsCase::BOIDS_XLARGE:
+  {
+    m_currNbParticles = Utils::NbParticles::P130K;
+    break;
+  }
+  }
+
+  updateModelWithInputJson(getInputJson());
 
   initBoidsParticles();
+
+  CL::Context& clContext = CL::Context::Get();
 
   clContext.acquireGLBuffers({ "p_pos", "p_col", "c_partDetector" });
 
@@ -274,7 +350,7 @@ void Boids::update()
 
     if (isTargetActivated())
     {
-      m_target.updatePos(m_dimension, m_velocity);
+      m_target.updatePos(m_dimension, getKernelInput<BoidsRuleKernelInputs>(0).velocityScale);
       auto targetXYZ = m_target.pos();
       std::array<float, 4> targetPos = { targetXYZ.x, targetXYZ.y, targetXYZ.z, 0.0f };
       clContext.setKernelArg(KERNEL_ADD_TARGET_RULE, 1, sizeof(float) * 4, &targetPos);

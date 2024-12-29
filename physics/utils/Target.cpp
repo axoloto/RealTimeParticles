@@ -41,7 +41,7 @@ void Target::updatePos(Geometry::Dimension dim, float particlesVel)
   float nR = m_pNoiseR.computeNoiseValue(m_perlinPos);
 
   // Adjusting target velocity to match followers ones
-  float velRatio = particlesVel / 35.0f;
+  float velRatio = particlesVel / 9.5f;
   // Mapping it to spheric coordinates to generate a pseudo random 3D trajectory remaining inside radius
   float radius = m_maxRadius * cos(12 * velRatio * PI * nR);
   m_pos.x = (dim == Geometry::Dimension::dim3D) ? (radius * cos(5 * velRatio * PI * nBeta)) : 0.0f;

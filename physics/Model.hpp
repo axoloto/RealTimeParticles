@@ -2,6 +2,7 @@
 
 #include "Geometry.hpp"
 #include "Math.hpp"
+#include "Parameters.hpp"
 
 #include <array>
 #include <map>
@@ -68,8 +69,10 @@ struct ModelParams
   unsigned int cameraVBO = 0;
   unsigned int gridVBO = 0;
   Geometry::Dimension dimension = Geometry::Dimension::dim3D;
+  Utils::PhysicsCase pCase = Utils::PhysicsCase::CASE_INVALID;
 };
 
+// Models Factory
 class Model;
 std::unique_ptr<Model> CreateModel(ModelType type, ModelParams params);
 
@@ -78,24 +81,25 @@ std::unique_ptr<Model> CreateModel(ModelType type, ModelParams params);
 class Model
 {
   public:
-  Model(ModelParams params)
+  Model(ModelParams params, json js = {})
       : m_maxNbParticles(params.maxNbParticles)
       , m_currNbParticles(params.currNbParticles)
       , m_boxSize(params.boxSize)
       , m_gridRes(params.gridRes)
       , m_nbCells(params.gridRes.x * params.gridRes.y * params.gridRes.z)
-      , m_velocity(params.velocity)
       , m_particlePosVBO(params.particlePosVBO)
       , m_particleColVBO(params.particleColVBO)
       , m_cameraVBO(params.cameraVBO)
       , m_gridVBO(params.gridVBO)
       , m_dimension(params.dimension)
+      , m_case(params.pCase)
       , m_boundary(Boundary::BouncingWall)
       , m_init(false)
       , m_pause(false)
-      , m_currentDisplayedQuantityName("") {};
+      , m_currentDisplayedQuantityName("")
+      , m_inputJson(js) {};
 
-  virtual ~Model();
+  virtual ~Model() {};
 
   size_t maxNbParticles() const { return m_maxNbParticles; }
 
@@ -123,9 +127,6 @@ class Model
   void pause(bool pause) { m_pause = pause; }
   bool onPause() const { return m_pause; }
 
-  virtual void setVelocity(float velocity) { m_velocity = velocity; }
-  float velocity() const { return m_velocity; }
-
   virtual Math::float3 targetPos() const { return { 0.0f, 0.0f, 0.0f }; }
   virtual bool isTargetActivated() const { return false; }
   virtual bool isTargetVisible() const { return false; }
@@ -146,9 +147,34 @@ class Model
   std::map<const std::string, PhysicalQuantity>::const_iterator cbeginDisplayablePhysicalQuantities() { return m_allDisplayableQuantities.cbegin(); }
   std::map<const std::string, PhysicalQuantity>::const_iterator cendDisplayablePhysicalQuantities() { return m_allDisplayableQuantities.cend(); }
 
-  bool isProfilingEnabled() const;
-  void enableProfiling(bool enable);
-  bool isUsingIGPU() const;
+  virtual bool isProfilingEnabled() const { return false; };
+  virtual void enableProfiling(bool enable) {};
+  virtual bool isUsingIGPU() const { return false; };
+
+  json getInputJson() const
+  {
+    return m_inputJson;
+  }
+
+  void resetInputJson(const json& newJson)
+  {
+    m_inputJson = newJson;
+  }
+
+  void updateInputJson(const json& newJson)
+  {
+    // No modification
+    if (json::diff(m_inputJson, newJson).empty())
+      return;
+
+    m_inputJson.merge_patch(newJson);
+    updateModelWithInputJson(m_inputJson);
+  }
+
+  virtual void updateModelWithInputJson(json& inputJson) = 0;
+
+  void setCase(Utils::PhysicsCase caseType) { m_case = caseType; }
+  const Utils::PhysicsCase getCase() const { return m_case; }
 
   protected:
   bool m_init;
@@ -162,9 +188,9 @@ class Model
   Geometry::BoxSize3D m_gridRes;
   size_t m_nbCells;
 
-  float m_velocity;
-
   Geometry::Dimension m_dimension;
+
+  Utils::PhysicsCase m_case;
 
   Boundary m_boundary;
 
@@ -178,5 +204,14 @@ class Model
   std::string m_currentDisplayedQuantityName;
   // All PhysicalQuantities that can be rendered
   std::map<const std::string, PhysicalQuantity> m_allDisplayableQuantities;
+
+  private:
+  // Container for model parameters available in UI
+  // Set as private to force a data transfer cascade within physics model
+  // and avoid source of truth confusion during physics processing.
+  // Derived classes must retrieve data from it within updateModelWithInputJson() and then transfer
+  // to their kernel inputs or strongly typed member vars.
+  // The cost of this approach is the copy overhead and the extra memory
+  json m_inputJson;
 };
 }

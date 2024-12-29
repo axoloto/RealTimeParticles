@@ -285,10 +285,25 @@ bool ParticleSystemApp::initPhysicsEngine()
   params.gridVBO = (unsigned int)m_graphicsEngine->gridDetectorVBO();
   params.dimension = m_graphicsEngine->dimension();
 
-  if (m_modelType == Physics::ModelType::CLOUDS)
+  switch (m_modelType)
   {
+  case Physics::BOIDS:
+  {
+    params.pCase = Utils::PhysicsCase::BOIDS_SMALL;
+    break;
+  }
+  case Physics::FLUIDS:
+  {
+    params.pCase = Utils::PhysicsCase::FLUIDS_DAM;
+    break;
+  }
+  case Physics::CLOUDS:
+  {
+    params.pCase = Utils::PhysicsCase::CLOUDS_CUMULUS;
     params.boxSize.y *= 2;
     params.gridRes.y *= 2;
+    break;
+  }
   }
 
   if (m_physicsEngine)
@@ -390,48 +405,10 @@ void ParticleSystemApp::displayMainWidget()
   if (!isInit())
     return;
 
-  // Selection of the physical model
-  const auto& selModelName = (Physics::ALL_MODELS.find(m_modelType) != Physics::ALL_MODELS.end())
-      ? Physics::ALL_MODELS.find(m_modelType)->second
-      : Physics::ALL_MODELS.cbegin()->second;
+  if (!selectPhysicalModel())
+    return;
 
-  if (ImGui::BeginCombo("Physical Model", selModelName.c_str()))
-  {
-    for (const auto& model : Physics::ALL_MODELS)
-    {
-      if (ImGui::Selectable(model.second.c_str(), m_modelType == model.first))
-      {
-        m_modelType = model.first;
-
-        if (!initGraphicsEngine())
-        {
-          LOG_ERROR("Failed to reset graphics engine");
-          return;
-        }
-
-        if (!initGraphicsWidget())
-        {
-          LOG_ERROR("Failed to reset graphics widget");
-          return;
-        }
-
-        if (!initPhysicsEngine())
-        {
-          LOG_ERROR("Failed to reset physics engine");
-          return;
-        }
-
-        if (!initPhysicsWidget())
-        {
-          LOG_ERROR("Failed to reset physics widget");
-          return;
-        }
-
-        LOG_INFO("Application correctly switched to {}", Physics::ALL_MODELS.find(m_modelType)->second);
-      }
-    }
-    ImGui::EndCombo();
-  }
+  selectPhysicalCase();
 
   bool isOnPaused = m_physicsEngine->onPause();
   std::string pauseRun = isOnPaused ? "  Start  " : "  Pause  ";
@@ -483,8 +460,130 @@ void ParticleSystemApp::displayMainWidget()
   ImGui::Separator();
   ImGui::Spacing();
 
+  selectPhysicalQuantity();
+
+  ImGui::Spacing();
+  ImGui::Separator();
+  ImGui::Spacing();
+
+  ImGui::SliderInt("Target FPS", &m_targetFps, 1, 60);
+
+  ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / m_currFps, m_currFps);
+
+// Apple is not very OpenCL friendly
+#ifndef __APPLE__
+  bool isProfiling = m_physicsEngine->isProfilingEnabled();
+  if (ImGui::Checkbox(" GPU Solver Profiling ", &isProfiling))
+  {
+    m_physicsEngine->enableProfiling(isProfiling);
+  }
+#endif
+
+  ImGui::End();
+}
+
+bool ParticleSystemApp::selectPhysicalModel()
+{
+  // Selection of the physical model
+  const auto& selModelName = (Physics::ALL_MODELS.find(m_modelType) != Physics::ALL_MODELS.end())
+      ? Physics::ALL_MODELS.find(m_modelType)->second
+      : Physics::ALL_MODELS.cbegin()->second;
+
+  if (ImGui::BeginCombo("Physical Model", selModelName.c_str()))
+  {
+    for (const auto& model : Physics::ALL_MODELS)
+    {
+      if (ImGui::Selectable(model.second.c_str(), m_modelType == model.first))
+      {
+        m_modelType = model.first;
+
+        if (!initGraphicsEngine())
+        {
+          LOG_ERROR("Failed to reset graphics engine");
+          return false;
+        }
+
+        if (!initGraphicsWidget())
+        {
+          LOG_ERROR("Failed to reset graphics widget");
+          return false;
+        }
+
+        if (!initPhysicsEngine())
+        {
+          LOG_ERROR("Failed to reset physics engine");
+          return false;
+        }
+
+        if (!initPhysicsWidget())
+        {
+          LOG_ERROR("Failed to reset physics widget");
+          return false;
+        }
+
+        LOG_INFO("Application correctly switched to {}", Physics::ALL_MODELS.find(m_modelType)->second);
+      }
+    }
+    ImGui::EndCombo();
+  }
+
+  return true;
+}
+
+void ParticleSystemApp::selectPhysicalCase()
+{
+  // Current physical case
+  auto selectedCaseType = m_physicsEngine->getCase();
+
+  // Using json to do the mapping to the equivalent string
+  std::string strCaseType = json(selectedCaseType);
+  if (ImGui::BeginCombo("Physical case", strCaseType.c_str()))
+  {
+    auto beginCaseType = Utils::PhysicsCase::CASE_INVALID;
+    auto endCaseType = Utils::PhysicsCase::CASE_INVALID;
+
+    switch (m_modelType)
+    {
+    case Physics::BOIDS:
+    {
+      beginCaseType = Utils::PhysicsCase::BOIDS_BEGIN;
+      endCaseType = Utils::PhysicsCase::BOIDS_END;
+      break;
+    }
+    case Physics::FLUIDS:
+    {
+      beginCaseType = Utils::PhysicsCase::FLUIDS_BEGIN;
+      endCaseType = Utils::PhysicsCase::FLUIDS_END;
+      break;
+    }
+    case Physics::CLOUDS:
+    {
+      beginCaseType = Utils::PhysicsCase::CLOUDS_BEGIN;
+      endCaseType = Utils::PhysicsCase::CLOUDS_END;
+      break;
+    }
+    }
+
+    for (int iCaseType = beginCaseType + 1; iCaseType != endCaseType; iCaseType++)
+    {
+      auto caseType = static_cast<Utils::PhysicsCase>(iCaseType);
+      strCaseType = json(caseType);
+
+      if (ImGui::Selectable(strCaseType.c_str(), selectedCaseType == caseType))
+      {
+        selectedCaseType = caseType;
+
+        m_physicsEngine->setCase(selectedCaseType);
+        m_physicsEngine->reset();
+      }
+    }
+    ImGui::EndCombo();
+  }
+}
+
+void ParticleSystemApp::selectPhysicalQuantity()
+{
   // Selection of the physical quantity to render through particles intensity color (will fill color buffer used by fragment shader)
-  // const auto& allDisplayableQuantities = m_physicsEngine->allDisplayablePhysicalQuantities();
   if (m_physicsEngine->cbeginDisplayablePhysicalQuantities() != m_physicsEngine->cendDisplayablePhysicalQuantities())
   {
     const auto& selDisplayedQuantityName = m_physicsEngine->currentDisplayedPhysicalQuantityName();
@@ -515,25 +614,6 @@ void ParticleSystemApp::displayMainWidget()
     const std::string maxStr = "Max ] " + Utils::FloatToStr(uMin, 2) + ", " + Utils::FloatToStr(sMax, 2) + " ]";
     ImGui::SliderFloat(maxStr.c_str(), &currentQuantity.userRange.second, uMin + eps, sMax, "%.3f");
   }
-
-  ImGui::Spacing();
-  ImGui::Separator();
-  ImGui::Spacing();
-
-  ImGui::SliderInt("Target FPS", &m_targetFps, 1, 60);
-
-  ImGui::Text(" %.3f ms/frame (%.1f FPS) ", 1000.0f / m_currFps, m_currFps);
-
-// Apple is not very OpenCL friendly
-#ifndef __APPLE__
-  bool isProfiling = m_physicsEngine->isProfilingEnabled();
-  if (ImGui::Checkbox(" GPU Solver Profiling ", &isProfiling))
-  {
-    m_physicsEngine->enableProfiling(isProfiling);
-  }
-#endif
-
-  ImGui::End();
 }
 
 bool ParticleSystemApp::popUpMessage(const std::string& title, const std::string& message) const

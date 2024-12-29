@@ -1,6 +1,7 @@
 file(GLOB SRC "*.cpp" "*.hpp")
 
 find_package(spdlog REQUIRED CONFIG)
+find_package(nlohmann_json REQUIRED CONFIG)
 
 add_library(utils ${SRC})
 
@@ -16,7 +17,7 @@ target_compile_definitions(utils PUBLIC -DVERSION_PATCH="${PROJECT_VERSION_PATCH
 message(STATUS "CMAKE Source Directory: ${CMAKE_SOURCE_DIR}")
 message(STATUS "CMAKE Install Directory: ${CMAKE_INSTALL_DIR}")
 
-target_link_libraries(utils PUBLIC spdlog::spdlog)
+target_link_libraries(utils PUBLIC spdlog::spdlog nlohmann_json::nlohmann_json)
 
 target_include_directories(utils INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
